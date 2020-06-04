@@ -1,0 +1,15 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: typelogic/android:latest
+    steps:
+      - checkout
+      - run: git submodule update --init
+      - run:
+          name: "Initial"
+          command: |
+              if test -f "build.sh"; then
+                  ./build.sh
+              fi
