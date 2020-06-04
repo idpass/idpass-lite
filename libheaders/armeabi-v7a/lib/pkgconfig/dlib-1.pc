@@ -1,0 +1,8 @@
+libdir=/home/circleci/project/libheaders/armeabi-v7a/lib
+includedir=/home/circleci/project/libheaders/armeabi-v7a/include
+
+Name: dlib
+Description: Numerical and networking C++ library
+Version: 19.19.99
+Libs: -L${libdir} -ldlib 
+Cflags: -I${includedir} 

@@ -1,0 +1,8 @@
+libdir=/home/circleci/project/libheaders/desktop/lib
+includedir=/home/circleci/project/libheaders/desktop/include
+
+Name: dlib
+Description: Numerical and networking C++ library
+Version: 19.19.99
+Libs: -L${libdir} -ldlib -lpthread
+Cflags: -I${includedir} 

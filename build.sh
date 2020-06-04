@@ -51,6 +51,6 @@ build_apps_idpassapi
 ;;
 
 *)
-#build_apps_idpassapi
+build_apps_idpassapi
 ;;
 esac
