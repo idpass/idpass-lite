@@ -1,0 +1,9 @@
+[submodule "submodules/dlib"]
+	path = submodules/dlib
+	url = https://github.com/davisking/dlib.git
+[submodule "submodules/libsodium"]
+	path = submodules/libsodium
+	url = https://github.com/jedisct1/libsodium.git
+[submodule "submodules/protobuf"]
+	path = submodules/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
