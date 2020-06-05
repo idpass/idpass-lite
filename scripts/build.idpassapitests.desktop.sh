@@ -19,4 +19,8 @@ cmake --build $build/idpassapitests/build.$ABI
 cp -a $project/lib/tests/data .
 ./idpassapitests
 
+if [ $? -eq 0 ];then
+    tar cvzpf $build/idpassapi/jniLibs.tar $build/idpassapi/jniLibs/
+fi
+
 cd $project
