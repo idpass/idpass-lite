@@ -13,3 +13,9 @@ jobs:
               if test -f "build.sh"; then
                   ./build.sh
               fi
+      - store_artifacts:
+          path: /home/circleci/project/build/idpassapi/jniLibs/
+          destination: android
+      - store_artifacts:
+          path: /home/circleci/project/build/idpassapi/desktop/
+          destination: buildmachine
