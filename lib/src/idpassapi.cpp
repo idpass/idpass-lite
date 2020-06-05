@@ -38,7 +38,10 @@
 #define MODULE_API
 #endif
 
-//char dxtracker[] = DXTRACKER;
+/////////////////////////////////////////////
+// `strings libidpassapi.so | grep DXTRACKER`
+// tells the commit hash that this library got built
+char dxtracker[] = DXTRACKER;
 
 struct Context {
     std::mutex ctxMutex;
