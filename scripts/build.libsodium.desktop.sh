@@ -2,7 +2,7 @@
 #
 
 export ABI=desktop
-export INSTALL_PREFIX=$libheaders/$ABI
+export INSTALL_PREFIX=$dependencies/build/$ABI
 
 d=$(dirname $0)
 cd $d

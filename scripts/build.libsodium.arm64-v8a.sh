@@ -2,7 +2,7 @@
 #
 
 export ABI=arm64-v8a
-export INSTALL_PREFIX=$libheaders/$ABI
+export INSTALL_PREFIX=$dependencies/build/$ABI
 export TOOLCHAIN=$toolchain/$platform.$ABI
 export SYSROOT=$TOOLCHAIN/sysroot
 export PATH=$TOOLCHAIN/bin:$PATH

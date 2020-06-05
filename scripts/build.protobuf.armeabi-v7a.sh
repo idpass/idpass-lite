@@ -3,7 +3,7 @@
 
 export ABI=armeabi-v7a
 export TOOLCHAIN=$toolchain/$platform.$ABI
-export INSTALL_PREFIX=$libheaders/$ABI
+export INSTALL_PREFIX=$dependencies/build/$ABI
 export SYSROOT=$TOOLCHAIN/sysroot
 export PATH=$TOOLCHAIN/bin:$PATH
 export CC="arm-linux-androideabi-clang --sysroot $SYSROOT"

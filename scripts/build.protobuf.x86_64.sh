@@ -3,7 +3,7 @@
 
 export ABI=x86_64
 export TOOLCHAIN=$toolchain/$platform.$ABI
-export INSTALL_PREFIX=$libheaders/$ABI
+export INSTALL_PREFIX=$dependencies/build/$ABI
 export SYSROOT=$TOOLCHAIN/sysroot
 export PATH=$TOOLCHAIN/bin:$PATH
 export CC="x86_64-linux-android-clang --sysroot $SYSROOT"

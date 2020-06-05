@@ -19,7 +19,7 @@ cmake \
     -DANDROID_NATIVE_API_LEVEL=$API_LEVEL \
     -DANDROID_STL=c++_static \
     -DANDROID_CPP_FEATURES="rtti exceptions" \
-    -S $project/apps/idpassapi/ -B $build/idpassapi/build.$ABI
+    -S $project/lib/src/ -B $build/idpassapi/build.$ABI
 
 cmake --build $build/idpassapi/build.$ABI
 make install

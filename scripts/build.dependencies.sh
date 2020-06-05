@@ -22,12 +22,12 @@ build_dlib() {
 }
 
 build_libsodium() {
-    cp $project/scripts/build.libsodium.*.sh $project/submodules/libsodium/
+    cp $project/scripts/build.libsodium.*.sh $project/dependencies/src/libsodium/
 
     for x in x86 x86_64 armeabi-v7a arm64-v8a desktop; do
         printf "Building libsodium $x: " >> $build/build.log
         t0=$(date +'%s')
-        $project/submodules/libsodium/build.libsodium.$x.sh
+        $project/dependencies/src/libsodium/build.libsodium.$x.sh
         [ $? -ne 0 ] && exit 1
         t1=$(date +'%s')
         d=$((t1-t0))
@@ -36,12 +36,12 @@ build_libsodium() {
 }
 
 build_protobuf() {
-    cp $project/scripts/build.protobuf.*.sh $project/submodules/protobuf/
+    cp $project/scripts/build.protobuf.*.sh $project/dependencies/src/protobuf/
 
     for x in x86 x86_64 armeabi-v7a arm64-v8a desktop; do
         printf "Building protobuf $x: " >> $build/build.log
         t0=$(date +'%s')
-        $project/submodules/protobuf/build.protobuf.$x.sh
+        $project/dependencies/src/protobuf/build.protobuf.$x.sh
         [ $? -ne 0 ] && exit 1
         t1=$(date +'%s')
         d=$((t1-t0))

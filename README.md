@@ -1,12 +1,15 @@
 # Description
 
+The build process is executed inside a Docker container from the image `newlogic42/circleci-android:latest`:
+
 ```
 git clone --recurse-submodules ssh://git@github.com/newlogic42/lab_idpassapi.git
 cd lab_idpassapi/
 ./build.sh
 ```
 
-Build outputs will be under the `build/` folder.
+The shared library libidpassapi.so` build output  will be under 
+the `build/idpassapi/jniLibs/` folder. 
 
 
 # Environment Variables Inside Container

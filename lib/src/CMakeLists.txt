@@ -25,15 +25,15 @@ if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI desktop)
 endif()
 
-set(LIBHEADERS_INCLUDE ${CMAKE_SOURCE_DIR}/../../libheaders/${CMAKE_ANDROID_ARCH_ABI}/include/)
-set(LIBHEADERS_LIB ${CMAKE_SOURCE_DIR}/../../libheaders/${CMAKE_ANDROID_ARCH_ABI}/lib/)
-set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../libheaders/desktop/bin/protoc)
+set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
+set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
 set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 set(OUTDIR ${CMAKE_SOURCE_DIR}/outdir/${CMAKE_ANDROID_ARCH_ABI}/)
 set(DLIBMODELS ${CMAKE_SOURCE_DIR}/models)
 
-if(NOT EXISTS ${LIBHEADERS_LIB}/libmodels.a)
+if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)
 endif()
 
@@ -64,12 +64,12 @@ add_library(idpassapi SHARED
 target_compile_definitions(idpassapi PRIVATE FACE_DIFF=0.42)
 
 target_include_directories(idpassapi PUBLIC
-    ${LIBHEADERS_INCLUDE}
+    ${DEPENDENCIES_INCLUDE}
     ${CMAKE_CURRENT_BINARY_DIR}
     )
 
 target_link_directories(idpassapi PUBLIC
-    ${LIBHEADERS_LIB}
+    ${DEPENDENCIES_LIB}
     )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")

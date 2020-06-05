@@ -14,9 +14,9 @@ if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI desktop)
 endif()
 
-set(LIBHEADERS_INCLUDE ${CMAKE_SOURCE_DIR}/../../libheaders/${CMAKE_ANDROID_ARCH_ABI}/include/)
-set(LIBHEADERS_LIB ${CMAKE_SOURCE_DIR}/../../libheaders/${CMAKE_ANDROID_ARCH_ABI}/lib/)
-set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../libheaders/desktop/bin/protoc)
+set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
+set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
 set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 set(OUTDIR ${CMAKE_SOURCE_DIR}/outdir/${CMAKE_ANDROID_ARCH_ABI}/)
@@ -41,14 +41,14 @@ add_executable(idpassapitests
     )
 
 target_include_directories(idpassapitests PUBLIC
-    ${LIBHEADERS_INCLUDE}
+    ${DEPENDENCIES_INCLUDE}
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_SOURCE_DIR}/../idpassapi/
+    ${CMAKE_SOURCE_DIR}/../src/
     ${GTEST}/include
     )
 
 target_link_directories(idpassapitests PUBLIC
-    ${LIBHEADERS_LIB}
+    ${DEPENDENCIES_LIB}
     ${CMAKE_SOURCE_DIR}/../../build/idpassapi/desktop/
     )
 

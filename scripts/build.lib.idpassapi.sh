@@ -23,8 +23,3 @@ mkdir -p $build/idpassapitests/build.desktop/
 cp $project/scripts/build.idpassapitests.desktop.sh $build/idpassapitests/build.desktop/
 cd $build/idpassapitests/build.desktop/
 ./build.idpassapitests.desktop.sh
-
-## Run Java JNI test client
-cd $project
-cd apps/javatests/
-./run.sh

@@ -5,7 +5,7 @@ d=$(dirname $0)
 cd $d
 
 ABI=arm64-v8a
-INSTALL_PREFIX=$libheaders/$ABI
+INSTALL_PREFIX=$dependencies/build/$ABI
 
 cmake \
     -DCMAKE_BUILD_TYPE=Release \
@@ -24,7 +24,7 @@ cmake \
     -DDLIB_USE_BLAS=FALSE \
     -DDLIB_USE_LAPACK=FALSE \
     -DANDROID_CPP_FEATURES="rtti exceptions" \
-    -S $project/submodules/dlib -B $build/dlib/build.$ABI
+    -S $project/dependencies/src/dlib -B $build/dlib/build.$ABI
 
 cmake --build $build/dlib/build.$ABI/
 make install

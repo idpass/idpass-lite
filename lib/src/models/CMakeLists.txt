@@ -18,18 +18,18 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/shape_predictor_5_face_lan
     COMMENT "Converting model shape_predictor_5_face_landmarks.dat ..."
     )
 
-if (LIBHEADERS_LIB)
-    install(TARGETS models DESTINATION ${LIBHEADERS_LIB})
-    #file(COPY ${CMAKE_CURRENT_BINARY_DIR}/libmodels.a DESTINATION ${LIBHEADERS_LIB})
+if (DEPENDENCIES_LIB)
+    install(TARGETS models DESTINATION ${DEPENDENCIES_LIB})
+    #file(COPY ${CMAKE_CURRENT_BINARY_DIR}/libmodels.a DESTINATION ${DEPENDENCIES_LIB})
     #add_custom_command(
     #    TARGET models POST_BUILD
     #    COMMAND ${CMAKE_COMMAND} -E copy
     #            ${CMAKE_CURRENT_BINARY_DIR}/libmodels.a
-    #            ${LIBHEADERS_LIB}/libmodels.a)
+    #            ${DEPENDENCIES_LIB}/libmodels.a)
 
     add_custom_command(TARGET models
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/libmodels.a ${LIBHEADERS_LIB}/libmodels.a
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/libmodels.a ${DEPENDENCIES_LIB}/libmodels.a
         COMMENT "*** Copying libmodels.a ***"
         )
 

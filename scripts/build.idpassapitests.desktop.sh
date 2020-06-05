@@ -11,12 +11,12 @@ cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
     -DCMAKE_POSITION_INDEPENDENT_CODE=1 \
-    -S $project/apps/idpassapitests -B $build/idpassapitests/build.$ABI
+    -S $project/lib/tests -B $build/idpassapitests/build.$ABI
 
 
 cmake --build $build/idpassapitests/build.$ABI
 #make install
-cp -a $project/apps/idpassapitests/data .
+cp -a $project/lib/tests/data .
 ./idpassapitests
 
 cd $project

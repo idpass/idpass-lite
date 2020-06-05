@@ -3,7 +3,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: typelogic/android:latest
+      - image: newlogic42/circleci-android:latest
     steps:
       - checkout
       - run: git submodule update --init
