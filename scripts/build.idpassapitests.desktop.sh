@@ -20,7 +20,7 @@ cp -a $project/lib/tests/data .
 ./idpassapitests
 
 if [ $? -eq 0 ];then
-    tar cvpf $build/idpassapi/jniLibs.tar $build/idpassapi/jniLibs/
+    tar cvjpf $build/idpassapi/jniLibs.tar.bz2 $build/idpassapi/jniLibs/
 fi
 
 cd $project

@@ -14,5 +14,4 @@ jobs:
                   ./build.sh
               fi
       - store_artifacts:
-          path: /home/circleci/project/build/idpassapi/jniLibs.tar
-          destination: jniLibs
+          path: /home/circleci/project/build/idpassapi/jniLibs.tar.bz2

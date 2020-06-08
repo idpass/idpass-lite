@@ -16,11 +16,11 @@ endif()
 
 set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
 set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/../src/)
+set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/../../build/idpassapi/desktop/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
 set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
-set(OUTDIR ${CMAKE_SOURCE_DIR}/outdir/${CMAKE_ANDROID_ARCH_ABI}/)
-set(DLIBMODELS ${CMAKE_SOURCE_DIR}/dlibmodels)
 
 set(idpassapitests_DEPENDS 
     protobuf
@@ -43,13 +43,13 @@ add_executable(idpassapitests
 target_include_directories(idpassapitests PUBLIC
     ${DEPENDENCIES_INCLUDE}
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_SOURCE_DIR}/../src/
+    ${IDPASSAPI_INCLUDE}
     ${GTEST}/include
     )
 
 target_link_directories(idpassapitests PUBLIC
     ${DEPENDENCIES_LIB}
-    ${CMAKE_SOURCE_DIR}/../../build/idpassapi/desktop/
+    ${IDPASSAPI_LIB}
     )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")
