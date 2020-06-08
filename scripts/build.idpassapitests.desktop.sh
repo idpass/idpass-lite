@@ -21,6 +21,7 @@ cp -a $project/lib/tests/data .
 
 if [ $? -eq 0 ];then
     tar cvjpf $build/idpassapi/jniLibs.tar.bz2 $build/idpassapi/jniLibs/
+    md5sum $build/idpassapi/jniLibs.tar.bz2 > $build/idpassapi/jniLibs.tar.bz2.md5sum
 fi
 
 cd $project

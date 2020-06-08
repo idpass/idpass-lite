@@ -16,3 +16,6 @@ jobs:
       - store_artifacts:
           path: /home/circleci/project/build/idpassapi/jniLibs.tar.bz2
           destination: jniLibs.tar.bz2
+      - store_artifacts:
+          path: /home/circleci/project/build/idpassapi/jniLibs.tar.bz2.md5sum
+          destination: jniLibs.tar.bz2.md5sum

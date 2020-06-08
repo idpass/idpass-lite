@@ -30,8 +30,6 @@ set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROI
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
 set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
-set(OUTDIR ${CMAKE_SOURCE_DIR}/outdir/${CMAKE_ANDROID_ARCH_ABI}/)
-set(DLIBMODELS ${CMAKE_SOURCE_DIR}/models)
 
 if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)
