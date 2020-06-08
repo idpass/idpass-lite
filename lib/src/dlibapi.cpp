@@ -105,7 +105,7 @@ using anet_type = dlib::loss_metric<dlib::fc_no_bias<
                                    2,
                                    dlib::input_rgb_image_sized<150>>>>>>>>>>>>>;
 
-// These externs are coming from the Dlib models inside  dlibmodels/ folder. 
+// These externs are coming from the Dlib dat files inside  models/ folder. 
 // The dat binary files are converted into C array using `xxd -i`. 
 // Github does not allow any file greater than 50MB size. 
 extern "C" unsigned char shape_predictor_5_face_landmarks_dat[];
