@@ -16,18 +16,13 @@
 #include <sstream>
 #include <vector>
 
-#ifndef _WIN32
-#ifdef __ANDROID__
-#include <android/log.h>
+#ifdef ANDROID
+  #include <android/log.h>
 
-#define LOGI(...)               \
-    ((void)__android_log_print( \
-        ANDROID_LOG_INFO, "dxlog::", __VA_ARGS__))
+  #define LOGI(...) \
+      ((void)__android_log_print(ANDROID_LOG_INFO, "idpassapi::helper", __VA_ARGS__))
 #else
-#define LOGI(...)
-#endif
-#else
-#define LOGI(...)
+  #define LOGI(...)
 #endif
 
 namespace helper

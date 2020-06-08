@@ -14,8 +14,5 @@ jobs:
                   ./build.sh
               fi
       - store_artifacts:
-          path: /home/circleci/project/build/idpassapi/jniLibs.tar.bz2
-          destination: android
-      - store_artifacts:
-          path: /home/circleci/project/build/idpassapi/desktop/
-          destination: buildmachine
+          path: /home/circleci/project/build/idpassapi/jniLibs.tar
+          destination: jniLibs
