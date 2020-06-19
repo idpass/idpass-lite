@@ -86,7 +86,7 @@ int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8
 bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y);
 
 int8_t qrcode_saveToBitmap(const unsigned char* data, int data_len, const char* bitmapfile);
-uint8_t* qrcode_getpixel(const unsigned char* data, int data_len, int* len, int*);
+uint8_t* qrcode_getpixel(const unsigned char* data, int data_len, int* len, int*, int ecc);
 
 #ifdef __cplusplus
 }

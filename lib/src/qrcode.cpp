@@ -851,12 +851,11 @@ int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8
     return 0;
 }
 
-uint8_t *qrcode_getpixel(const unsigned char *data, int data_len, int *len, int *buf_len)
+uint8_t *qrcode_getpixel(const unsigned char *data, int data_len, int *len, int *buf_len, int ecc)
 {
      // Create the QR code
     QRCode qrcode;
     int version = 1; // start with version 1
-    int ecc = 0;
 
     int status = qrcode_initText(
             &qrcode,

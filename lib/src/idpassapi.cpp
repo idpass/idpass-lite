@@ -255,8 +255,14 @@ idpass_api_encrypt_with_card(void* self,
     ciphertext_len = crypto_box_MACBYTES + data_len; // 16+
     ciphertext = new unsigned char[ciphertext_len];
 
+#ifdef _FIXVALS
+    unsigned char nonce[] = {0xf4, 0x29, 0x35, 0xfd, 0xd3, 0xdf, 0xab, 0xb0,
+                             0xc1, 0x8d, 0x28, 0xf9, 0x33, 0xef, 0xbc, 0x8c,
+                             0x20, 0xbd, 0x88, 0xf2, 0xd7, 0xb8, 0xa3, 0xef};
+#else
     unsigned char nonce[crypto_box_NONCEBYTES]; // 24
     randombytes_buf(nonce, sizeof nonce);
+#endif
 
     // Encrypt with our sk with an authentication tag of our pk
     if (crypto_box_easy(ciphertext, data, data_len, nonce, x25519_pk, x25519_sk)
@@ -634,7 +640,10 @@ MODULE_API unsigned char* idpass_api_qrpixel(void* self,
     Context* context = (Context*)self;
     std::lock_guard<std::mutex> guard(context->ctxMutex);
     int buf_len = 0;
-    unsigned char* buf = qrcode_getpixel(data, data_len, qrsize, &buf_len);
+    int ecc = 
+        //ECC_LOW;
+        ECC_MEDIUM;
+    unsigned char* buf = qrcode_getpixel(data, data_len, qrsize, &buf_len, ecc);
 
     if (buf == nullptr) {
         LOGI("idpass_api_qrpixel: error");
