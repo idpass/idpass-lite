@@ -1,5 +1,18 @@
 cmake_minimum_required(VERSION 3.10.1)
-project(idpassapi)
+project(idpass)
+
+if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
+    set(CMAKE_ANDROID_ARCH_ABI desktop)
+else()
+    set(JAVA_AWT_LIBRARY NotNeeded)
+    set(JAVA_JVM_LIBRARY NotNeeded)
+    set(JAVA_INCLUDE_PATH2 NotNeeded)
+    set(JAVA_AWT_INCLUDE_PATH NotNeeded)
+endif()
+
+find_package(Java REQUIRED)
+find_package(JNI REQUIRED)
+include(UseJava)
 
 find_package(Git)
 if(GIT_FOUND)
@@ -21,10 +34,6 @@ configure_file (
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
-if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
-    set(CMAKE_ANDROID_ARCH_ABI desktop)
-endif()
-
 set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
 set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
@@ -35,7 +44,7 @@ if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)
 endif()
 
-set(idpassapi_DEPENDS 
+set(idpass_DEPENDS 
     protobuf 
     sodium 
     dlib
@@ -48,9 +57,10 @@ add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
     COMMENT "Compiling card_access.proto ..."
     )
 
-add_library(idpassapi SHARED
+add_library(idpass SHARED
     ${PROTOGEN}/card_access.pb.cc
-    idpassapi.cpp
+    ${CMAKE_SOURCE_DIR}/jni/org/idpass/idpass_jni.cpp
+    idpass.cpp
     helper.cpp
     dlibapi.cpp
     qrcode.cpp
@@ -58,24 +68,25 @@ add_library(idpassapi SHARED
     dxtracker.h
     )
 
-# Dlib threshold adjustment from 0.6 to 0.42 
-target_compile_definitions(idpassapi PRIVATE FACE_DIFF=0.42)
+target_compile_definitions(idpass PRIVATE _IDPASS_JNI_)
 
-target_include_directories(idpassapi PUBLIC
+target_include_directories(idpass PUBLIC
     ${DEPENDENCIES_INCLUDE}
+    ${JNI_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
     )
 
-target_link_directories(idpassapi PUBLIC
+target_link_directories(idpass PUBLIC
     ${DEPENDENCIES_LIB}
+    ${JNI_LIBRARIES}
     )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")
-    set(idpassapi_DEPENDS ${idpassapi_DEPENDS} pthread)
+    set(idpass_DEPENDS ${idpass_DEPENDS} pthread)
 endif()
 
 # STATIC_LIBRARY, MODULE_LIBRARY, SHARED_LIBRARY, EXECUTABLE 
-get_target_property(target_type idpassapi TYPE)
+get_target_property(target_type idpass TYPE)
 if (target_type STREQUAL "SHARED_LIBRARY")
     if (CMAKE_BUILD_TYPE STREQUAL Release)
         add_custom_command(TARGET ${PROJECT_NAME}
@@ -85,5 +96,5 @@ if (target_type STREQUAL "SHARED_LIBRARY")
     endif()
 endif ()
 
-target_link_libraries(idpassapi ${idpassapi_DEPENDS})
-install(TARGETS idpassapi DESTINATION ${CMAKE_INSTALL_PREFIX})
+target_link_libraries(idpass ${idpass_DEPENDS})
+install(TARGETS idpass DESTINATION ${CMAKE_INSTALL_PREFIX})

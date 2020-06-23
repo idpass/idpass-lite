@@ -25,15 +25,11 @@ build_dependencies() {
 
 build_lib_idpassapi() {
     if iscontainer; then
-        scripts/build.lib.idpassapi.sh
+        scripts/build.lib.idpass.sh
     else
         # get latest updates
         #docker pull newlogic42/circleci-android:latest
-        docker run -it --user $(id -u):$(id -g) --rm \
-            -v `pwd`:$p \
-            -e API_LEVEL=$API_LEVEL \
-            newlogic42/circleci-android:latest \
-            $p/scripts/build.lib.idpassapi.sh
+        docker run -it --user $(id -u):$(id -g) --rm -v `pwd`:/home/circleci/project -e API_LEVEL=23 newlogic42/circleci-android:latest /home/circleci/project/scripts/build.lib.idpass.sh
     fi
 }
 

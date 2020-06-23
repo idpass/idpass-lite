@@ -877,7 +877,7 @@ uint8_t *qrcode_getpixel(const unsigned char *data, int data_len, int *len, int 
     *len = n;
     const int nn = (n * n + 7) / 8;
     unsigned char *pixels = new unsigned char[nn];
-    *buf_len = nn; // so that idpass-api.cpp can re-allocate 
+    *buf_len = nn; // so that idpass.cpp can re-allocate 
     std::memset(pixels, 0x00, nn);
 
     for (uint8_t y = 0; y < n; y++) {

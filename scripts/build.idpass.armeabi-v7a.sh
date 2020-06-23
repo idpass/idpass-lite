@@ -4,8 +4,8 @@
 d=$(dirname $0)
 cd $d
 
-ABI=x86_64
-INSTALL_PREFIX=$build/idpassapi/jniLibs/$ABI
+ABI=armeabi-v7a
+INSTALL_PREFIX=$build/idpass/jniLibs/$ABI
 
 cmake \
     -DCMAKE_BUILD_TYPE=Release \
@@ -19,9 +19,9 @@ cmake \
     -DANDROID_NATIVE_API_LEVEL=$API_LEVEL \
     -DANDROID_STL=c++_static \
     -DANDROID_CPP_FEATURES="rtti exceptions" \
-    -S $project/lib/src/ -B $build/idpassapi/build.$ABI
+    -S $project/lib/src/ -B $build/idpass/build.$ABI
 
-cmake --build $build/idpassapi/build.$ABI
+cmake --build $build/idpass/build.$ABI
 make install
 
 cd $project

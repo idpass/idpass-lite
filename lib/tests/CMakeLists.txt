@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.1)
-project(idpassapitests)
+project(idpasstests)
 
 set(GTEST $ENV{ANDROID_NDK_HOME}/sources/third_party/googletest/)
 add_library(gtest STATIC
@@ -17,15 +17,15 @@ endif()
 set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
 set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
 set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/../src/)
-set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/../../build/idpassapi/desktop/)
+set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/../../build/idpass/desktop/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
 set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 
-set(idpassapitests_DEPENDS 
+set(idpasstests_DEPENDS 
     protobuf
     sodium
-    idpassapi    
+    idpass    
     gtest
     )
 
@@ -35,28 +35,28 @@ add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
     COMMENT "Compiling card_access.proto ..."
     )
 
-add_executable(idpassapitests
+add_executable(idpasstests
     ${PROTOGEN}/card_access.pb.cc
-    idpassapitests.cpp
+    idpasstests.cpp
     )
 
-target_include_directories(idpassapitests PUBLIC
+target_include_directories(idpasstests PUBLIC
     ${DEPENDENCIES_INCLUDE}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${IDPASSAPI_INCLUDE}
     ${GTEST}/include
     )
 
-target_link_directories(idpassapitests PUBLIC
+target_link_directories(idpasstests PUBLIC
     ${DEPENDENCIES_LIB}
     ${IDPASSAPI_LIB}
     )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")
-	set(idpassapitests_DEPENDS ${idpassapitests_DEPENDS} pthread)
+	set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
 endif()
 
-set(idpassapitests_DEPENDS ${idpassapitests_DEPENDS} pthread)
-target_link_libraries(idpassapitests ${idpassapitests_DEPENDS})
+set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
+target_link_libraries(idpasstests ${idpasstests_DEPENDS})
 
-#install(TARGETS idpassapitests DESTINATION ${CMAKE_INSTALL_PREFIX})
+#install(TARGETS idpasstests DESTINATION ${CMAKE_INSTALL_PREFIX})

@@ -15,6 +15,7 @@
 #include <map>
 #include <sstream>
 #include <vector>
+#include <list>
 
 #ifdef ANDROID
   #include <android/log.h>
@@ -97,17 +98,20 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
 
     if (face_count == 1) { // only process if found 1 face
 
+        auto euclidean_diff = [](float face1[], float face2[], int n) {
+            double ret = 0.0;
+            for (int i = 0; i < n; i++) {
+                double dist
+                    = static_cast<double>(face1[i]) - static_cast<double>(face2[i]);
+                ret += dist * dist;
+            }
+            return ret > 0.0 ? (float)sqrt(ret) : (float)10.0;
+        };
+
         if (buf_len == 128 * 4) {
             bin16::f4b_to_f4(buf, 128 * 4, input_f4);
             // calculate vector distance
-            face_diff = [&input_f4, &F4]() {
-                double ret = 0.0;
-                for (int i = 0; i < 128; i++) {
-                    double dist = static_cast<double>(input_f4[i]) - static_cast<double>(F4[i]);
-                    ret += dist * dist;
-                }
-                return ret > 0.0 ? sqrt(ret) : 0.0;
-            }();
+            face_diff = euclidean_diff(input_f4, F4, 128);
         } else {
             float photoFace[128];
             bin16::f4_to_f2(F4, 128, photoFace);
@@ -115,15 +119,7 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
             bin16::f2b_to_f2(buf, buf_len, cardAccessFace);
 
             // calculate vector distance
-            face_diff = [&cardAccessFace, &photoFace]() {
-                double ret = 0.0;
-                for (int i = 0; i < 64; i++) { // only the first 64
-                    double dist = static_cast<double>(cardAccessFace[i])
-                                  - static_cast<double>(photoFace[i]);
-                    ret += dist * dist;
-                }
-                return ret > 0.0 ? sqrt(ret) : 0.0;
-            }();
+            face_diff = euclidean_diff(cardAccessFace, photoFace, 64);
         }
 
     } else if (face_count == 0) {
@@ -137,7 +133,9 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
 
 bool decryptCard(unsigned char* encrypted_card,
                  int encrypted_card_len,
-                 unsigned char* encryptionKey,
+                 const unsigned char* encryptionKey,
+                 const unsigned char* signatureKey,
+                 const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> &verificationKeys,
                  idpass::SignedIDPassCard& ecard)
 {
     unsigned char* cardserialized
@@ -147,8 +145,11 @@ bool decryptCard(unsigned char* encrypted_card,
     unsigned long long decrypted_len;
 
     unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+
     std::memcpy(
-        nonce, encrypted_card, crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
+        nonce, 
+        encrypted_card, 
+        crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
 
     if (crypto_aead_chacha20poly1305_ietf_decrypt(
             cardserialized,
@@ -160,13 +161,77 @@ bool decryptCard(unsigned char* encrypted_card,
             0,
             nonce,
             encryptionKey)
-        != 0) {
+    != 0) {
         LOGI("decrypt error");
+        delete[] cardserialized;
         return false;
     }
 
-    bool flag = ecard.ParseFromArray(cardserialized, decrypted_len);
+    const bool flag = ecard.ParseFromArray(cardserialized, decrypted_len);
     delete[] cardserialized;
+
+    if (flag) {
+        // extract signerPublicKey and card member fields
+        std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> signerPublicKey;
+        std::copy(
+            ecard.signerpublickey().c_str(),
+            ecard.signerpublickey().c_str() + crypto_sign_PUBLICKEYBYTES,
+            std::begin(signerPublicKey));
+
+        // Check if signerPublicKey is in trusted list
+        if (std::find(
+            verificationKeys.begin(),
+            verificationKeys.end(),
+            signerPublicKey)
+         == verificationKeys.end()) {
+            LOGI("signerPublicKey not found");
+            return false; 
+        }
+
+        // Compute signature of card and then compare 
+        // against ecard.signature().c_str()
+        int buf_len = ecard.card().ByteSizeLong();
+        unsigned char* buf = new unsigned char[buf_len];
+
+        if (!ecard.card().SerializeToArray(buf, buf_len)) {
+            LOGI("serialize error1");
+            delete[] buf;
+            return false;
+        }
+
+        unsigned char* signature = new unsigned char[buf_len + crypto_sign_BYTES];
+        unsigned long long signature_len;
+
+        // sign the idpass::IDPassCard object with sig_skpk
+        if (crypto_sign(signature,
+                        &signature_len,
+                        buf,
+                        buf_len,
+                        signatureKey)
+        != 0) {
+            LOGI("crypto_sign error");
+            delete[] buf;
+            delete[] signature;
+            return false;
+        }
+
+        delete[] buf;
+
+        // Compare the signature against what is 
+        // computed
+        if (std::memcmp(
+            signature, 
+            ecard.signature().c_str(), 
+            signature_len) 
+        != 0) {
+            LOGI("card signature invalid");
+            delete[] signature;
+            return false;
+        }
+
+        delete[] signature;
+    }
+
     return flag;
 }
 

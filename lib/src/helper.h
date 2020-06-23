@@ -9,6 +9,7 @@
 #include <map>
 #include <sstream>
 #include <vector>
+#include <list>
 
 namespace helper
 {
@@ -17,24 +18,22 @@ std::map<std::string, std::string> parseToMap(std::string& s);
 
 int dlib_computeface128d(char* photo, int photo_len, unsigned char* f128d);
 
-double computeFaceDiff(char* photo, int photo_len, const std::string& facearray);
+double
+computeFaceDiff(char* photo, int photo_len, const std::string& facearray);
 
 bool decryptCard(unsigned char* encrypted_card,
-                                     int encrypted_card_len,
-                                     unsigned char* encryptionKey,
-    idpass::SignedIDPassCard&);
+                 int encrypted_card_len,
+                 const unsigned char* encryptionKey,
+                 const unsigned char* signatureKey,
+                 const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> &verificationKeys,
+                 idpass::SignedIDPassCard&);
 
 std::vector<float> get128f(unsigned char* facearray, int facearray_len);
 
 double vectorDistance(float* first, float* last, float* first2);
 
-
 std::vector<char> readfile(const char* filename);
 
-/////////////////
-float half_to_float(const unsigned short x);
-unsigned short float_to_half(const float x);
-/////////////////
 }
 
 #endif // __cplusplus
