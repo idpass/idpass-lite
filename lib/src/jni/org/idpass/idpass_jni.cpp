@@ -55,7 +55,7 @@ idpass_init(JNIEnv *env,
         return reinterpret_cast<long>(ctx); // no error
     } else {
         LOGI("idpass_api_init fail: sodium_init");
-        return 0; // sodium_init failed
+        return 0; 
     }
 }
 

@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 
 #include "dlibapi.h"
-#include "protogen/card_access.pb.h"
+#include "proto/card_access/card_access.pb.h"
 
 #include <cmath>
 #include <fstream>
@@ -178,7 +178,7 @@ bool decryptCard(unsigned char* encrypted_card,
             ecard.signerpublickey().c_str() + crypto_sign_PUBLICKEYBYTES,
             std::begin(signerPublicKey));
 
-        // Check if signerPublicKey is in trusted list
+        // Check signerPublicKey is in our trusted list
         if (std::find(
             verificationKeys.begin(),
             verificationKeys.end(),
@@ -188,48 +188,29 @@ bool decryptCard(unsigned char* encrypted_card,
             return false; 
         }
 
-        // Compute signature of card and then compare 
-        // against ecard.signature().c_str()
         int buf_len = ecard.card().ByteSizeLong();
         unsigned char* buf = new unsigned char[buf_len];
 
+        // Seriliaze the card for signature verification
         if (!ecard.card().SerializeToArray(buf, buf_len)) {
             LOGI("serialize error1");
             delete[] buf;
             return false;
         }
 
-        unsigned char* signature = new unsigned char[buf_len + crypto_sign_BYTES];
-        unsigned long long signature_len;
-
-        // sign the idpass::IDPassCard object with sig_skpk
-        if (crypto_sign(signature,
-                        &signature_len,
-                        buf,
-                        buf_len,
-                        signatureKey)
+        // verify the signature of idpass::IDPassCard against signerpublic key.
+        if (crypto_sign_verify_detached(
+            reinterpret_cast<const unsigned char*>(ecard.signature().c_str()), 
+            buf,
+            buf_len,
+            reinterpret_cast<const unsigned char*>(ecard.signerpublickey().c_str()))
         != 0) {
             LOGI("crypto_sign error");
             delete[] buf;
-            delete[] signature;
             return false;
         }
 
         delete[] buf;
-
-        // Compare the signature against what is 
-        // computed
-        if (std::memcmp(
-            signature, 
-            ecard.signature().c_str(), 
-            signature_len) 
-        != 0) {
-            LOGI("card signature invalid");
-            delete[] signature;
-            return false;
-        }
-
-        delete[] signature;
     }
 
     return flag;

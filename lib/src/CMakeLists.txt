@@ -38,7 +38,7 @@ set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_AN
 set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
-set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
+set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/card_access/)
 
 if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)

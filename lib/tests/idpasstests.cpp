@@ -236,14 +236,19 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
         img1.size(),
         "12345");
 
+    idpass::IDPassCards cards;
+    cards.ParseFromArray(ecard, ecard_len);
+	unsigned char* e_card = (unsigned char*)cards.encryptedcard().c_str();
+	int e_card_len = cards.encryptedcard().size();
+
     const char* data = "this is a test message";
 
     int signature_len;
     unsigned char* signature = idpass_api_sign_with_card(
         ctx,
         &signature_len,
-        ecard,
-        ecard_len,
+		e_card,
+		e_card_len,
         (unsigned char*)data,
         std::strlen(data));
 
@@ -253,8 +258,8 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
     unsigned char* card = idpass_api_verify_card_with_pin(
         ctx, 
         &card_len, 
-        ecard, 
-        ecard_len, 
+		e_card,
+		e_card_len,
         "12345");
 
     idpass::CardDetails cardDetails;
@@ -289,14 +294,25 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
         img1.size(),
         "12345");
 
+    idpass::IDPassCards cards;
+    cards.ParseFromArray(ecard, ecard_len);
+	unsigned char* e_card =(unsigned char*)cards.encryptedcard().c_str();
+	int e_card_len = cards.encryptedcard().size();
+
     int details_len;
     unsigned char* details = idpass_api_verify_card_with_face(
-        ctx, &details_len, ecard, ecard_len, img3.data(), img3.size());
+        ctx, &details_len, 
+		e_card,
+		e_card_len,
+		img3.data(), img3.size());
 
     ASSERT_TRUE(nullptr == details); // different person's face should not verify
 
     details = idpass_api_verify_card_with_face(
-        ctx, &details_len, ecard, ecard_len, img2.data(), img2.size());
+        ctx, &details_len, 
+		e_card, 
+		e_card_len, 
+		img2.data(), img2.size());
 
     ASSERT_TRUE(nullptr != details); // same person's face should verify
 

@@ -3,7 +3,7 @@
 #define HELPER_H
 
 #ifdef __cplusplus
-#include "protogen/card_access.pb.h"
+#include "proto/card_access/card_access.pb.h"
 
 #include <functional>
 #include <map>

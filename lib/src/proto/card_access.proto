@@ -73,3 +73,14 @@ message SignedIDPassCard {
     bytes signature = 2;
     bytes signerPublicKey = 3;
 }
+
+message PublicSignedIDPassCard {
+    CardDetails details = 1;
+    bytes signature = 2;
+    bytes signerPublicKey = 3;
+}
+
+message IDPassCards {
+    PublicSignedIDPassCard publicCard = 1;
+    bytes encryptedCard = 2;
+}

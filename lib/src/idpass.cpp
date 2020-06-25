@@ -1,6 +1,6 @@
 #include "dlibapi.h"
 #include "sodium.h"
-#include "protogen/card_access.pb.h"
+#include "proto/card_access/card_access.pb.h"
 #include "qrcode.h"
 #include "bin16.h"
 #include "helper.h"
@@ -263,7 +263,7 @@ idpass_api_create_card_with_face(void* self,
     *outlen = 0;
 
     unsigned char* eSignedIdpasscardbuf = nullptr;
-#ifdef _FIXVALS
+#ifdef _FIXVALS_
     unsigned long int epochSeconds = 0;
 #else
     unsigned long int epochSeconds = std::time(nullptr);
@@ -316,7 +316,7 @@ idpass_api_create_card_with_face(void* self,
         pp->set_value(q.second);
     }
 
-#ifdef _FIXVALS
+#ifdef _FIXVALS_
     unsigned char ed25519_pk[] = {
         0x8b, 0xf0, 0x65, 0xb1, 0x06, 0x11, 0x5f, 0x13, 
         0x95, 0x6e, 0xbf, 0xf2, 0x9b, 0x8c, 0xdc, 0x33, 
@@ -353,12 +353,12 @@ idpass_api_create_card_with_face(void* self,
         return nullptr;
     }
 
-    unsigned char* card_signature = new unsigned char[buf_len + crypto_sign_BYTES];
+    unsigned char* signature = new unsigned char[crypto_sign_BYTES];
     unsigned long long signature_len;
 
     // sign the idpass::IDPassCard object with sig_skpk
-    if (crypto_sign(
-            card_signature, 
+    if (crypto_sign_detached(
+            signature, 
             &signature_len, 
             buf, 
             buf_len, 
@@ -369,18 +369,18 @@ idpass_api_create_card_with_face(void* self,
         return nullptr;
     }
 
-    delete[] buf;
- 
+    delete[] buf; 
+
     idpass::SignedIDPassCard signedCard;
     signedCard.mutable_card()->CopyFrom(card);
-    signedCard.set_signature(card_signature, signature_len);
+    signedCard.set_signature(signature, signature_len);
 
     unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
     crypto_sign_ed25519_sk_to_pk(public_key, context->signatureKey.data());
 
     signedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
 
-    delete[] card_signature;
+    delete[] signature;
 
     buf_len = signedCard.ByteSizeLong();
     buf = new unsigned char[buf_len];
@@ -391,7 +391,7 @@ idpass_api_create_card_with_face(void* self,
         return nullptr;
     }
 
-#ifdef _FIXVALS
+#ifdef _FIXVALS_
     unsigned char nonce[] = {
         0xd9, 0xc3, 0xf0, 0x16, 0x81, 0xf5, 0x77, 0x9f, 
         0x96, 0xc6, 0x42, 0x00};
@@ -416,12 +416,16 @@ idpass_api_create_card_with_face(void* self,
             context->encryptionKey.data())
     != 0) {
         LOGI("ietf_encrypt failed");
+        delete[] buf;
         delete[] eSignedIdpasscardbuf;
         return nullptr;
     }
 
+    delete[] buf;
+    const int nonce_plus_eSignedIdpasscardbuf_len = sizeof nonce + ciphertext_len;
     unsigned char* nonce_plus_eSignedIdpasscardbuf
-        = context->NewByteArray(sizeof nonce + ciphertext_len);
+        //= context->NewByteArray(sizeof nonce + ciphertext_len);
+        = new unsigned char[nonce_plus_eSignedIdpasscardbuf_len];
 
     std::memcpy(
         nonce_plus_eSignedIdpasscardbuf, 
@@ -433,12 +437,61 @@ idpass_api_create_card_with_face(void* self,
         eSignedIdpasscardbuf,
         ciphertext_len);
 
-    *outlen = sizeof nonce + ciphertext_len;
-
-    delete[] buf;
     delete[] eSignedIdpasscardbuf;
 
-    return nonce_plus_eSignedIdpasscardbuf;
+    // HERE ....
+    buf_len = details.ByteSizeLong();
+    buf = new unsigned char[buf_len];
+
+    if (!details.SerializeToArray(buf, buf_len)) {
+        LOGI("serialize error1");
+        delete[] buf;
+        delete[] nonce_plus_eSignedIdpasscardbuf;
+        return nullptr;
+    }
+
+    signature = new unsigned char[crypto_sign_BYTES];
+
+    // sign the idpass::IDPassCard object with sig_skpk
+    if (crypto_sign_detached(
+            signature, 
+            &signature_len, 
+            buf, 
+            buf_len, 
+            context->signatureKey.data()) 
+    != 0) {
+        LOGI("crypto_sign error");
+        delete[] buf;
+        delete[] nonce_plus_eSignedIdpasscardbuf;
+        delete[] signature;
+        return nullptr;
+    }
+
+    idpass::PublicSignedIDPassCard publicSignedCard;
+    publicSignedCard.mutable_details()->CopyFrom(details);
+    publicSignedCard.set_signature(signature, signature_len);
+    publicSignedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
+
+    delete[] signature;
+    delete[] buf;
+
+    idpass::IDPassCards idpassCards;
+    idpassCards.mutable_publiccard()->CopyFrom(publicSignedCard);
+    idpassCards.set_encryptedcard(nonce_plus_eSignedIdpasscardbuf, nonce_plus_eSignedIdpasscardbuf_len);
+
+    delete[] nonce_plus_eSignedIdpasscardbuf;
+
+    buf_len = idpassCards.ByteSizeLong();
+    buf = context->NewByteArray(buf_len);
+
+    if (!idpassCards.SerializeToArray(buf, buf_len)) {
+        LOGI("serialize error9");
+        context->ReleaseByteArray(buf);
+        return nullptr;
+    }
+
+    *outlen = buf_len;
+    return buf;
 }
 
 // Returns CardDetails object if face matches
@@ -567,15 +620,15 @@ idpass_api_encrypt_with_card(void* self,
 
     unsigned char x25519_pk[crypto_scalarmult_curve25519_BYTES]; // 32
     unsigned char x25519_sk[crypto_scalarmult_curve25519_BYTES]; // 32
-    int ret;
-    ret = crypto_sign_ed25519_pk_to_curve25519(x25519_pk, ed25519_pk);
-    ret = crypto_sign_ed25519_sk_to_curve25519(x25519_sk, ed25519_skpk);
+
+    crypto_sign_ed25519_pk_to_curve25519(x25519_pk, ed25519_pk);
+    crypto_sign_ed25519_sk_to_curve25519(x25519_sk, ed25519_skpk);
 
     ///////////////////////////////////////////////////////////////////////////
     ciphertext_len = crypto_box_MACBYTES + data_len; // 16+
     ciphertext = new unsigned char[ciphertext_len];
 
-#ifdef _FIXVALS
+#ifdef _FIXVALS_
     unsigned char nonce[] = {
         0xf4, 0x29, 0x35, 0xfd, 0xd3, 0xdf, 0xab, 0xb0,
         0xc1, 0x8d, 0x28, 0xf9, 0x33, 0xef, 0xbc, 0x8c,
@@ -645,11 +698,11 @@ idpass_api_sign_with_card(void* self,
         return nullptr;
     }
 
-    signature = context->NewByteArray(data_len + crypto_sign_BYTES);
+    signature = context->NewByteArray(crypto_sign_BYTES);
     unsigned long long smlen;
 
     // use ed25519 to sign
-    if (crypto_sign(
+    if (crypto_sign_detached(
             signature,
             &smlen,
             data,
@@ -657,13 +710,11 @@ idpass_api_sign_with_card(void* self,
             (const unsigned char*)signedCard.card().encryptionkey().c_str())
     != 0) {
         LOGI("crypto_sign: error");
-        // delete[] signature;
         context->ReleaseByteArray(signature);
         return nullptr;
     }
 
     *outlen = smlen;
-
     return signature;
 }
 
