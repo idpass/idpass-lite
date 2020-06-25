@@ -124,6 +124,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 struct Context 
 {
     std::mutex ctxMutex;
+    std::mutex mtx;
     std::vector<std::vector<unsigned char>> m;
 
     std::array<unsigned char, crypto_aead_chacha20poly1305_IETF_KEYBYTES> encryptionKey; // 32
@@ -137,12 +138,14 @@ struct Context
 
     unsigned char* NewByteArray(int n) 
     {
+        std::lock_guard<std::mutex> guard(mtx);
         m.emplace_back(n);
         return m.back().data();
     }
 
     void ReleaseByteArray(unsigned char* addr)
     {
+        std::lock_guard<std::mutex> guard(mtx);
         std::vector<std::vector<unsigned char>>::iterator mit;
         for (mit = m.begin(); mit != m.end();) {
             if (mit->data() == addr) {
@@ -235,8 +238,6 @@ MODULE_API
 void idpass_api_freemem(void* self, unsigned char* buf)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
-
     context->ReleaseByteArray(buf);
 }
 
@@ -259,7 +260,6 @@ idpass_api_create_card_with_face(void* self,
                                  const char* pin)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
     *outlen = 0;
 
     unsigned char* eSignedIdpasscardbuf = nullptr;
@@ -424,7 +424,6 @@ idpass_api_create_card_with_face(void* self,
     delete[] buf;
     const int nonce_plus_eSignedIdpasscardbuf_len = sizeof nonce + ciphertext_len;
     unsigned char* nonce_plus_eSignedIdpasscardbuf
-        //= context->NewByteArray(sizeof nonce + ciphertext_len);
         = new unsigned char[nonce_plus_eSignedIdpasscardbuf_len];
 
     std::memcpy(
@@ -504,7 +503,6 @@ idpass_api_verify_card_with_face(void* self,
                                  int photo_len)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
     *outlen = 0;
 
     idpass::SignedIDPassCard signedCard;
@@ -545,7 +543,6 @@ idpass_api_verify_card_with_pin(void* self,
                                 const char* pin)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
     *outlen = 0;
 
     idpass::SignedIDPassCard signedCard;
@@ -590,7 +587,6 @@ idpass_api_encrypt_with_card(void* self,
                              int data_len)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
     *outlen = 0;
 
     unsigned char* ciphertext = nullptr;
@@ -682,7 +678,6 @@ idpass_api_sign_with_card(void* self,
                           int data_len)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
     *outlen = 0;
 
     unsigned char* signature = nullptr;
@@ -725,7 +720,6 @@ MODULE_API unsigned char* idpass_api_qrpixel(void* self,
                                              int* qrsize)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
     int buf_len = 0;
 
     unsigned char* buf = qrcode_getpixel(
@@ -841,8 +835,6 @@ MODULE_API int
 idpass_api_face128d(void* self, char* photo, int photo_len, float* faceArray)
 {
     Context* context = (Context*)self;
-    // Dlib can handle multithreaded
-    // std::lock_guard<std::mutex> guard(context->ctxMutex);
     return dlib_api::computeface128d(photo, photo_len, faceArray);
 }
 
@@ -852,8 +844,6 @@ MODULE_API int idpass_api_face128dbuf(void* self,
                                       unsigned char* buf)
 {
     Context* context = (Context*)self;
-    // Dlib can handle multithreaded
-    // std::lock_guard<std::mutex> guard(context->ctxMutex);
     float f4[128];
     int face_count = dlib_api::computeface128d(photo, photo_len, f4);
 
@@ -870,8 +860,6 @@ MODULE_API int idpass_api_face64dbuf(void* self,
                                      unsigned char* buf)
 {
     Context* context = (Context*)self;
-    // Dlib can handle multithreaded
-    // std::lock_guard<std::mutex> guard(context->ctxMutex);
     float f4[128];
     int face_count = dlib_api::computeface128d(photo, photo_len, f4);
 
@@ -889,7 +877,6 @@ MODULE_API int idpass_api_saveToBitmap(void* self,
                                        const char* bitmapfile)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
 
     return qrcode_saveToBitmap(data, data_len, bitmapfile);
 }
@@ -904,7 +891,6 @@ unsigned char* protobuf_test(void* self,
                              const char* extras)
 {
     Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
 
     unsigned long int epochSeconds = std::time(nullptr);
     idpass::CardDetails details;

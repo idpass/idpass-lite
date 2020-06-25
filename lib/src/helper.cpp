@@ -105,7 +105,7 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
                     = static_cast<double>(face1[i]) - static_cast<double>(face2[i]);
                 ret += dist * dist;
             }
-            return ret > 0.0 ? (float)sqrt(ret) : (float)10.0;
+            return ret >= 0.0 ? (float)sqrt(ret) : (float)10.0;
         };
 
         if (buf_len == 128 * 4) {
