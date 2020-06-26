@@ -51,6 +51,109 @@ unsigned char verification_pk[] = {
   0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4
 }; // 32
 
+
+// A single instance of idpass_api_init context
+// called in multiple threads
+void single_instance_test(void* ctx)
+{
+    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    ASSERT_TRUE(f1.is_open());
+
+    std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
+    int card_len;
+    unsigned char* card = idpass_api_create_card_with_face(ctx,
+                                                           &card_len,
+                                                           "Doe",
+                                                           "John",
+                                                           "1980/12/25",
+                                                           "USA",
+                                                           "gender:male",
+                                                           photo.data(),
+                                                           photo.size(),
+                                                           "12345");
+    idpass::IDPassCards cards;
+    cards.ParseFromArray(card, card_len);
+    std::cout << cards.publiccard().details().surname();
+
+    unsigned char* ecard = (unsigned char*)cards.encryptedcard().data();
+    int ecard_len = cards.encryptedcard().size();
+
+    int buf_len;
+    unsigned char* buf = idpass_api_verify_card_with_face(
+        ctx, &buf_len, ecard, ecard_len, photo.data(), photo.size());
+
+    ASSERT_TRUE(buf != nullptr);
+
+    if (buf) {
+        idpass::CardDetails details;
+        bool flag = details.ParseFromArray(buf, buf_len);
+        ASSERT_TRUE(flag);
+        if (flag) {
+            std::cout << details.surname() << std::flush;
+        }
+    }
+}
+
+// Multiple different instances of idpass_api_init contexts
+// called in multiple threads per contexts
+void multiple_instance_test()
+{
+    unsigned char enc[crypto_aead_chacha20poly1305_IETF_KEYBYTES];
+    unsigned char sig_skpk[crypto_sign_SECRETKEYBYTES];
+    unsigned char sig_pk[crypto_sign_PUBLICKEYBYTES];
+    unsigned char verif_pk[crypto_sign_PUBLICKEYBYTES];
+
+    crypto_aead_chacha20poly1305_keygen(enc);
+    crypto_sign_keypair(sig_pk, sig_skpk);
+    std::memcpy(verif_pk, sig_pk, crypto_sign_PUBLICKEYBYTES);
+
+    void* context = idpass_api_init(enc,
+                               crypto_aead_chacha20poly1305_IETF_KEYBYTES,
+                               sig_skpk,
+                               crypto_sign_SECRETKEYBYTES,
+                               verif_pk,
+                               crypto_sign_PUBLICKEYBYTES);
+    printf("context = %p\n", context);
+
+    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    ASSERT_TRUE(f1.is_open());
+
+    std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
+    int card_len;
+    unsigned char* card = idpass_api_create_card_with_face(context,
+                                                           &card_len,
+                                                           "Doe",
+                                                           "John",
+                                                           "1980/12/25",
+                                                           "USA",
+                                                           "gender:male",
+                                                           photo.data(),
+                                                           photo.size(),
+                                                           "12345");
+    idpass::IDPassCards cards;
+    cards.ParseFromArray(card, card_len);
+    std::cout << cards.publiccard().details().surname();
+
+    unsigned char* ecard = (unsigned char*)cards.encryptedcard().data();
+    int ecard_len = cards.encryptedcard().size();
+
+    int buf_len;
+    unsigned char* buf = idpass_api_verify_card_with_face(
+        context, &buf_len, ecard, ecard_len, photo.data(), photo.size());
+
+    ASSERT_TRUE(buf != nullptr);
+
+    if (buf) {
+        idpass::CardDetails details;
+        bool flag = details.ParseFromArray(buf, buf_len);
+        ASSERT_TRUE(flag);
+        if (flag) {
+            std::cout << details.surname() << std::flush;
+        }
+    }
+}
+
+
 void savetobitmap(int qrcode_size, unsigned char* pixelbits,
     const char* outfile = "/tmp/qrcode.bmp")
 {
@@ -98,7 +201,7 @@ void savetobitmap(int qrcode_size, unsigned char* pixelbits,
     fwrite(header, 1, 54, fout);
     fwrite(pixelbytes, 1, size, fout);
 
-#ifdef _FIXVALS
+#ifdef _FIXVALS_
     unsigned char hash[crypto_generichash_BYTES];
     crypto_generichash(hash, sizeof hash, pixelbytes, size, NULL, 0);
     ASSERT_TRUE(0 == std::memcmp(hash, knownHash, crypto_generichash_BYTES));
@@ -139,6 +242,8 @@ protected:
         // Gets the time when the test finishes
         const time_t end_time = time(nullptr);
     }
+
+
 };
 
 TEST_F(idpass_api_tests, check_qrcode_md5sum)
@@ -323,6 +428,38 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
 	// Once verified, the details field should match
     ASSERT_STREQ(cardDetails.surname().c_str(), "Pacquiao");
     ASSERT_STREQ(cardDetails.givenname().c_str(), "Manny"); 
+}
+
+TEST_F(idpass_api_tests, threading_multiple_instance_test)
+{
+    const int N = 10;
+    std::thread* T[N];
+
+    for (int i = 0; i < N; i++) {
+        T[i] = new std::thread(multiple_instance_test); 
+    }
+   
+    std::for_each(T, T + N, [](std::thread* t) { 
+        t->join(); 
+        delete t;
+    });
+    std::cout << "-- end --";
+}
+
+TEST_F(idpass_api_tests, threading_single_instance_test)
+{
+    const int N = 10;
+    std::thread* T[N];
+
+    for (int i = 0; i < N; i++) {
+        T[i] = new std::thread(single_instance_test, ctx); 
+    }
+   
+    std::for_each(T, T + N, [](std::thread* t) { 
+        t->join(); 
+        delete t;
+    });
+    std::cout << "-- end --";
 }
 
 int main (int argc, char *argv[])
