@@ -91,7 +91,7 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
     double face_diff = 10.0;
     float F4[128];
     float input_f4[128];
-    unsigned char* buf = (unsigned char*)cardAccessFaceBuf.c_str();
+    unsigned char* buf = (unsigned char*)cardAccessFaceBuf.data();
     int buf_len = cardAccessFaceBuf.size(); // either 128*4 or 64*2
 
     int face_count = dlib_api::computeface128d(photo, photo_len, &F4[0]);
@@ -174,8 +174,8 @@ bool decryptCard(unsigned char* encrypted_card,
         // extract signerPublicKey and card member fields
         std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> signerPublicKey;
         std::copy(
-            ecard.signerpublickey().c_str(),
-            ecard.signerpublickey().c_str() + crypto_sign_PUBLICKEYBYTES,
+            ecard.signerpublickey().data(),
+            ecard.signerpublickey().data() + crypto_sign_PUBLICKEYBYTES,
             std::begin(signerPublicKey));
 
         // Check signerPublicKey is in our trusted list
@@ -200,10 +200,10 @@ bool decryptCard(unsigned char* encrypted_card,
 
         // verify the signature of idpass::IDPassCard against signerpublic key.
         if (crypto_sign_verify_detached(
-            reinterpret_cast<const unsigned char*>(ecard.signature().c_str()), 
+            reinterpret_cast<const unsigned char*>(ecard.signature().data()), 
             buf,
             buf_len,
-            reinterpret_cast<const unsigned char*>(ecard.signerpublickey().c_str()))
+            reinterpret_cast<const unsigned char*>(ecard.signerpublickey().data()))
         != 0) {
             LOGI("crypto_sign error");
             delete[] buf;

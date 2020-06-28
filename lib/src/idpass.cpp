@@ -373,7 +373,7 @@ idpass_api_create_card_with_face(void* self,
         return nullptr;
     }
 
-    unsigned char* signature = new unsigned char[crypto_sign_BYTES];
+    unsigned char signature[crypto_sign_BYTES];
     unsigned long long signature_len;
 
     // sign the idpass::IDPassCard object with sig_skpk
@@ -399,8 +399,6 @@ idpass_api_create_card_with_face(void* self,
     crypto_sign_ed25519_sk_to_pk(public_key, context->signatureKey.data());
 
     signedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
-
-    delete[] signature;
 
     buf_len = signedCard.ByteSizeLong();
     buf = new unsigned char[buf_len];
@@ -469,8 +467,6 @@ idpass_api_create_card_with_face(void* self,
         return nullptr;
     }
 
-    signature = new unsigned char[crypto_sign_BYTES];
-
     // sign the idpass::IDPassCard object with sig_skpk
     if (crypto_sign_detached(
             signature, 
@@ -482,7 +478,6 @@ idpass_api_create_card_with_face(void* self,
         LOGI("crypto_sign error");
         delete[] buf;
         delete[] nonce_plus_eSignedIdpasscardbuf;
-        delete[] signature;
         return nullptr;
     }
 
@@ -491,7 +486,6 @@ idpass_api_create_card_with_face(void* self,
     publicSignedCard.set_signature(signature, signature_len);
     publicSignedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
 
-    delete[] signature;
     delete[] buf;
 
     idpass::IDPassCards idpassCards;
@@ -625,7 +619,7 @@ idpass_api_encrypt_with_card(void* self,
 
     // convert ed25519 to curve25519 and use curve25519 for encryption
     const unsigned char* ed25519_skpk
-        = (const unsigned char*)signedCard.card().encryptionkey().c_str();
+        = (const unsigned char*)signedCard.card().encryptionkey().data();
 
     unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES];
 
@@ -637,8 +631,8 @@ idpass_api_encrypt_with_card(void* self,
     unsigned char x25519_pk[crypto_scalarmult_curve25519_BYTES]; // 32
     unsigned char x25519_sk[crypto_scalarmult_curve25519_BYTES]; // 32
 
-    crypto_sign_ed25519_pk_to_curve25519(x25519_pk, ed25519_pk);
-    crypto_sign_ed25519_sk_to_curve25519(x25519_sk, ed25519_skpk);
+    int ret = crypto_sign_ed25519_pk_to_curve25519(x25519_pk, ed25519_pk);
+    ret = crypto_sign_ed25519_sk_to_curve25519(x25519_sk, ed25519_skpk);
 
     ///////////////////////////////////////////////////////////////////////////
     ciphertext_len = crypto_box_MACBYTES + data_len; // 16+
@@ -722,7 +716,7 @@ idpass_api_sign_with_card(void* self,
             &smlen,
             data,
             data_len,
-            (const unsigned char*)signedCard.card().encryptionkey().c_str())
+            (const unsigned char*)signedCard.card().encryptionkey().data())
     != 0) {
         LOGI("crypto_sign: error");
         context->ReleaseByteArray(signature);
