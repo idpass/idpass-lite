@@ -18,7 +18,7 @@ void* idpass_api_ioctl(
     int input_len);
 
 MODULE_API
-void idpass_api_freemem(void* self, unsigned char* buf);
+void idpass_api_freemem(void* self, void* buf);
 
 MODULE_API
 void* idpass_api_init(unsigned char* card_encryption_key,

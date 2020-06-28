@@ -143,18 +143,19 @@ struct Context
         return m.back().data();
     }
 
-    void ReleaseByteArray(unsigned char* addr)
+    bool ReleaseByteArray(void* addr)
     {
         std::lock_guard<std::mutex> guard(mtx);
         std::vector<std::vector<unsigned char>>::iterator mit;
         for (mit = m.begin(); mit != m.end();) {
             if (mit->data() == addr) {
                 mit = m.erase(mit);
-                return;
+                return true;
             } else {
                 mit++;
             }
         }
+        return false;
     }
 };
 
@@ -169,6 +170,21 @@ namespace M
         Context* c = new Context;
         context.push_back(c);
         return c;
+    }
+
+    void releaseContext(Context* addr)
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        std::vector<Context*>::iterator mit;
+        for (mit = context.begin(); mit != context.end();) {
+            if (*mit == addr) {
+                delete addr;
+                mit = context.erase(mit);
+                return;
+            } else {
+                mit++;
+            }
+        }
     }
 };
 
@@ -235,10 +251,14 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
 }
 
 MODULE_API
-void idpass_api_freemem(void* self, unsigned char* buf)
+void idpass_api_freemem(void* self, void* buf)
 {
     Context* context = (Context*)self;
-    context->ReleaseByteArray(buf);
+    if (!context->ReleaseByteArray(buf)) {
+        if (context == buf) {
+            M::releaseContext(context);
+        }
+    }
 }
 
 /***********
@@ -878,7 +898,7 @@ MODULE_API int idpass_api_saveToBitmap(void* self,
 {
     Context* context = (Context*)self;
 
-    return qrcode_saveToBitmap(data, data_len, bitmapfile);
+    return qrcode_saveToBitmap(data, data_len, bitmapfile, context->qrcode_ecc);
 }
 
 MODULE_API

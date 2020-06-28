@@ -893,12 +893,11 @@ uint8_t *qrcode_getpixel(const unsigned char *data, int data_len, int *len, int 
     return pixels;
 }
 
-int8_t qrcode_saveToBitmap(const unsigned char* data, int data_len, const char* bitmapfile)
+int8_t qrcode_saveToBitmap(const unsigned char* data, int data_len, const char* bitmapfile, int ecc)
 {
     // Create the QR code
     QRCode qrcode;
     int version = 1; // start with version 1
-    int ecc = 0;
 
     int status = qrcode_initText(
             &qrcode,
