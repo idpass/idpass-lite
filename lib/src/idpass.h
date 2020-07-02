@@ -31,13 +31,24 @@
 extern "C" {
 #endif
 
+/**
+ * A generalized I/O function used to get/set settings
+ * @param outlen Count of returned bytes
+ * @param iobuf Input/Output command buffer
+ * @param iobuf_len Command buffer length
+ * @return Command-related output bytes
+ */
 MODULE_API 
 void* idpass_api_ioctl(
     void* self,
     int* outlen,
-    unsigned char* input,
-    int input_len);
+    unsigned char* iobuf,
+    int iobuf_len);
 
+/**
+ * Used to explicitly free the bytes returned by the library
+ * @param buf Address of buffer
+ */
 MODULE_API
 void idpass_api_freemem(void* self, void* buf);
 
@@ -49,7 +60,22 @@ void* idpass_api_init(unsigned char* card_encryption_key,
                       unsigned char* verification_keys,
                       int verification_keys_len);
 
-// idpass:IDPassCards
+/**
+ * Creates a new card with the given personal details
+ * @param outlen Length of returned bytes
+ * @param surname Surname of person
+ * @param given_name Givenname of person
+ * @param date_of_birth Date of birth (1980/12/17)
+ * @param place_of_birth Birthplace of person
+ * @param pin Secret pin code of the person
+ * @param photo The bytes of person's photo
+ * @param photo_len Length of bytes
+ * @param pub_extras_buf idpass::Dictionary serialized for public KV extras
+ * @param pub_extras_buf_len Count of bytes
+ * @param priv_extras_buf idpass::Dictionary serialized for private KV extras
+ * @param priv_extras_buf_len Count of bytes
+ * @return Returns idpass::IDPassCards containing public/private components
+ */
 MODULE_API
 unsigned char* idpass_api_create_card_with_face(
     void* self,
@@ -66,7 +92,15 @@ unsigned char* idpass_api_create_card_with_face(
     unsigned char* priv_extras_buf,
     int priv_extras_buf_len);
 
-// idpass::CardDetails
+/**
+ * Unlocks the encrypted_card using photo
+ * @param outlen Count of returned bytes
+ * @param encrypted_card owner's encrypted component ID
+ * @param encrypted_card_len Count of bytes
+ * @param photo Content bytes of owner photo
+ * @param photo_len Count of bytes
+ * @return Protobuf serialized of idpass::CardDetails
+ */
 MODULE_API
 unsigned char* idpass_api_verify_card_with_face(
     void* self,
@@ -76,7 +110,14 @@ unsigned char* idpass_api_verify_card_with_face(
     char* photo,
     int photo_len);
 
-// idpass::CardDetails
+/**
+ * Unlocks the encrypted_card using owner's pin code
+ * @param outlen Count of returned bytes
+ * @param encrypted_card owner's encrypted component ID
+ * @param encrypted_card_len Count of bytes
+ * @param pin Owner's secret pin code
+ * @return Protobuf serialized of idpass::CardDetails
+ */
 MODULE_API
 unsigned char* idpass_api_verify_card_with_pin(
     void* self,
@@ -85,6 +126,15 @@ unsigned char* idpass_api_verify_card_with_pin(
     int encrypted_card_len,
     const char* pin);
 
+/**
+ * Returns a signature of input data
+ * @param outlen Count bytes of returned data
+ * @param encrypted_card Card owner's private component
+ * @param encrypted_card_len Count of bytes
+ * @param data The data that is to be signed
+ * @param data_len Count of bytes
+ * @return The digital signature
+ */
 MODULE_API
 unsigned char* idpass_api_sign_with_card(
     void* self,
@@ -94,12 +144,16 @@ unsigned char* idpass_api_sign_with_card(
     unsigned char* data,
     int data_len);
 
-//=============
-// Description:
-// This function encrypts the plaintext denoted by 'data' using the
-// key denoted by 'encrypted_card'.
-// 
-// The return value is the ciphertext.
+/**
+ * This function encrypts the plaintext denoted by data using the
+ * ED25519 key inside encrypted_card
+ * @param outlen Count of bytes encrypted data
+ * @param encrypted_card Owner's encrypted component 
+ * @param encrypted_card_len Count of bytes
+ * @param data The input data to be encrypted
+ * @param data_len Length bytes 
+ * @return The ciphertext
+ */
 MODULE_API
 unsigned char* idpass_api_encrypt_with_card(
     void* self,
@@ -109,7 +163,13 @@ unsigned char* idpass_api_encrypt_with_card(
     unsigned char* data,
     int data_len);
 
-// Returns the qr code bits of square dimension len
+/**
+ * Returns QR Code represented as pixel  bits
+ * @param data The data to be encoded as QR Code
+ * @param data_len Count of bytes
+ * @param qrsize The square side dimension of QR Code
+ * @return The QR Code representation of data
+ */
 MODULE_API
 unsigned char* idpass_api_qrpixel(
     void* self,
@@ -117,6 +177,13 @@ unsigned char* idpass_api_qrpixel(
     int data_len,
     int* qrsize);
 
+/**
+ * Compute Dlib float[128] of a given photo
+ * @param photo Any photo
+ * @param photo_len Length bytes of photo
+ * @param facearray Dlib 128 dimension of one face
+ * @return Count of faces detected by Dlib
+ */
 MODULE_API
 int idpass_api_face128d(
     void* self,
@@ -124,6 +191,13 @@ int idpass_api_face128d(
     int photo_len,
     float* facearray);
 
+/**
+ * Compute Dlib byte[128*4] of a given photo
+ * @param photo Any photo
+ * @param photo_len Length bytes of photo
+ * @param buf Dlib dimension of one face as bytes
+ * @return Count of faces detected by Dlib
+ */
 MODULE_API
 int idpass_api_face128dbuf(
     void* self,
@@ -131,6 +205,13 @@ int idpass_api_face128dbuf(
     int photo_len,
     unsigned char* buf);
 
+/**
+ * Compute Dlib byte[64*2] of a given photo
+ * @param photo Any photo
+ * @param photo_len Length bytes of photo
+ * @param buf Dlib dimension of one face as bytes
+ * @return Count of faces detected by Dlib
+ */
 MODULE_API
 int idpass_api_face64dbuf(
     void* self,
@@ -138,9 +219,16 @@ int idpass_api_face64dbuf(
     int photo_len,
     unsigned char* buf);
 
+/**
+ * Test function
+ */
 MODULE_API
 int idpass_api_addnum(int a, int b); 
 
+
+/**
+ * Test function
+ */
 MODULE_API
 unsigned char* protobuf_test(
     void* self,
@@ -151,6 +239,13 @@ unsigned char* protobuf_test(
     const char* place_of_birth,
     const char* extras);
 
+/**
+ * Helper function to save QR Code as bitmap
+ * @param data The input data to be encoded into QR code
+ * @param data_len Length bytes of data
+ * @param bitmapfile The full path where to save the bitmap
+ * @return Returns 0 on success
+ */
 MODULE_API
 int idpass_api_saveToBitmap(
     void* self,
