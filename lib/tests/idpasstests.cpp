@@ -78,8 +78,11 @@ void single_instance_test(void* ctx)
 
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
-    unsigned char ioctlcmd[] = {0x05, 0x0A}; // make givenname, placeofbirth visible
-    idpass_api_ioctl(ctx, nullptr, ioctlcmd, 2);
+    unsigned char ioctlcmd[] = {
+        IOCTL_SET_ACL, 
+        ACL_PLACEOFBIRTH | ACL_GIVENNAME}; // make givenname, placeofbirth visible
+
+    idpass_api_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
     int card_len;
     unsigned char* card = idpass_api_create_card_with_face(ctx,

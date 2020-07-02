@@ -245,8 +245,8 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
         context->verificationKeys.push_back(public_key);
     }
 
-    context->facediff_half = 0.42; 
-    context->facediff_full = 0.60;
+    context->facediff_half = DEFAULT_FACEDIFF_HALF;
+    context->facediff_full = DEFAULT_FACEDIFF_FULL;
     context->fdimension = false; // defaults to 64/2
     context->qrcode_ecc = ECC_MEDIUM;
     std::memset(context->acl, 0x00, sizeof context->acl); // default all fields priv
@@ -332,11 +332,11 @@ idpass_api_create_card_with_face(void* self,
 
     idpass::CardDetails public_details;
     unsigned char acl = context->acl[0];
-    if (acl & SURNAME) public_details.set_surname(surname);
-    if (acl & GIVENNAME) public_details.set_givenname(given_name);
-    if (acl & PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
-    if (acl & CREATEDAT) public_details.set_createdat(epochSeconds);
-    if (acl & DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
+    if (acl & ACL_SURNAME) public_details.set_surname(surname);
+    if (acl & ACL_GIVENNAME) public_details.set_givenname(given_name);
+    if (acl & ACL_PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
+    if (acl & ACL_CREATEDAT) public_details.set_createdat(epochSeconds);
+    if (acl & ACL_DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
 
     idpass::Pair* kv = nullptr;
 
@@ -811,7 +811,7 @@ void* idpass_api_ioctl(void* self,
     unsigned char cmd = iobuf[0];
     switch (cmd) 
     {
-        case 0x00: { // set new facediff value
+        case IOCTL_SET_FACEDIFF: { // set new facediff value
             float facediff;
             bin16::f4b_to_f4(iobuf + 1, iobuf_len - 1, &facediff);
             if (context->fdimension) {
@@ -821,7 +821,7 @@ void* idpass_api_ioctl(void* self,
             }
         } break;
 
-        case 0x01: { // get current facediff value
+        case IOCTL_GET_FACEDIFF: { // get current facediff value
             if (context->fdimension) {
                 bin16::f4_to_f4b(&context->facediff_full, 1, iobuf + 1);
             } else {
@@ -829,7 +829,7 @@ void* idpass_api_ioctl(void* self,
             }
         } break;
 
-        case 0x02: { // set fdimension flag
+        case IOCTL_SET_FDIM: { // set fdimension flag
             if (iobuf[1] == 0x00) {
                 context->fdimension = false;
             } else if (iobuf[1] == 0x01) {
@@ -837,7 +837,7 @@ void* idpass_api_ioctl(void* self,
             }
         } break;             
 
-        case 0x03: { // get fdimension flag
+        case IOCTL_GET_FDIM: { // get fdimension flag
             if (context->fdimension) {
                 iobuf[1] = 0x01;
             } else {
@@ -845,7 +845,7 @@ void* idpass_api_ioctl(void* self,
             }
         } break;             
 
-        case 0x04: { // set QR Code ECC level
+        case IOCTL_SET_ECC: { // set QR Code ECC level
             switch (iobuf[1]) 
             {
             case 0x00: {
@@ -863,7 +863,7 @@ void* idpass_api_ioctl(void* self,
             }
         } break;
 
-        case 0x05: {
+        case IOCTL_SET_ACL: {
             // TODO: Control which field goes to public or private
             // Make it more flexible later. For now, the next byte
             // is the ACL

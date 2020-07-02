@@ -6,11 +6,26 @@
 #define MODULE_API
 #endif
 
-#define SURNAME 1
-#define GIVENNAME 2
-#define DATEOFBIRTH 4
-#define PLACEOFBIRTH 8
-#define CREATEDAT 16
+#define DEFAULT_FACEDIFF_FULL 0.60
+#define DEFAULT_FACEDIFF_HALF 0.42
+
+#define ECC_LOW 0
+#define ECC_MEDIUM 1
+#define ECC_QUARTILE 2
+#define ECC_HIGH 3
+
+#define ACL_SURNAME 1
+#define ACL_GIVENNAME 2
+#define ACL_DATEOFBIRTH 4
+#define ACL_PLACEOFBIRTH 8
+#define ACL_CREATEDAT 16
+
+#define IOCTL_SET_FACEDIFF 0x00
+#define IOCTL_GET_FACEDIFF 0x01
+#define IOCTL_SET_FDIM 0x02
+#define IOCTL_GET_FDIM 0x03
+#define IOCTL_SET_ECC 0x04
+#define IOCTL_SET_ACL 0x05
 
 #ifdef __cplusplus
 extern "C" {
