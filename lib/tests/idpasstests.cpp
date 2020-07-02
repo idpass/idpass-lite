@@ -59,6 +59,23 @@ void single_instance_test(void* ctx)
     std::ifstream f1("data/manny1.bmp", std::ios::binary);
     ASSERT_TRUE(f1.is_open());
 
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("address");
+    kv->set_value("16th Elm Street");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
+
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
     int card_len;
     unsigned char* card = idpass_api_create_card_with_face(ctx,
@@ -67,13 +84,17 @@ void single_instance_test(void* ctx)
                                                            "John",
                                                            "1980/12/25",
                                                            "USA",
-                                                           "gender:male",
+                                                           "12345",
                                                            photo.data(),
                                                            photo.size(),
-                                                           "12345");
+                                                           pubExtras.data(),
+                                                           pubExtras.size(),
+                                                           privExtras.data(),
+                                                           privExtras.size());
+
     idpass::IDPassCards cards;
     cards.ParseFromArray(card, card_len);
-    std::cout << cards.publiccard().details().surname();
+    //std::cout << cards.publiccard().details().surname();
 
     unsigned char* ecard = (unsigned char*)cards.encryptedcard().data();
     int ecard_len = cards.encryptedcard().size();
@@ -89,7 +110,7 @@ void single_instance_test(void* ctx)
         bool flag = details.ParseFromArray(buf, buf_len);
         ASSERT_TRUE(flag);
         if (flag) {
-            std::cout << details.surname() << std::flush;
+            //std::cout << details.surname() << std::flush;
         }
     }
 }
@@ -113,10 +134,27 @@ void multiple_instance_test()
                                crypto_sign_SECRETKEYBYTES,
                                verif_pk,
                                crypto_sign_PUBLICKEYBYTES);
-    printf("context = %p\n", context);
+   // printf("context = %p\n", context);
 
     std::ifstream f1("data/manny1.bmp", std::ios::binary);
     ASSERT_TRUE(f1.is_open());
+
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("address");
+    kv->set_value("16th Elm Street");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
 
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
     int card_len;
@@ -126,13 +164,17 @@ void multiple_instance_test()
                                                            "John",
                                                            "1980/12/25",
                                                            "USA",
-                                                           "gender:male",
+                                                           "12345",
                                                            photo.data(),
                                                            photo.size(),
-                                                           "12345");
+                                                           pubExtras.data(),
+                                                           pubExtras.size(),
+                                                           privExtras.data(),
+                                                           privExtras.size());
+
     idpass::IDPassCards cards;
     cards.ParseFromArray(card, card_len);
-    std::cout << cards.publiccard().details().surname();
+    //std::cout << cards.publiccard().details().surname();
 
     unsigned char* ecard = (unsigned char*)cards.encryptedcard().data();
     int ecard_len = cards.encryptedcard().size();
@@ -148,7 +190,7 @@ void multiple_instance_test()
         bool flag = details.ParseFromArray(buf, buf_len);
         ASSERT_TRUE(flag);
         if (flag) {
-            std::cout << details.surname() << std::flush;
+            //std::cout << details.surname() << std::flush;
         }
     }
 }
@@ -251,6 +293,23 @@ TEST_F(idpass_api_tests, check_qrcode_md5sum)
     std::ifstream f1("data/manny1.bmp", std::ios::binary);
     std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
 
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("address");
+    kv->set_value("16th Elm Street");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
+
     int eSignedIDPassCard_len;
     unsigned char* eSignedIDPassCard = idpass_api_create_card_with_face(
 		ctx,
@@ -259,10 +318,13 @@ TEST_F(idpass_api_tests, check_qrcode_md5sum)
         "Manny",
         "1978/12/17",
         "Kibawe, Bukidnon",
-        "gender:male, sports:boxing, children:5, height:1.66m",
+        "12345",
         img1.data(),
         img1.size(),
-        "12345");
+        pubExtras.data(),
+        pubExtras.size(),
+        privExtras.data(),
+        privExtras.size());
 
     if (eSignedIDPassCard != nullptr) {
 
@@ -293,6 +355,23 @@ TEST_F(idpass_api_tests, createcard_manny_verify_as_brad)
     std::ifstream f2("data/brad.jpg", std::ios::binary);
     std::vector<char> img3(std::istreambuf_iterator<char>{f2}, {});
 
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("address");
+    kv->set_value("16th Elm Street");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
+
     int ecard_len;
     unsigned char* ecard = idpass_api_create_card_with_face(
         ctx,
@@ -301,10 +380,13 @@ TEST_F(idpass_api_tests, createcard_manny_verify_as_brad)
         "Manny",
         "1978/12/17",
         "Kibawe, Bukidnon",
-        "gender:male, sports:boxing, children:5, height:1.66m",
+        "12345",
         img1.data(),
         img1.size(),
-        "12345");
+        pubExtras.data(),
+        pubExtras.size(),
+        privExtras.data(),
+        privExtras.size());
 
     int details_len;
     unsigned char* details = idpass_api_verify_card_with_face(
@@ -318,7 +400,7 @@ TEST_F(idpass_api_tests, createcard_manny_verify_as_brad)
 
     idpass::CardDetails cardDetails;
     cardDetails.ParseFromArray(details, details_len);
-    std::cout << cardDetails.surname() << ", " << cardDetails.givenname() << std::endl;
+    //std::cout << cardDetails.surname() << ", " << cardDetails.givenname() << std::endl;
 
     ASSERT_STRNE(cardDetails.surname().c_str(), "Pacquiao");
 }
@@ -328,6 +410,23 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
     std::ifstream f1("data/manny1.bmp", std::ios::binary);
     std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
 
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("address");
+    kv->set_value("16th Elm Street");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
+
     int ecard_len;
     unsigned char* ecard = idpass_api_create_card_with_face(
         ctx,
@@ -336,10 +435,13 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
         "Manny",
         "1978/12/17",
         "Kibawe, Bukidnon",
-        "gender:male, sports:boxing, children:5, height:1.66m",
+        "12345",
         img1.data(),
         img1.size(),
-        "12345");
+        pubExtras.data(),
+        pubExtras.size(),
+        privExtras.data(),
+        privExtras.size());
 
     idpass::IDPassCards cards;
     cards.ParseFromArray(ecard, ecard_len);
@@ -369,7 +471,7 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
 
     idpass::CardDetails cardDetails;
     cardDetails.ParseFromArray(card, card_len);
-    std::cout << cardDetails.surname() << ", " << cardDetails.givenname() << std::endl;
+    //std::cout << cardDetails.surname() << ", " << cardDetails.givenname() << std::endl;
 
     ASSERT_STREQ(cardDetails.surname().c_str(), "Pacquiao");
     ASSERT_STREQ(cardDetails.givenname().c_str(), "Manny");
@@ -386,6 +488,23 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
     std::ifstream f3("data/brad.jpg", std::ios::binary);
     std::vector<char> img3(std::istreambuf_iterator<char>{f3}, {});
 
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("address");
+    kv->set_value("16th Elm Street");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
+
     int ecard_len;
     unsigned char* ecard = idpass_api_create_card_with_face(
         ctx,
@@ -394,10 +513,13 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
         "Manny",
         "1978/12/17",
         "Kibawe, Bukidnon",
-        "gender:male, sports:boxing, children:5, height:1.66m",
+        "12345",
         img1.data(),
         img1.size(),
-        "12345");
+        pubExtras.data(),
+        pubExtras.size(),
+        privExtras.data(),
+        privExtras.size());
 
     idpass::IDPassCards cards;
     cards.ParseFromArray(ecard, ecard_len);
@@ -423,7 +545,7 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
 
     idpass::CardDetails cardDetails;
     cardDetails.ParseFromArray(details, details_len);
-    std::cout << cardDetails.surname() << ", " << cardDetails.givenname() << std::endl;
+    //std::cout << cardDetails.surname() << ", " << cardDetails.givenname() << std::endl;
 
 	// Once verified, the details field should match
     ASSERT_STREQ(cardDetails.surname().c_str(), "Pacquiao");
@@ -443,7 +565,6 @@ TEST_F(idpass_api_tests, threading_multiple_instance_test)
         t->join(); 
         delete t;
     });
-    std::cout << "-- end --";
 }
 
 TEST_F(idpass_api_tests, threading_single_instance_test)
@@ -459,7 +580,6 @@ TEST_F(idpass_api_tests, threading_single_instance_test)
         t->join(); 
         delete t;
     });
-    std::cout << "-- end --";
 }
 
 int main (int argc, char *argv[])

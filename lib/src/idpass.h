@@ -6,6 +6,12 @@
 #define MODULE_API
 #endif
 
+#define SURNAME 1
+#define GIVENNAME 2
+#define DATEOFBIRTH 4
+#define PLACEOFBIRTH 8
+#define CREATEDAT 16
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,10 +34,7 @@ void* idpass_api_init(unsigned char* card_encryption_key,
                       unsigned char* verification_keys,
                       int verification_keys_len);
 
-//=============
-// Description:
-// Returns the encrypted protobuf mesage of the card, ie
-// an IDPassCard encrypted.
+// idpass:IDPassCards
 MODULE_API
 unsigned char* idpass_api_create_card_with_face(
     void* self,
@@ -40,10 +43,13 @@ unsigned char* idpass_api_create_card_with_face(
     const char* given_name,
     const char* date_of_birth,
     const char* place_of_birth,
-    const char* extras,
+    const char* pin,
     char* photo,
     int photo_len,
-    const char* pin);
+    unsigned char* pub_extras_buf,
+    int pub_extras_buf_len,
+    unsigned char* priv_extras_buf,
+    int priv_extras_buf_len);
 
 // idpass::CardDetails
 MODULE_API
@@ -99,21 +105,21 @@ unsigned char* idpass_api_qrpixel(
 MODULE_API
 int idpass_api_face128d(
     void* self,
-    unsigned char* photo,
+    char* photo,
     int photo_len,
     float* facearray);
 
 MODULE_API
 int idpass_api_face128dbuf(
     void* self,
-    unsigned char* photo,
+    char* photo,
     int photo_len,
     unsigned char* buf);
 
 MODULE_API
 int idpass_api_face64dbuf(
     void* self,
-    unsigned char* photo,
+    char* photo,
     int photo_len,
     unsigned char* buf);
 

@@ -1,3 +1,4 @@
+#include "idpass.h"
 #include "dlibapi.h"
 #include "sodium.h"
 #include "proto/card_access/card_access.pb.h"
@@ -136,6 +137,8 @@ struct Context
     bool fdimension; // 128/4 if true else 64/2
     int qrcode_ecc;
 
+    unsigned char acl[1];
+
     unsigned char* NewByteArray(int n) 
     {
         std::lock_guard<std::mutex> guard(mtx);
@@ -263,9 +266,6 @@ void idpass_api_freemem(void* self, void* buf)
 
 /***********
 Description:
-Returns the encrypted protobuf ecard, ie
-an encrypted SignedIDPassCard. 
-
 Format is: nonce header + encrypted bytes*/
 MODULE_API unsigned char*
 idpass_api_create_card_with_face(void* self,
@@ -274,10 +274,13 @@ idpass_api_create_card_with_face(void* self,
                                  const char* given_name,
                                  const char* date_of_birth,
                                  const char* place_of_birth,
-                                 const char* extras,
+                                 const char* pin,
                                  char* photo,
                                  int photo_len,
-                                 const char* pin)
+                                 unsigned char* pub_extras_buf,
+                                 int pub_extras_buf_len,
+                                 unsigned char* priv_extras_buf,
+                                 int priv_extras_buf_len)
 {
     Context* context = (Context*)self;
     *outlen = 0;
@@ -327,13 +330,32 @@ idpass_api_create_card_with_face(void* self,
     details.set_createdat(epochSeconds);
     details.mutable_dateofbirth()->CopyFrom(dob);
 
-    std::string kvlist = extras;
-    auto x = helper::parseToMap(kvlist);
+    idpass::CardDetails public_details;
+    unsigned char acl = context->acl[0];
+    if (acl | SURNAME) public_details.set_surname(surname);
+    if (acl | GIVENNAME) public_details.set_givenname(given_name);
+    if (acl | PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
+    if (acl | CREATEDAT) public_details.set_createdat(epochSeconds);
+    if (acl | DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
 
-    for (auto& q : x) {
-        idpass::Pair* pp = details.add_extra();
-        pp->set_key(q.first);
-        pp->set_value(q.second);
+    idpass::Pair* kv = nullptr;
+
+    idpass::Dictionary pub_extras;
+    if (pub_extras.ParseFromArray(pub_extras_buf, pub_extras_buf_len)) {
+        for (auto extra : pub_extras.pairs()) {
+            kv = public_details.add_extra();
+            kv->set_key(extra.key());
+            kv->set_value(extra.value());
+        }
+    }
+
+    idpass::Dictionary priv_extras;
+    if (priv_extras.ParseFromArray(priv_extras_buf, priv_extras_buf_len)) {
+        for (auto extra : priv_extras.pairs()) {
+            kv = details.add_extra();
+            kv->set_key(extra.key());
+            kv->set_value(extra.value());
+        }
     }
 
 #ifdef _FIXVALS_
@@ -839,6 +861,14 @@ void* idpass_api_ioctl(void* self,
                 context->qrcode_ecc = ECC_HIGH;
             } break;     
             }
+        } break;
+
+        case 0x05: {
+            // TODO: Control which field goes to public or private
+            // Make it more flexible later. For now, the next byte
+            // is the ACL
+            unsigned char acl = iobuf[1];
+            context->acl[0] = context->acl[0] | acl;
         } break;
     }
 

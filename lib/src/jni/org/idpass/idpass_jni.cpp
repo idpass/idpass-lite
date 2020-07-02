@@ -89,9 +89,10 @@ create_card_with_face(JNIEnv *env,
                       jstring given_name,
                       jstring date_of_birth,
                       jstring place_of_birth,
-                      jstring extras,
                       jstring pin,
-                      jbyteArray photo)
+                      jbyteArray photo,
+                      jbyteArray pub_extras,
+                      jbyteArray priv_extras)
 {
     void *ctx = reinterpret_cast<void *>(context);
     if (!ctx) {
@@ -103,25 +104,38 @@ create_card_with_face(JNIEnv *env,
     jbyte *buf = env->GetByteArrayElements(photo, 0);
     jsize buf_len = env->GetArrayLength(photo);
 
+    if (buf_len == 0) {
+        LOGI("null photo");
+        return env->NewByteArray(0);
+    }
+
     const char *bufSurname = sur_name? env->GetStringUTFChars(sur_name, 0) : "";
     const char *bufGivenName = given_name? env->GetStringUTFChars(given_name, 0) : "";
     const char *bufDateOfBirth = date_of_birth? env->GetStringUTFChars(date_of_birth, 0) : "";
     const char *bufPlaceOfBirth = place_of_birth? env->GetStringUTFChars(place_of_birth, 0) : "";
-    const char *bufExtras = extras? env->GetStringUTFChars(extras, 0) : "";
     const char *bufPin = pin? env->GetStringUTFChars(pin, 0) : "";
+
+    jbyte *pub_extras_buf = env->GetByteArrayElements(pub_extras, 0);
+    jsize pub_extras_buf_len = env->GetArrayLength(pub_extras);
+
+    jbyte *priv_extras_buf = env->GetByteArrayElements(priv_extras, 0);
+    jsize priv_extras_buf_len = env->GetArrayLength(priv_extras);
 
     int eSignedIDPassCard_len;
     unsigned char *eSignedIDPassCard
-        = idpass_api_create_card_with_face(ctx,
+       = idpass_api_create_card_with_face(ctx,
                                            &eSignedIDPassCard_len,
                                            bufSurname,
                                            bufGivenName,
                                            bufDateOfBirth,
                                            bufPlaceOfBirth,
-                                           bufExtras,
+                                           bufPin,
                                            reinterpret_cast<char *>(buf),
                                            buf_len,
-                                           bufPin);
+                                           reinterpret_cast<unsigned char*>(pub_extras_buf),
+                                           pub_extras_buf_len,
+                                           reinterpret_cast<unsigned char*>(priv_extras_buf),
+                                           priv_extras_buf_len);
 
     if (eSignedIDPassCard != nullptr) {
         ecard = env->NewByteArray(eSignedIDPassCard_len);
@@ -136,7 +150,8 @@ create_card_with_face(JNIEnv *env,
     if (given_name) env->ReleaseStringUTFChars(given_name, bufGivenName);
     if (date_of_birth) env->ReleaseStringUTFChars(date_of_birth, bufDateOfBirth);
     if (place_of_birth) env->ReleaseStringUTFChars(place_of_birth, bufPlaceOfBirth);
-    if (extras) env->ReleaseStringUTFChars(extras, bufExtras);
+    if (pub_extras) env->ReleaseByteArrayElements(pub_extras, pub_extras_buf, 0);
+    if (priv_extras) env->ReleaseByteArrayElements(priv_extras, priv_extras_buf, 0);
     if (pin) env->ReleaseStringUTFChars(pin, bufPin);
 
     return ecard; // encrypted SignedIDPassCard proto object
@@ -364,7 +379,7 @@ compute_face_128d(JNIEnv *env,
     unsigned char facearray[128 * 4];
 
     int face_count = idpass_api_face128dbuf(
-        ctx, reinterpret_cast<unsigned char *>(buf), buf_len, facearray);
+        ctx, reinterpret_cast<char *>(buf), buf_len, facearray);
 
     // this method only returns workable data if it finds exactly 1 face
     if (face_count == 1) {
@@ -397,7 +412,7 @@ compute_face_64d(JNIEnv *env,
     unsigned char facearray[64 * 2];
 
     int face_count = idpass_api_face64dbuf(
-        ctx, reinterpret_cast<unsigned char *>(buf), buf_len, facearray);
+        ctx, reinterpret_cast<char *>(buf), buf_len, facearray);
 
     // this method only returns workable data if it finds exactly 1 face
     if (face_count == 1) {
