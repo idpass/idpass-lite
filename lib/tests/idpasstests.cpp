@@ -77,6 +77,10 @@ void single_instance_test(void* ctx)
     priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
 
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
+
+    unsigned char ioctlcmd[] = {0x05, 0x0A}; // make givenname, placeofbirth visible
+    idpass_api_ioctl(ctx, nullptr, ioctlcmd, 2);
+
     int card_len;
     unsigned char* card = idpass_api_create_card_with_face(ctx,
                                                            &card_len,
@@ -94,7 +98,19 @@ void single_instance_test(void* ctx)
 
     idpass::IDPassCards cards;
     cards.ParseFromArray(card, card_len);
+
+    ASSERT_TRUE(cards.publiccard().details().surname().empty());
     //std::cout << cards.publiccard().details().surname();
+
+    ASSERT_TRUE(
+        !cards.publiccard().details().givenname().empty() && 
+        cards.publiccard().details().givenname().compare("John") == 0);
+
+    ASSERT_TRUE(cards.publiccard().details().dateofbirth().ByteSizeLong() == 0);
+
+    ASSERT_TRUE(
+        !cards.publiccard().details().placeofbirth().empty() && 
+        cards.publiccard().details().placeofbirth().compare("USA") == 0);
 
     unsigned char* ecard = (unsigned char*)cards.encryptedcard().data();
     int ecard_len = cards.encryptedcard().size();

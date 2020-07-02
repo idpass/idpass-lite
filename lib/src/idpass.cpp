@@ -249,7 +249,7 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
     context->facediff_full = 0.60;
     context->fdimension = false; // defaults to 64/2
     context->qrcode_ecc = ECC_MEDIUM;
-
+    std::memset(context->acl, 0x00, sizeof context->acl); // default all fields priv
     return static_cast<void*>(context);
 }
 
@@ -332,11 +332,11 @@ idpass_api_create_card_with_face(void* self,
 
     idpass::CardDetails public_details;
     unsigned char acl = context->acl[0];
-    if (acl | SURNAME) public_details.set_surname(surname);
-    if (acl | GIVENNAME) public_details.set_givenname(given_name);
-    if (acl | PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
-    if (acl | CREATEDAT) public_details.set_createdat(epochSeconds);
-    if (acl | DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
+    if (acl & SURNAME) public_details.set_surname(surname);
+    if (acl & GIVENNAME) public_details.set_givenname(given_name);
+    if (acl & PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
+    if (acl & CREATEDAT) public_details.set_createdat(epochSeconds);
+    if (acl & DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
 
     idpass::Pair* kv = nullptr;
 
@@ -479,10 +479,10 @@ idpass_api_create_card_with_face(void* self,
     delete[] eSignedIdpasscardbuf;
 
     // HERE ....
-    buf_len = details.ByteSizeLong();
+    buf_len = public_details.ByteSizeLong();
     buf = new unsigned char[buf_len];
 
-    if (!details.SerializeToArray(buf, buf_len)) {
+    if (!public_details.SerializeToArray(buf, buf_len)) {
         LOGI("serialize error1");
         delete[] buf;
         delete[] nonce_plus_eSignedIdpasscardbuf;
@@ -504,7 +504,7 @@ idpass_api_create_card_with_face(void* self,
     }
 
     idpass::PublicSignedIDPassCard publicSignedCard;
-    publicSignedCard.mutable_details()->CopyFrom(details);
+    publicSignedCard.mutable_details()->CopyFrom(public_details);
     publicSignedCard.set_signature(signature, signature_len);
     publicSignedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
 
