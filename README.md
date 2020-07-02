@@ -1,7 +1,7 @@
 # Description
 
 ```
-git clone --recurse-submodules ssh://git@github.com/newlogic42/lab_idpassapi.git
+git clone --recurse-submodules ssh://git@github.com/newlogic42/lab_idpass_lite.git
 ```
 
 ## How to build `libidpasslite.so` only for your local machine
@@ -10,7 +10,7 @@ To build `libidpasslite.so` locally in a compatible Linux machine without
 using Docker:
 
 ```
-cd lab_idpassapi/
+cd lab_idpass_lite/
 ./build.sh desktop
 ```
 
@@ -27,7 +27,7 @@ the following Android architectures:
 - x86_64
 
 ```
-cd lab_idpassapi/
+cd lab_idpass_lite/
 ./build.sh
 ```
 
