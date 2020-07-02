@@ -6,7 +6,7 @@ for x in x86 x86_64 armeabi-v7a arm64-v8a desktop;do
     cp $project/scripts/build.idpass.$x.sh $build/idpass/build.$x
 done
 
-echo "*** Compiling libidpass.so ***"
+echo "*** Compiling libidpasslite.so ***"
 sleep 3
 
 for x in x86 x86_64 armeabi-v7a arm64-v8a desktop;do

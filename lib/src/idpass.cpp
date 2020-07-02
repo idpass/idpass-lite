@@ -60,7 +60,7 @@ extern int IDPASS_JNI_TLEN;
 // linker_input=libprotobuf.lib;libsodium.lib;dlib19.19.99_release_64bit_msvc1925.lib;dlibmodels.lib
 
 //========================================
-// `strings libidpass.so | grep DXTRACKER`
+// `strings libidpasslite.so | grep DXTRACKER`
 // tells the commit hash that built
 // this library
 char dxtracker[] = DXTRACKER;

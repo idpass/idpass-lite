@@ -25,7 +25,7 @@ set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 set(idpasstests_DEPENDS 
     protobuf
     sodium
-    idpass    
+    idpasslite
     gtest
     )
 
