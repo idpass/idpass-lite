@@ -1,5 +1,7 @@
 # Description
 
+[![CircleCI](https://circleci.com/gh/newlogic42/lab_idpass_lite.svg?style=svg)](https://circleci.com/gh/newlogic42/lab_idpass_lite)
+
 ```
 git clone --recurse-submodules ssh://git@github.com/newlogic42/lab_idpass_lite.git
 ```
