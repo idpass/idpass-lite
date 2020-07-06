@@ -492,7 +492,7 @@ JNINativeMethod IDPASS_JNI[] = {
      (void *)idpass_init},
 
     {(char *)"create_card_with_face",
-     (char *)"(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[B)[B",
+     (char *)"(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[B[B[B)[B",
      (void *)create_card_with_face},
 
     {(char *)"verify_card_with_face",
