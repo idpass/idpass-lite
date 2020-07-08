@@ -6,6 +6,9 @@
 #define MODULE_API
 #endif
 
+#define ENCRYPTION_KEY_LEN 32
+#define SECRET_SIGNATURE_KEY_LEN 64
+
 #define DEFAULT_FACEDIFF_FULL 0.60
 #define DEFAULT_FACEDIFF_HALF 0.42
 
@@ -218,6 +221,40 @@ int idpass_api_face64dbuf(
     char* photo,
     int photo_len,
     unsigned char* buf);
+
+MODULE_API
+unsigned char* idpass_api_decrypt_with_card(
+    void* self,
+    int* outlen,
+    unsigned char* ciphertext,
+    int ciphertext_len,
+    unsigned char* skpk,
+    int skpk_len);
+
+MODULE_API
+int idpass_api_generate_encryption_key( 
+    unsigned char *key, int key_len);
+
+MODULE_API 
+int idpass_api_generate_secret_signature_key( 
+    unsigned char *key, int key_len);
+
+MODULE_API
+int idpass_api_card_decrypt(
+    void* self,
+    unsigned char* ecard_buf,
+    int *ecard_buf_len,
+    unsigned char key[ENCRYPTION_KEY_LEN]);
+
+MODULE_API
+int idpass_api_verify_with_card(
+    void* self,
+    unsigned char* msg,
+    int msg_len,
+    unsigned char* signature,
+    int signature_len,
+    unsigned char* pubkey,
+    int pubkey_len);
 
 /**
  * Test function

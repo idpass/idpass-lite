@@ -705,6 +705,143 @@ idpass_api_encrypt_with_card(void* self,
     return nonce_plus_ciphertext;
 }
 
+MODULE_API
+unsigned char* idpass_api_decrypt_with_card(void* self,
+                                            int* outlen,
+                                            unsigned char* encrypted,
+                                            int encrypted_len,
+                                            unsigned char* card_skpk,
+                                            int skpk_len)
+{
+    Context* context = (Context*)self;
+    int len = encrypted_len - crypto_box_NONCEBYTES - crypto_box_MACBYTES;
+    *outlen = 0;
+    if (len <= 0) {
+        return nullptr;
+    }
+
+    unsigned char* plaintext = context->NewByteArray(len);
+    unsigned char nonce[crypto_box_NONCEBYTES];
+    std::memcpy(nonce, encrypted, sizeof nonce);
+
+    unsigned long long ciphertext_len = encrypted_len - crypto_box_NONCEBYTES;
+    unsigned char* ciphertext = new unsigned char[ciphertext_len];
+    std::memcpy(ciphertext, encrypted + crypto_box_NONCEBYTES, ciphertext_len);
+
+    unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
+    unsigned char privkey[crypto_box_SECRETKEYBYTES];
+
+    unsigned char card_pk[crypto_sign_PUBLICKEYBYTES];
+    crypto_sign_ed25519_sk_to_pk(card_pk, card_skpk);
+
+    crypto_sign_ed25519_pk_to_curve25519(pubkey, card_pk);
+    crypto_sign_ed25519_sk_to_curve25519(privkey, card_skpk);
+
+    // decrypt ciphertext to plaintext
+    if (crypto_box_open_easy(
+        plaintext,
+        ciphertext,
+        ciphertext_len,
+        nonce,
+        pubkey,
+        privkey)
+    != 0) {
+        delete[] ciphertext;
+        context->ReleaseByteArray(plaintext);
+        return nullptr;
+    }
+
+    delete[] ciphertext;
+    *outlen = len;
+    return plaintext;
+}
+
+MODULE_API
+int idpass_api_generate_encryption_key(
+    unsigned char* key, int key_len)
+{
+    if (key_len != crypto_aead_chacha20poly1305_IETF_KEYBYTES) {
+        return 1;
+    }
+
+    crypto_aead_chacha20poly1305_keygen(key);
+    return 0;
+}
+
+MODULE_API
+int idpass_api_generate_secret_signature_key(
+    unsigned char *sig_skpk, int sig_skpk_len)
+{
+    if (sig_skpk_len != crypto_sign_SECRETKEYBYTES) {
+        return 1;
+    }
+
+    unsigned char sig_pk[crypto_sign_PUBLICKEYBYTES];
+    crypto_sign_keypair(sig_pk, sig_skpk);
+    return 0;
+}
+
+MODULE_API
+int idpass_api_card_decrypt(void* self,
+                            unsigned char* ecard_buf,
+                            int *ecard_buf_len,
+                            unsigned char key[ENCRYPTION_KEY_LEN])
+{
+    Context* context = (Context*)self;
+
+    unsigned long long decrypted_len;
+    unsigned char* decrypted
+        = new unsigned char[*ecard_buf_len
+                            - crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+
+    unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+    std::memcpy(nonce, ecard_buf, crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
+
+    if (crypto_aead_chacha20poly1305_ietf_decrypt(
+            decrypted,
+            &decrypted_len,
+            NULL, // always
+            ecard_buf + crypto_aead_chacha20poly1305_IETF_NPUBBYTES,
+            *ecard_buf_len - crypto_aead_chacha20poly1305_IETF_NPUBBYTES,
+            NULL,
+            0,
+            nonce,
+            key)
+    != 0) {
+        return 1;
+    }
+
+    *ecard_buf_len = (int)decrypted_len;
+    std::memcpy(ecard_buf, decrypted, decrypted_len);
+    delete[] decrypted;
+    return 0;
+}
+
+MODULE_API
+int idpass_api_verify_with_card(void* self,
+                                unsigned char* msg,
+                                int msg_len,
+                                unsigned char* signature,
+                                int signature_len,
+                                unsigned char* pubkey,
+                                int pubkey_len)
+{
+    Context* context = (Context*)self;
+
+    if (pubkey_len != crypto_sign_PUBLICKEYBYTES ||
+        pubkey == nullptr ||
+        signature_len != crypto_sign_BYTES ||
+        signature == nullptr ||
+        msg == nullptr ||
+        msg_len <= 0)
+    {
+        return 1;
+    }
+
+    int status = crypto_sign_verify_detached(signature, msg, msg_len, pubkey);
+    return status;
+}
+
 MODULE_API unsigned char*
 idpass_api_sign_with_card(void* self,
                           int* outlen,

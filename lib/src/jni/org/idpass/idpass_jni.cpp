@@ -426,6 +426,152 @@ compute_face_64d(JNIEnv *env,
     return face64d;
 }
 
+jbyteArray
+decrypt_with_card(JNIEnv *env,
+                  jobject thiz,
+                  jlong context,
+                  jbyteArray ciphertext,
+                  jbyteArray skpk)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+    if (!ctx) {
+        LOGI("null ctx");
+        return env->NewByteArray(0);
+    }
+
+    jbyte *ciphertext_buf = env->GetByteArrayElements(ciphertext, 0);
+    jsize ciphertext_buf_len = env->GetArrayLength(ciphertext);
+    jbyte *skpk_buf = env->GetByteArrayElements(skpk, 0);
+    jsize skpk_buf_len = env->GetArrayLength(skpk);
+
+    int decrypted_len = 0;
+    unsigned char *decrypted = idpass_api_decrypt_with_card(
+        ctx,
+        &decrypted_len,
+        reinterpret_cast<unsigned char *>(ciphertext_buf),
+        ciphertext_buf_len,
+        reinterpret_cast<unsigned char *>(skpk_buf),
+        skpk_buf_len);
+
+    if (!decrypted) {
+        env->ReleaseByteArrayElements(ciphertext, ciphertext_buf, 0);
+        env->ReleaseByteArrayElements(skpk, skpk_buf, 0);
+        return env->NewByteArray(0);
+    }
+
+    jbyteArray plaintext = env->NewByteArray(decrypted_len);
+    env->SetByteArrayRegion(plaintext, 0, decrypted_len, (const jbyte *)decrypted);
+    idpass_api_freemem(ctx, decrypted);
+
+    env->ReleaseByteArrayElements(ciphertext, ciphertext_buf, 0);
+    env->ReleaseByteArrayElements(skpk, skpk_buf, 0);
+
+    return plaintext;
+}
+
+jbyteArray
+generate_encryption_key(JNIEnv *env, jclass clazz)
+{
+    unsigned char buf[ENCRYPTION_KEY_LEN];
+    idpass_api_generate_encryption_key(buf, sizeof buf);
+    jbyteArray key = env->NewByteArray(ENCRYPTION_KEY_LEN);
+    env->SetByteArrayRegion(
+        key, 0, ENCRYPTION_KEY_LEN, (const jbyte *)buf);
+
+    return key;
+}
+
+jbyteArray
+generate_secret_signature_key(JNIEnv *env, jclass clazz)
+{
+    unsigned char buf[SECRET_SIGNATURE_KEY_LEN];
+    idpass_api_generate_secret_signature_key(buf, sizeof buf);
+    jbyteArray key = env->NewByteArray(SECRET_SIGNATURE_KEY_LEN);
+    env->SetByteArrayRegion(
+        key, 0, SECRET_SIGNATURE_KEY_LEN, (const jbyte *)buf);
+
+    return key;
+}
+
+jbyteArray
+card_decrypt(JNIEnv *env, jobject thiz, jlong context,
+    jbyteArray ecard, jbyteArray key)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+    if (!ctx) {
+        LOGI("null ctx");
+        return env->NewByteArray(0);
+    }
+
+    jbyte *ecard_buf = env->GetByteArrayElements(ecard, 0);
+    jsize ecard_buf_len = env->GetArrayLength(ecard);
+    jbyte *key_buf = env->GetByteArrayElements(key, 0);
+    jsize key_buf_len = env->GetArrayLength(key);
+
+    int len = ecard_buf_len;
+
+    if (idpass_api_card_decrypt(ctx,
+        reinterpret_cast<unsigned char*>(ecard_buf), &len,
+        reinterpret_cast<unsigned char *>(key_buf))
+    != 0) {
+        env->ReleaseByteArrayElements(ecard, ecard_buf, 0);
+        env->ReleaseByteArrayElements(key, key_buf, 0);
+        return env->NewByteArray(0);
+    }
+
+    jbyteArray plaintext = ecard = env->NewByteArray(len);
+    env->SetByteArrayRegion(plaintext, 0, len, ecard_buf);
+
+    env->ReleaseByteArrayElements(ecard, ecard_buf, 0);
+    env->ReleaseByteArrayElements(key, key_buf, 0);
+
+    return plaintext;
+}
+
+jboolean
+verify_with_card(JNIEnv *env,
+                 jobject thiz,
+                 jlong context,
+                 jbyteArray msg,
+                 jbyteArray signature,
+                 jbyteArray pubkey)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+    jboolean flag = JNI_FALSE;
+
+    if (!ctx) {
+        LOGI("null ctx");
+        return flag;
+    }
+
+    jbyte *msg_buf = env->GetByteArrayElements(msg, 0);
+    jsize msg_buf_len = env->GetArrayLength(msg);
+
+    jbyte *signature_buf = env->GetByteArrayElements(signature, 0);
+    jsize signature_buf_len = env->GetArrayLength(signature);
+
+    jbyte *pubkey_buf = env->GetByteArrayElements(pubkey, 0);
+    jsize pubkey_buf_len = env->GetArrayLength(pubkey);
+
+    if (idpass_api_verify_with_card(
+            ctx,
+            reinterpret_cast<unsigned char *>(msg_buf),
+            msg_buf_len,
+            reinterpret_cast<unsigned char *>(signature_buf),
+            signature_buf_len,
+            reinterpret_cast<unsigned char *>(pubkey_buf),
+            pubkey_buf_len)
+    == 0) {
+        flag = JNI_TRUE;
+    }
+
+    env->ReleaseByteArrayElements(msg, msg_buf, 0);
+    env->ReleaseByteArrayElements(signature, signature_buf, 0);
+    env->ReleaseByteArrayElements(pubkey, pubkey_buf, 0);
+
+    return flag;
+}
+
 /* This API method is for quick test only to probe protobuf compatibility */
 jbyteArray protobufTest(JNIEnv *env,
                         jobject thiz,
@@ -522,6 +668,26 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"compute_face_64d",
      (char *)"(J[B)[B",
      (void *)compute_face_64d},
+
+    {(char *)"generate_encryption_key",
+     (char *)"()[B",
+     (void *)generate_encryption_key},
+
+    {(char *)"generate_secret_signature_key",
+     (char *)"()[B",
+     (void *)generate_secret_signature_key},
+
+    {(char *)"card_decrypt",
+     (char *)"(J[B[B)[B",
+     (void *)card_decrypt},
+
+    {(char *)"decrypt_with_card",
+     (char *)"(J[B[B)[B",
+     (void *)decrypt_with_card},
+
+    {(char *)"verify_with_card",
+     (char *)"(J[B[B[B)Z",
+     (void *)verify_with_card},
 };
 
 int IDPASS_JNI_TLEN = sizeof IDPASS_JNI / sizeof IDPASS_JNI[0];
