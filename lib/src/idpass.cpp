@@ -785,9 +785,16 @@ MODULE_API
 int idpass_api_card_decrypt(void* self,
                             unsigned char* ecard_buf,
                             int *ecard_buf_len,
-                            unsigned char key[ENCRYPTION_KEY_LEN])
+                            unsigned char *key,
+                            int key_len)
 {
     Context* context = (Context*)self;
+
+    if (key_len != crypto_aead_chacha20poly1305_IETF_KEYBYTES ||
+        key == nullptr ) 
+    {
+        return 1;
+    }
 
     unsigned long long decrypted_len;
     unsigned char* decrypted
@@ -808,7 +815,7 @@ int idpass_api_card_decrypt(void* self,
             nonce,
             key)
     != 0) {
-        return 1;
+        return 2;
     }
 
     *ecard_buf_len = (int)decrypted_len;

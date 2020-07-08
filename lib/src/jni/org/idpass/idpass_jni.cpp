@@ -512,7 +512,7 @@ card_decrypt(JNIEnv *env, jobject thiz, jlong context,
 
     if (idpass_api_card_decrypt(ctx,
         reinterpret_cast<unsigned char*>(ecard_buf), &len,
-        reinterpret_cast<unsigned char *>(key_buf))
+        reinterpret_cast<unsigned char *>(key_buf), key_buf_len)
     != 0) {
         env->ReleaseByteArrayElements(ecard, ecard_buf, 0);
         env->ReleaseByteArrayElements(key, key_buf, 0);

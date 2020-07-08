@@ -244,7 +244,8 @@ int idpass_api_card_decrypt(
     void* self,
     unsigned char* ecard_buf,
     int *ecard_buf_len,
-    unsigned char key[ENCRYPTION_KEY_LEN]);
+    unsigned char *key,
+    int key_len);
 
 MODULE_API
 int idpass_api_verify_with_card(
