@@ -866,9 +866,13 @@ void* idpass_api_ioctl(void* self,
         case IOCTL_SET_ACL: {
             // TODO: Control which field goes to public or private
             // Make it more flexible later. For now, the next byte
-            // is the ACL
+            // is the ACL. The proper way, I think should follow
+            // that of popular TLV 7bit and use the 8th bit to
+            // describe the next bytes. In this way, when the
+            // number of configurable bits increases can be better
+            // managed.
             unsigned char acl = iobuf[1];
-            context->acl[0] = context->acl[0] | acl;
+            context->acl[0] = acl;
         } break;
     }
 
