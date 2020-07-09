@@ -262,12 +262,6 @@ void savetobitmap(int qrcode_size, unsigned char* pixelbits,
     fwrite(header, 1, 54, fout);
     fwrite(pixelbytes, 1, size, fout);
 
-#ifdef _FIXVALS_
-    unsigned char hash[crypto_generichash_BYTES];
-    crypto_generichash(hash, sizeof hash, pixelbytes, size, NULL, 0);
-    ASSERT_TRUE(0 == std::memcmp(hash, knownHash, crypto_generichash_BYTES));
-#endif
-
     delete[] pixelbytes;
     fclose(fout);
 }

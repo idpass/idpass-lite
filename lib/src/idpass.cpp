@@ -286,11 +286,7 @@ idpass_api_create_card_with_face(void* self,
     *outlen = 0;
 
     unsigned char* eSignedIdpasscardbuf = nullptr;
-#ifdef _FIXVALS_
-    unsigned long int epochSeconds = 0;
-#else
     unsigned long int epochSeconds = std::time(nullptr);
-#endif
 
     float faceArray[128];
     int year, month, day;
@@ -358,28 +354,10 @@ idpass_api_create_card_with_face(void* self,
         }
     }
 
-#ifdef _FIXVALS_
-    unsigned char ed25519_pk[] = {
-        0x8b, 0xf0, 0x65, 0xb1, 0x06, 0x11, 0x5f, 0x13, 
-        0x95, 0x6e, 0xbf, 0xf2, 0x9b, 0x8c, 0xdc, 0x33, 
-        0xff, 0xc3, 0x63, 0x99, 0x12, 0x2b, 0x06, 0x4d, 
-        0x49, 0x3d, 0xe1, 0x9d, 0xa3, 0x1f, 0xca, 0x9a};
-
-    unsigned char ed25519_skpk[] = {
-        0x6f, 0x5c, 0x86, 0x15, 0x21, 0x4d, 0x20, 0xa9, // <-- sk
-        0x3f, 0xab, 0x64, 0xf7, 0x05, 0xee, 0x07, 0xda, 
-        0x9d, 0x13, 0x56, 0x28, 0x7d, 0xe2, 0x31, 0xfe, 
-        0x25, 0xe2, 0xef, 0x02, 0xc8, 0xea, 0x0c, 0x1a,
-        0x8b, 0xf0, 0x65, 0xb1, 0x06, 0x11, 0x5f, 0x13, // <-- pk
-        0x95, 0x6e, 0xbf, 0xf2, 0x9b, 0x8c, 0xdc, 0x33, 
-        0xff, 0xc3, 0x63, 0x99, 0x12, 0x2b, 0x06, 0x4d, 
-        0x49, 0x3d, 0xe1, 0x9d, 0xa3, 0x1f, 0xca, 0x9a};
-#else
     // ed25519_skpk is a concat of the form: sk + pk
     unsigned char ed25519_pk[crypto_sign_PUBLICKEYBYTES];   // 32
     unsigned char ed25519_skpk[crypto_sign_SECRETKEYBYTES]; // 64
     crypto_sign_keypair(ed25519_pk, ed25519_skpk);
-#endif
 
     idpass::IDPassCard card;
     card.mutable_access()->CopyFrom(access);
@@ -431,14 +409,8 @@ idpass_api_create_card_with_face(void* self,
         return nullptr;
     }
 
-#ifdef _FIXVALS_
-    unsigned char nonce[] = {
-        0xd9, 0xc3, 0xf0, 0x16, 0x81, 0xf5, 0x77, 0x9f, 
-        0x96, 0xc6, 0x42, 0x00};
-#else
     unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES]; // 12
     randombytes_buf(nonce, sizeof nonce);
-#endif
 
     int lenn = buf_len + crypto_aead_chacha20poly1305_IETF_ABYTES;
     eSignedIdpasscardbuf = new unsigned char[lenn];
@@ -660,15 +632,8 @@ idpass_api_encrypt_with_card(void* self,
     ciphertext_len = crypto_box_MACBYTES + data_len; // 16+
     ciphertext = new unsigned char[ciphertext_len];
 
-#ifdef _FIXVALS_
-    unsigned char nonce[] = {
-        0xf4, 0x29, 0x35, 0xfd, 0xd3, 0xdf, 0xab, 0xb0,
-        0xc1, 0x8d, 0x28, 0xf9, 0x33, 0xef, 0xbc, 0x8c,
-        0x20, 0xbd, 0x88, 0xf2, 0xd7, 0xb8, 0xa3, 0xef};
-#else
     unsigned char nonce[crypto_box_NONCEBYTES]; // 24
     randombytes_buf(nonce, sizeof nonce);
-#endif
 
     // Encrypt with our sk with an authentication tag of our pk
     if (crypto_box_easy(
