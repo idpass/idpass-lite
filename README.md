@@ -35,9 +35,10 @@ cd lab_idpass_lite/
 
 The Android outputs are in: `build/idpass/jniLibs/`
 
-## Notes
+## Opensource Dependencies
 
-Old `cmake --version` of `3.17` does not support `-S` argument so check your
-`cmake` version accordingly. It can still be made to build, but you have to `cd` 
-into the folder containing the `CMakeList.txt` and setup manually the needed
-environment variables.
+- https://github.com/jedisct1/libsodium.git
+- https://github.com/davisking/dlib.git
+- https://github.com/protocolbuffers/protobuf.git
+- https://github.com/ricmoo/QRCode
+

@@ -1,3 +1,9 @@
+/**
+ * The `idpass_api_qrpixel` function uses the implementation in:
+ * https://github.com/ricmoo/QRCode (Copyright (c) 2017 Richard Moore)
+ *
+ */
+
 #pragma once
 
 #ifdef _WIN32
