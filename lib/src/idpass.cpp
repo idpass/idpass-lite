@@ -698,8 +698,8 @@ unsigned char* idpass_api_decrypt_with_card(void* self,
 
     unsigned char card_pk[crypto_sign_PUBLICKEYBYTES];
     crypto_sign_ed25519_sk_to_pk(card_pk, card_skpk);
-
-    crypto_sign_ed25519_pk_to_curve25519(pubkey, card_pk);
+    int ret;
+    ret = crypto_sign_ed25519_pk_to_curve25519(pubkey, card_pk);
     crypto_sign_ed25519_sk_to_curve25519(privkey, card_skpk);
 
     // decrypt ciphertext to plaintext

@@ -6,14 +6,16 @@ cd $d
 
 ABI=desktop
 INSTALL_PREFIX=$build/idpass/$ABI
+mkdir -p $INSTALL_PREFIX
+mkdir -p $build/idpass/build.$ABI
+cd $build/idpass/build.$ABI
 
 cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
-    -DCMAKE_POSITION_INDEPENDENT_CODE=1 \
-    -S $project/lib/src -B $build/idpass/build.$ABI
+    -DCMAKE_POSITION_INDEPENDENT_CODE=1 $project/lib/src 
 
-cmake --build $build/idpass/build.$ABI
+cmake --build .
 make install
 
 cd $project

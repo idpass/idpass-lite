@@ -57,6 +57,11 @@ add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
     COMMENT "Compiling card_access.proto ..."
     )
 
+link_directories(
+    ${DEPENDENCIES_LIB}
+    ${JNI_LIBRARIES}
+    )
+
 add_library(idpasslite SHARED
     ${PROTOGEN}/card_access.pb.cc
     ${CMAKE_SOURCE_DIR}/jni/org/idpass/idpass_jni.cpp
@@ -70,15 +75,10 @@ add_library(idpasslite SHARED
 
 target_compile_definitions(idpasslite PRIVATE _IDPASS_JNI_)
 
-target_include_directories(idpasslite PUBLIC
+include_directories(
     ${DEPENDENCIES_INCLUDE}
     ${JNI_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}
-    )
-
-target_link_directories(idpasslite PUBLIC
-    ${DEPENDENCIES_LIB}
-    ${JNI_LIBRARIES}
     )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")
