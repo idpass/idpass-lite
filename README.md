@@ -1,4 +1,5 @@
 # Description
+![Alt text](idpasslite_qr.png?raw=true "api")
 
 [![CircleCI](https://circleci.com/gh/newlogic42/lab_idpass_lite.svg?style=svg&circle-token=6df7dc471defbfdbb041013e6683f20dabccd8bb)](https://circleci.com/gh/newlogic42/lab_idpass_lite)
 
