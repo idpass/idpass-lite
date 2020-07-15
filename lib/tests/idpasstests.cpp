@@ -15,6 +15,8 @@
 #include <thread>
 #include <vector>
 
+char const* datapath = "data/";
+
 unsigned char knownHash[] = {
     0x93, 0x99, 0x99, 0xab, 0xbe, 0xd0, 0x74, 0x64,
     0xe8, 0x74, 0x11, 0xdb, 0x41, 0x29, 0xc7, 0xbe,
@@ -56,7 +58,8 @@ unsigned char verification_pk[] = {
 // called in multiple threads
 void single_instance_test(void* ctx)
 {
-    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
     ASSERT_TRUE(f1.is_open());
 
     idpass::Dictionary pub_extras;
@@ -154,8 +157,8 @@ void multiple_instance_test()
                                verif_pk,
                                crypto_sign_PUBLICKEYBYTES);
    // printf("context = %p\n", context);
-
-    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    std::string inputfile = std::string(datapath) + "manny1.bmp"; 
+    std::ifstream f1(inputfile, std::ios::binary);
     ASSERT_TRUE(f1.is_open());
 
     idpass::Dictionary pub_extras;
@@ -303,7 +306,8 @@ protected:
 
 TEST_F(idpass_api_tests, check_qrcode_md5sum)
 {
-    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
 
     idpass::Dictionary pub_extras;
@@ -362,10 +366,12 @@ TEST_F(idpass_api_tests, check_qrcode_md5sum)
 
 TEST_F(idpass_api_tests, createcard_manny_verify_as_brad)
 {
-    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
 
-    std::ifstream f2("data/brad.jpg", std::ios::binary);
+    std::string inputfile2 = std::string(datapath) + "brad.jpg";
+    std::ifstream f2(inputfile2, std::ios::binary);
     std::vector<char> img3(std::istreambuf_iterator<char>{f2}, {});
 
     idpass::Dictionary pub_extras;
@@ -420,7 +426,8 @@ TEST_F(idpass_api_tests, createcard_manny_verify_as_brad)
 
 TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
 {
-    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
 
     idpass::Dictionary pub_extras;
@@ -492,13 +499,16 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
 
 TEST_F(idpass_api_tests, create_card_verify_with_face)
 {
-    std::ifstream f1("data/manny1.bmp", std::ios::binary);
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
 
-    std::ifstream f2("data/manny2.bmp", std::ios::binary);
+    std::string inputfile2 = std::string(datapath) + "manny2.bmp";
+    std::ifstream f2(inputfile2, std::ios::binary);
     std::vector<char> img2(std::istreambuf_iterator<char>{f2}, {});
 
-    std::ifstream f3("data/brad.jpg", std::ios::binary);
+    std::string inputfile3 = std::string(datapath) + "brad.jpg";
+    std::ifstream f3(inputfile3, std::ios::binary);
     std::vector<char> img3(std::istreambuf_iterator<char>{f3}, {});
 
     idpass::Dictionary pub_extras;
@@ -595,8 +605,23 @@ TEST_F(idpass_api_tests, threading_single_instance_test)
     });
 }
 
+
 int main (int argc, char *argv[])
 {
-    ::testing::InitGoogleTest(&argc, argv); 
-    return RUN_ALL_TESTS();
+    if (argc > 1) {
+        datapath = argv[1];
+    }
+     
+    struct stat statbuf;
+    if (stat(datapath, &statbuf) != -1) {
+        if (S_ISDIR(statbuf.st_mode)) {
+           ::testing::InitGoogleTest(&argc, argv); 
+            return RUN_ALL_TESTS();
+        }
+    }
+
+    std::cout << "The data folder must exists relative to the executable's location\n";
+    std::cout << "Or specify data path. For example:\n";
+    std::cout << "./idpasstests lib/tests/data\n";
+    return 0;
 }

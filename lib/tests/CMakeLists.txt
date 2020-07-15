@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.10.1)
 project(idpasstests)
 
-set(GTEST $ENV{ANDROID_NDK_HOME}/sources/third_party/googletest/)
+if(EXISTS "$ENV{ANDROID_NDK_HOME}/sources/third_party/googletest/")
+    set(GTEST $ENV{ANDROID_NDK_HOME}/sources/third_party/googletest/)
+else()
+    set(GTEST ${CMAKE_SOURCE_DIR}/googletest/)
+endif()
+
 add_library(gtest STATIC
     ${GTEST}/src/gtest_main.cc
     ${GTEST}/src/gtest-all.cc
@@ -35,22 +40,29 @@ add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
     COMMENT "Compiling card_access.proto ..."
     )
 
+add_custom_target(testdata
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data/ ${CMAKE_CURRENT_BINARY_DIR}/data/
+    COMMENT "Copying test data ..."
+    )
+
+link_directories(
+    ${DEPENDENCIES_LIB}
+    ${IDPASSAPI_LIB}
+    )
+
 add_executable(idpasstests
     ${PROTOGEN}/card_access.pb.cc
     idpasstests.cpp
     )
 
-target_include_directories(idpasstests PUBLIC
+
+include_directories(
     ${DEPENDENCIES_INCLUDE}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${IDPASSAPI_INCLUDE}
     ${GTEST}/include
     )
 
-target_link_directories(idpasstests PUBLIC
-    ${DEPENDENCIES_LIB}
-    ${IDPASSAPI_LIB}
-    )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")
 	set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
@@ -59,4 +71,5 @@ endif()
 set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
 target_link_libraries(idpasstests ${idpasstests_DEPENDS})
 
+add_dependencies(idpasstests testdata)
 #install(TARGETS idpasstests DESTINATION ${CMAKE_INSTALL_PREFIX})

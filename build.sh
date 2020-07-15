@@ -47,9 +47,12 @@ build_desktop_idpasslite() {
 
     export project=`pwd`
     export build=$project/build
-    mkdir -p build/
+    mkdir -p build/idpasstests/desktop/
     cp scripts/build.idpass.desktop.sh build/
     build/build.idpass.desktop.sh
+
+    cp scripts/build.idpasstests.desktop.sh build/idpasstests/
+    build/idpasstests/build.idpasstests.desktop.sh
 }
 
 case "$1" in 
