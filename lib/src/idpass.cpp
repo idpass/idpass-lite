@@ -1027,6 +1027,54 @@ MODULE_API int idpass_api_face64dbuf(void* self,
     return face_count;
 }
 
+MODULE_API
+int idpass_api_compare_face_template(void *self,
+                                     char* face1,
+                                     int face1_len,
+                                     char* face2,
+                                     int face2_len,
+                                     float *fdiff) 
+{
+    Context* context = (Context*)self;
+
+    if (face1 == nullptr || 
+        face2 == nullptr || 
+        face1_len == 0 || 
+        face2_len == 0) 
+    {
+        return 3; // invalid params
+    }
+
+    float result = 10.0;
+    float face1Array[128];
+    float face2Array[128];
+
+    if (dlib_api::computeface128d((char*)face1, face1_len, face1Array) != 1) {
+        return 1; // something wrong in face1
+    }
+
+    if (dlib_api::computeface128d((char*)face2, face2_len, face2Array) != 1) {
+        return 2; // something wrong in face2
+    }
+
+    // convert vector representation based on fdim mode of calling context
+    if (context->fdimension) {
+        result = helper::euclidean_diff(face1Array, face2Array, 128);
+    } else {
+        float face1Array_half[64];
+        float face2Array_half[64];
+        bin16::f4_to_f2(face1Array, 64, face1Array_half);
+        bin16::f4_to_f2(face2Array, 64, face2Array_half);
+        result = helper::euclidean_diff(face1Array_half, face2Array_half, 64);
+    }
+    
+    if (fdiff) {
+        *fdiff = result;
+    }
+
+    return 0; // success or no error
+}
+
 // Saves the QR Code encoding to a bitmap file
 MODULE_API int idpass_api_saveToBitmap(void* self,
                                        unsigned char* data,

@@ -605,6 +605,47 @@ TEST_F(idpass_api_tests, threading_single_instance_test)
     });
 }
 
+TEST_F(idpass_api_tests, face_template_test)
+{
+    std::string inputfile1 = std::string(datapath) + "manny1.bmp";
+    std::string inputfile2 = std::string(datapath) + "manny2.bmp";
+
+    std::ifstream f1(inputfile1, std::ios::binary);
+    std::ifstream f2(inputfile2, std::ios::binary);
+
+    std::vector<char> photo1(std::istreambuf_iterator<char>{f1}, {}); 
+    std::vector<char> photo2(std::istreambuf_iterator<char>{f2}, {}); 
+
+    float result_half = -10.0f;
+    float result_full = -10.0f;
+    int status;
+    
+    // half mode is the default mode during initialization
+    // That is, facial dimensions are represented as
+    // 64 floats with 2 bytes per float
+    status = idpass_api_compare_face_template(ctx,
+                                     photo1.data(),
+                                     photo1.size(),
+                                     photo2.data(),
+                                     photo2.size(),
+                                     &result_half); // 0.394599169
+    ASSERT_TRUE(status == 0);
+
+    // Switch to full mode by calling ioctl. That is,
+    // facial dimensions are represented as 128 floats with
+    // 4 bytes per float
+    unsigned char ioctlcmd[] = {IOCTL_SET_FDIM, 0x01}; // 0 -> half, 1 -> full
+    idpass_api_ioctl(ctx, nullptr, ioctlcmd, 2);
+
+    status = idpass_api_compare_face_template(ctx,
+                                     photo1.data(),
+                                     photo1.size(),
+                                     photo2.data(),
+                                     photo2.size(),
+                                     &result_full); // 0.499922544
+
+    ASSERT_TRUE(status == 0);
+}
 
 int main (int argc, char *argv[])
 {

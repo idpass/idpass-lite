@@ -572,6 +572,39 @@ verify_with_card(JNIEnv *env,
     return flag;
 }
 
+jfloat
+compare_face_template(JNIEnv *env,
+                      jobject thiz,
+                      jlong context,
+                      jbyteArray face1,
+                      jbyteArray face2)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+
+    jbyte *face1_buf = env->GetByteArrayElements(face1, 0);
+    jsize face1_buf_len = env->GetArrayLength(face1);
+    jbyte *face2_buf = env->GetByteArrayElements(face2, 0);
+    jsize face2_buf_len = env->GetArrayLength(face2);
+
+    float result = -10.0;
+
+    int status = idpass_api_compare_face_template(ctx,
+        reinterpret_cast<char *>(face1_buf),
+        face1_buf_len,
+        reinterpret_cast<char *>(face2_buf),
+        face2_buf_len,
+        &result);
+
+    if (status == 0) {
+        return result;
+    }
+
+    env->ReleaseByteArrayElements(face1, face1_buf, 0);
+    env->ReleaseByteArrayElements(face2, face2_buf, 0);
+
+    return result;
+}
+
 /* This API method is for quick test only to probe protobuf compatibility */
 jbyteArray protobufTest(JNIEnv *env,
                         jobject thiz,
@@ -688,6 +721,10 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"verify_with_card",
      (char *)"(J[B[B[B)Z",
      (void *)verify_with_card},
+
+    {(char *)"compare_face_template",
+     (char *)"(J[B[B)F",
+     (void *)compare_face_template},
 };
 
 int IDPASS_JNI_TLEN = sizeof IDPASS_JNI / sizeof IDPASS_JNI[0];

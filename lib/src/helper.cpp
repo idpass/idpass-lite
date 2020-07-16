@@ -86,6 +86,17 @@ std::map<std::string, std::string> parseToMap(std::string& s)
     return m;
 }
 
+float euclidean_diff(float face1[], float face2[], int n)
+{
+    double ret = 0.0;
+    for (int i = 0; i < n; i++) {
+        double dist
+            = static_cast<double>(face1[i]) - static_cast<double>(face2[i]);
+        ret += dist * dist;
+    }
+    return ret >= 0.0 ? (float)sqrt(ret) : (float)10.0;
+}
+
 double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccessFaceBuf)
 {
     double face_diff = 10.0;
@@ -97,16 +108,6 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
     int face_count = dlib_api::computeface128d(photo, photo_len, &F4[0]);
 
     if (face_count == 1) { // only process if found 1 face
-
-        auto euclidean_diff = [](float face1[], float face2[], int n) {
-            double ret = 0.0;
-            for (int i = 0; i < n; i++) {
-                double dist
-                    = static_cast<double>(face1[i]) - static_cast<double>(face2[i]);
-                ret += dist * dist;
-            }
-            return ret >= 0.0 ? (float)sqrt(ret) : (float)10.0;
-        };
 
         if (buf_len == 128 * 4) {
             bin16::f4b_to_f4(buf, 128 * 4, input_f4);

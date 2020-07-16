@@ -21,6 +21,8 @@ int dlib_computeface128d(char* photo, int photo_len, unsigned char* f128d);
 double
 computeFaceDiff(char* photo, int photo_len, const std::string& facearray);
 
+float euclidean_diff(float face1[], float face2[], int n);
+
 bool decryptCard(unsigned char* encrypted_card,
                  int encrypted_card_len,
                  const unsigned char* encryptionKey,

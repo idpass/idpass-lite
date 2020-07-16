@@ -263,6 +263,15 @@ int idpass_api_verify_with_card(
     unsigned char* pubkey,
     int pubkey_len);
 
+// return the matching score beween the 2 template
+MODULE_API
+int idpass_api_compare_face_template(void* self,
+                                     char* face1,
+                                     int face1_len,
+                                     char* face2,
+                                     int face2_len,
+                                     float* fdiff); 
+
 /**
  * Test function
  */
