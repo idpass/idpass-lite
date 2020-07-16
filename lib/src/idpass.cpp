@@ -112,7 +112,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     // More than one JNI can be mapped
     try {
 #ifdef _IDPASS_JNI_
-        map_JNI("org/idpass/IDPass", &IDPASS_JNI[0], IDPASS_JNI_TLEN);
+        map_JNI("org/idpass/lite/IDPassReader", &IDPASS_JNI[0], IDPASS_JNI_TLEN);
 #endif
     } catch (...) {
         return JNI_ERR;
