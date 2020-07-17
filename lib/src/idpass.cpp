@@ -337,20 +337,24 @@ idpass_api_create_card_with_face(void* self,
     idpass::Pair* kv = nullptr;
 
     idpass::Dictionary pub_extras;
-    if (pub_extras.ParseFromArray(pub_extras_buf, pub_extras_buf_len)) {
-        for (auto extra : pub_extras.pairs()) {
-            kv = public_details.add_extra();
-            kv->set_key(extra.key());
-            kv->set_value(extra.value());
+    if (pub_extras_buf && pub_extras_buf_len > 0) {
+        if (pub_extras.ParseFromArray(pub_extras_buf, pub_extras_buf_len)) {
+            for (auto extra : pub_extras.pairs()) {
+                kv = public_details.add_extra();
+                kv->set_key(extra.key());
+                kv->set_value(extra.value());
+            }
         }
     }
 
     idpass::Dictionary priv_extras;
-    if (priv_extras.ParseFromArray(priv_extras_buf, priv_extras_buf_len)) {
-        for (auto extra : priv_extras.pairs()) {
-            kv = details.add_extra();
-            kv->set_key(extra.key());
-            kv->set_value(extra.value());
+    if (priv_extras_buf && priv_extras_buf_len > 0) {
+        if (priv_extras.ParseFromArray(priv_extras_buf, priv_extras_buf_len)) {
+            for (auto extra : priv_extras.pairs()) {
+                kv = details.add_extra();
+                kv->set_key(extra.key());
+                kv->set_value(extra.value());
+            }
         }
     }
 
