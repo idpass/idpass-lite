@@ -887,6 +887,32 @@ MODULE_API unsigned char* idpass_api_qrpixel(void* self,
     return pixel;
 }
 
+MODULE_API unsigned char* idpass_api_qrpixel2(void* self, int* outlen,
+                                             const unsigned char* data,
+                                             int data_len,
+                                             int* qrsize)
+{
+    Context* context = (Context*)self;
+    int buf_len = 0;
+    *outlen = 0;
+
+    unsigned char* buf = qrcode_getpixel(
+        data, data_len, qrsize, &buf_len, context->qrcode_ecc);
+
+    if (buf == nullptr) {
+        LOGI("idpass_api_qrpixel2: error");
+        return nullptr;
+    }
+
+    // re-allocate & copy into our manage area
+    unsigned char* pixel = context->NewByteArray(buf_len);
+    std::memcpy(pixel, buf, buf_len);
+    *outlen = buf_len;
+    delete[] buf;
+
+    return pixel;
+}
+
 //=================================================
 // This is a generalized get/set API. The supported
 // commands are:
@@ -1013,6 +1039,19 @@ MODULE_API int idpass_api_face128dbuf(void* self,
     }
 
     return face_count;
+}
+
+MODULE_API
+int idpass_api_face64d(void* self,
+                       char* photo,
+                       int photo_len,
+                       float* facearray)
+{
+    Context* context = (Context*)self;
+    float fdim[128];
+    int facecount = dlib_api::computeface128d(photo, photo_len, fdim);
+    bin16::f4_to_f2(fdim, 64, facearray);
+    return facecount;
 }
 
 MODULE_API int idpass_api_face64dbuf(void* self,

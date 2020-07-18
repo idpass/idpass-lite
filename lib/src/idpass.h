@@ -186,6 +186,14 @@ unsigned char* idpass_api_qrpixel(
     int data_len,
     int* qrsize);
 
+MODULE_API
+unsigned char* idpass_api_qrpixel2(
+    void* self,
+    int* outlen,
+    const unsigned char* data,
+    int data_len,
+    int* qrsize);
+
 /**
  * Compute Dlib float[128] of a given photo
  * @param photo Any photo
@@ -213,6 +221,13 @@ int idpass_api_face128dbuf(
     char* photo,
     int photo_len,
     unsigned char* buf);
+
+MODULE_API
+int idpass_api_face64d(
+    void* self,
+    char* photo,
+    int photo_len,
+    float* facearray);
 
 /**
  * Compute Dlib byte[64*2] of a given photo
