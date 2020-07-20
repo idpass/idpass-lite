@@ -588,10 +588,10 @@ compare_face_template(JNIEnv *env,
 
     float result = -10.0;
 
-    int status = idpass_api_compare_face_template(ctx,
-        reinterpret_cast<char *>(face1_buf),
+    int status = idpass_api_compare_face_template(
+        reinterpret_cast<unsigned char *>(face1_buf),
         face1_buf_len,
-        reinterpret_cast<char *>(face2_buf),
+        reinterpret_cast<unsigned char *>(face2_buf),
         face2_buf_len,
         &result);
 

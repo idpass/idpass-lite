@@ -619,32 +619,35 @@ TEST_F(idpass_api_tests, face_template_test)
     float result_half = -10.0f;
     float result_full = -10.0f;
     int status;
+
+    unsigned char photo1_template_full[128 * 4];
+    unsigned char photo2_template_full[128 * 4];
+
+    unsigned char photo1_template_half[64 * 2];
+    unsigned char photo2_template_half[64 * 2];
+
+    idpass_api_face128dbuf( ctx, photo1.data(), photo1.size(), photo1_template_full);
+    idpass_api_face128dbuf( ctx, photo2.data(), photo2.size(), photo2_template_full);
+
+    idpass_api_face64dbuf( ctx, photo1.data(), photo1.size(), photo1_template_half);
+    idpass_api_face64dbuf( ctx, photo2.data(), photo2.size(), photo2_template_half);
     
-    // half mode is the default mode during initialization
-    // That is, facial dimensions are represented as
-    // 64 floats with 2 bytes per float
-    status = idpass_api_compare_face_template(ctx,
-                                     photo1.data(),
-                                     photo1.size(),
-                                     photo2.data(),
-                                     photo2.size(),
-                                     &result_half); // 0.394599169
-    ASSERT_TRUE(status == 0);
-
-    // Switch to full mode by calling ioctl. That is,
-    // facial dimensions are represented as 128 floats with
-    // 4 bytes per float
-    unsigned char ioctlcmd[] = {IOCTL_SET_FDIM, 0x01}; // 0 -> half, 1 -> full
-    idpass_api_ioctl(ctx, nullptr, ioctlcmd, 2);
-
-    status = idpass_api_compare_face_template(ctx,
-                                     photo1.data(),
-                                     photo1.size(),
-                                     photo2.data(),
-                                     photo2.size(),
+    status = idpass_api_compare_face_template(
+                                     photo1_template_full,
+                                     sizeof photo1_template_full,
+                                     photo2_template_full,
+                                     sizeof photo2_template_full,
                                      &result_full); // 0.499922544
 
-    ASSERT_TRUE(status == 0);
+    ASSERT_TRUE(status == 0); 
+
+    status = idpass_api_compare_face_template(
+                                     photo1_template_half,
+                                     sizeof photo1_template_half,
+                                     photo2_template_half,
+                                     sizeof photo2_template_half,
+                                     &result_half); // 0.394599169
+    ASSERT_TRUE(status == 0);                                     
 }
 
 int main (int argc, char *argv[])

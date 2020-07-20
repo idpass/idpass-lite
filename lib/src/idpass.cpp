@@ -1071,19 +1071,19 @@ MODULE_API int idpass_api_face64dbuf(void* self,
 }
 
 MODULE_API
-int idpass_api_compare_face_template(void *self,
-                                     char* face1,
-                                     int face1_len,
-                                     char* face2,
-                                     int face2_len,
-                                     float *fdiff) 
+int idpass_api_compare_face_photo(void *self,
+                          char* face1,
+                          int face1_len,
+                          char* face2,
+                          int face2_len,
+                          float *fdiff)
 {
     Context* context = (Context*)self;
 
-    if (face1 == nullptr || 
-        face2 == nullptr || 
-        face1_len == 0 || 
-        face2_len == 0) 
+    if (face1 == nullptr ||
+        face2 == nullptr ||
+        face1_len == 0 ||
+        face2_len == 0)
     {
         return 3; // invalid params
     }
@@ -1110,12 +1110,51 @@ int idpass_api_compare_face_template(void *self,
         bin16::f4_to_f2(face2Array, 64, face2Array_half);
         result = helper::euclidean_diff(face1Array_half, face2Array_half, 64);
     }
-    
+
     if (fdiff) {
         *fdiff = result;
     }
 
     return 0; // success or no error
+}
+
+MODULE_API
+int idpass_api_compare_face_template(unsigned char* face1,
+                                     int face1_len,
+                                     unsigned char* face2,
+                                     int face2_len,
+                                     float *fdiff)
+{
+    float face1Array[128];
+    float face2Array[128];
+    int len = 0;
+
+    if (face1_len == 128 * 4) {
+        bin16::f4b_to_f4(face1, face1_len, face1Array);
+        len = 128;
+    } else if (face1_len == 64 * 2) {
+        bin16::f2b_to_f4(face1, face1_len, face1Array);
+        len = 64;
+    } else {
+        return 1;
+    }
+
+    if (face2_len == 128 * 4) {
+        bin16::f4b_to_f4(face2, face2_len, face2Array);
+        len = 128;
+    } else if (face2_len == 64 * 2) {
+        bin16::f2b_to_f4(face2, face2_len, face2Array);
+        len = 64;
+    } else {
+        return 2; 
+    }
+
+    float result = helper::euclidean_diff(face1Array, face2Array, len);
+    if (fdiff) {
+        *fdiff = result; 
+    }
+
+    return 0;
 }
 
 // Saves the QR Code encoding to a bitmap file
