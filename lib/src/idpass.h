@@ -18,17 +18,54 @@
 #define DEFAULT_FACEDIFF_FULL 0.60
 #define DEFAULT_FACEDIFF_HALF 0.42
 
+/**
+ * The error correction settings when generating 
+ * a QR code. The library defaults to ECC_MEDIUM but
+ * can be later change via an ioctl function. The
+ * default setting of ECC_MEDIUM is optimal for a 
+ * QR code ID and there should be no need to change
+ * this default setting. 
+ *
+ * Below is a guideline that describes the 
+ * various settings practically applicable:
+ * https://www.qrcode.com/en/about/error_correction.html#:~:text=To%20select%20error%20correction%20level,the%20large%20amount%20of%20data
+ */
 #define ECC_LOW 0
 #define ECC_MEDIUM 1
 #define ECC_QUARTILE 2
 #define ECC_HIGH 3
 
+/**
+ * These bit flags are used to toggle the visibility of 
+ * the corresponding card details field using the 
+ * ioctl command.
+ */
 #define ACL_SURNAME 1
 #define ACL_GIVENNAME 2
 #define ACL_DATEOFBIRTH 4
 #define ACL_PLACEOFBIRTH 8
 #define ACL_CREATEDAT 16
 
+/**
+ * These are the supported ioctl commands used to
+ * get/set certain parmeters:
+ * IOCTL_SET_FACEDIFF - Sets the floating point threshold value 
+ * used to match face templates.
+ *
+ * IOCTL_GET_FACEDIFF - Gets the floating point threshold value
+ * used to match face templates.
+ *
+ * IOCTL_SET_FDIM - Toggles between full mode or half mode when
+ * computing the facial biometry.
+ *
+ * IOCTL_GET_FDIM - Gets current mode either full or half mode
+ * used when computing the facial biometry.
+ *
+ * IOCTL_SET_ECC - Change the QR code error correction code level.
+ *
+ * IOCTL_SET_ACL - Toggles card details field visibility in the
+ * returned public section of the QR code.
+ */
 #define IOCTL_SET_FACEDIFF 0x00
 #define IOCTL_GET_FACEDIFF 0x01
 #define IOCTL_SET_FDIM 0x02
@@ -61,6 +98,27 @@ void* idpass_api_ioctl(
 MODULE_API
 void idpass_api_freemem(void* self, void* buf);
 
+/**
+ * The main initialization function of the library. This is used
+ * to set the needed cryptographic keys. 
+ * @param card_encryption_key An AEAD symmetric key used to encrypt the
+ *        private contents of the QR code ID. The documentation of this
+ *        key type can be found in: 
+ *        https://libsodium.gitbook.io/doc/secret-key_cryptography/aead/chacha20-poly1305/ietf_chacha20-poly1305_construction
+ * @param card_encryption_key_len The length in bytes of the 
+ *        card_encryption_key. An IETF chacha20 poly1305 key has a length
+ *        of 32 bytes.
+ * @param card_signaturekey An ED25519 signature key used to sign every content
+ *        both public and private of the QR code.
+ * @param card_signaturekey_len The length in bytes of card_signaturekey. An ED25519
+ *        signature key has a length of 64 bytes.
+ * @param verification_keys A list of public keys used to verify the signature
+ *        of the contents in the QR code ID. Each public key has a length of 
+ *        32 bytes.
+ * @param verification_keys_len The total length in bytes of verification_keys 
+ *        parameter
+ * @return Returns an instance context of the library
+ */
 MODULE_API
 void* idpass_api_init(unsigned char* card_encryption_key,
                       int card_encryption_key_len,
@@ -186,6 +244,16 @@ unsigned char* idpass_api_qrpixel(
     int data_len,
     int* qrsize);
 
+/**
+ * Returns QR Code represented as pixel  bits. This
+ * is for the Python ctypes API to easily extract the returned
+ * bytes using the outlen length via: buf = string_at(buf,buflen)
+ * @param outlen The length of the returned bytes
+ * @param data The data to be encoded as QR Code
+ * @param data_len Count of bytes
+ * @param qrsize The square side dimension of QR Code
+ * @return The QR Code representation of data
+ */
 MODULE_API
 unsigned char* idpass_api_qrpixel2(
     void* self,
@@ -209,7 +277,9 @@ int idpass_api_face128d(
     float* facearray);
 
 /**
- * Compute Dlib byte[128*4] of a given photo
+ * Compute Dlib byte[128*4] of a given photo.
+ * The computed face template is represented
+ * as a byte array.
  * @param photo Any photo
  * @param photo_len Length bytes of photo
  * @param buf Dlib dimension of one face as bytes
@@ -222,6 +292,15 @@ int idpass_api_face128dbuf(
     int photo_len,
     unsigned char* buf);
 
+/**
+ * Compute Dlib float[64] of a given photo. The
+ * computed face template is represented as 
+ * 64 floats with 2 bytes per float.
+ * @param photo Any photo
+ * @param photo_len Length bytes of photo
+ * @param buf Dlib dimension of one face as bytes
+ * @return Count of faces detected by Dlib
+ */
 MODULE_API
 int idpass_api_face64d(
     void* self,
@@ -230,7 +309,9 @@ int idpass_api_face64d(
     float* facearray);
 
 /**
- * Compute Dlib byte[64*2] of a given photo
+ * Compute Dlib byte[64*2] of a given photo. The
+ * computed face template is represented as
+ * array of bytes.
  * @param photo Any photo
  * @param photo_len Length bytes of photo
  * @param buf Dlib dimension of one face as bytes
@@ -243,6 +324,18 @@ int idpass_api_face64dbuf(
     int photo_len,
     unsigned char* buf);
 
+/**
+ * This is used to decrypt a ciphertext using
+ * a symmetric key.
+ * @param self - Library context
+ * @param outlen - Describes length of returned bytes
+ * @param ciphertext - The ciphertext to be decrypted
+ * @param ciphertext_len - Describes the length of ciphertext
+ * @param skpk - The symmetric key used for decryption
+ * @param skpk_len - Describes the length of skpk
+ * @return - Returns the plaintext upon successful decryption
+ * or NULL otherwise.
+ */
 MODULE_API
 unsigned char* idpass_api_decrypt_with_card(
     void* self,
@@ -252,6 +345,10 @@ unsigned char* idpass_api_decrypt_with_card(
     unsigned char* skpk,
     int skpk_len);
 
+/**
+ * 
+ *
+ */
 MODULE_API
 int idpass_api_generate_encryption_key( 
     unsigned char *key, int key_len);
