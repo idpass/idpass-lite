@@ -359,6 +359,9 @@ TEST_F(idpass_api_tests, chain_of_trust_impl)
     flag = verify_chain(chain3_invalid, &cert6);
     ASSERT_FALSE(flag);
 
+    flag = verify_chain(chain3_invalid, &cert7); // but cert7 is valid in this chain
+    ASSERT_TRUE(flag);
+
     std::vector<Cert> chain33_invalid{
         cert6,
         cert1,
