@@ -53,6 +53,7 @@ link_directories(
 add_executable(idpasstests
     ${PROTOGEN}/card_access.pb.cc
     idpasstests.cpp
+    Cert.cpp
     )
 
 

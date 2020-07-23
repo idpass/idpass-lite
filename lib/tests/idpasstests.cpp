@@ -2,6 +2,8 @@
 #include "protogen/card_access.pb.h"
 #include "sodium.h"
 
+#include "Cert.h"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -52,7 +54,6 @@ unsigned char verification_pk[] = {
   0xcf, 0x63, 0x40, 0xbe, 0x13, 0x10, 0x6e, 0x80, 
   0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4
 }; // 32
-
 
 // A single instance of idpass_api_init context
 // called in multiple threads
@@ -303,6 +304,89 @@ protected:
 
 
 };
+
+TEST_F(idpass_api_tests, chain_of_trust_impl)
+{
+    Cert cert9;
+    Cert cert0(masterkey);
+
+    Cert cert1;
+    cert0.Sign(cert1);
+    Cert cert2;
+    cert0.Sign(cert2);
+    Cert cert3;
+    cert1.Sign(cert3);
+    Cert cert4;
+    cert3.Sign(cert4);
+    Cert cert5;
+    cert9.Sign(cert5);
+    Cert cert6;
+    cert5.Sign(cert6);
+    Cert cert7;
+    cert2.Sign(cert7);
+
+    bool flag;
+    unsigned char* buf;
+
+    Cert c01; // self-signed at birth
+    Cert c02;
+    Cert c03;
+    c01.Sign(c02);
+    c02.Sign(c03);
+    c03.Sign(c01); // make it circular
+
+    std::vector<Cert> chain4_valid{cert4, cert1, cert0, cert3};
+    flag = verify_chain(chain4_valid);
+    ASSERT_TRUE(flag);
+
+    std::vector<Cert> chain_invalid_circular{
+        c01, c02, c03
+    };
+
+    flag = verify_chain(chain_invalid_circular);
+    ASSERT_FALSE(flag);
+    flag = verify_chain(chain_invalid_circular, &c01);
+    ASSERT_FALSE(flag);
+
+    std::vector<Cert> chain3_invalid{
+        cert6,
+        cert1,
+        cert7,
+        cert0,
+        cert2,
+        cert5,
+    };
+    flag = verify_chain(chain3_invalid, &cert6);
+    ASSERT_FALSE(flag);
+
+    std::vector<Cert> chain33_invalid{
+        cert6,
+        cert1,
+        cert7,
+        cert9,
+        cert0,
+        cert5,
+    };
+
+    flag = verify_chain(chain33_invalid);
+    ASSERT_FALSE(flag);
+
+    std::vector<Cert> chain1_valid{cert7, cert2, cert1, cert0};
+    flag = verify_chain(chain1_valid);
+    ASSERT_TRUE(flag);
+
+    std::vector<Cert> chain2_valid{cert7, cert2, cert0};
+    flag = verify_chain(chain2_valid);
+    ASSERT_TRUE(flag);
+
+    std::vector<Cert> chain5_valid{cert0, cert9, cert5};
+    flag = verify_chain(chain5_valid);
+    ASSERT_FALSE(flag);
+
+    std::vector<Cert> chain6_invalid{cert6, cert5, cert0};
+    flag = verify_chain(chain6_invalid);
+    ASSERT_FALSE(flag);
+}
 
 TEST_F(idpass_api_tests, check_qrcode_md5sum)
 {
