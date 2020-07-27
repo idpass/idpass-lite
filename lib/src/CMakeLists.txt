@@ -65,6 +65,7 @@ link_directories(
 add_library(idpasslite SHARED
     ${PROTOGEN}/card_access.pb.cc
     ${CMAKE_SOURCE_DIR}/jni/org/idpass/idpass_jni.cpp
+    Cert.cpp
     idpass.cpp
     helper.cpp
     dlibapi.cpp

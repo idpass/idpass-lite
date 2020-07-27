@@ -156,7 +156,7 @@ void multiple_instance_test()
                                sig_skpk,
                                crypto_sign_SECRETKEYBYTES,
                                verif_pk,
-                               crypto_sign_PUBLICKEYBYTES);
+                               crypto_sign_PUBLICKEYBYTES,nullptr,nullptr,0);
    // printf("context = %p\n", context);
     std::string inputfile = std::string(datapath) + "manny1.bmp"; 
     std::ifstream f1(inputfile, std::ios::binary);
@@ -293,7 +293,7 @@ protected:
             signature_sk, 
             crypto_sign_SECRETKEYBYTES,
             verification_pk,
-            crypto_sign_PUBLICKEYBYTES);
+            crypto_sign_PUBLICKEYBYTES, nullptr, nullptr, 0);
     }
 
     void TearDown() override
@@ -307,6 +307,50 @@ protected:
 
 TEST_F(idpass_api_tests, chain_of_trust_impl)
 {
+    unsigned char masterkey[] = {
+    0x2d, 0x52, 0xf8, 0x6a, 0xaa, 0x4d, 0x62, 0xfc, 
+    0xab, 0x4d, 0xb0, 0x0a, 0x21, 0x1a, 0x12, 0x60, 
+    0xf8, 0x17, 0xc5, 0xf2, 0xba, 0xb7, 0x3e, 0xfe, 
+    0xd6, 0x36, 0x07, 0xbc, 0x9d, 0xb3, 0x96, 0xee, 
+    0x57, 0xc6, 0x33, 0x09, 0xfa, 0xc2, 0x1b, 0x60, 
+    0x04, 0x76, 0x4e, 0xf6, 0xf7, 0xc6, 0x2f, 0x28, 
+    0xcf, 0x63, 0x40, 0xbe, 0x13, 0x10, 0x6e, 0x80, 
+    0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4};
+
+    std::list<std::array<unsigned char, 32>> root_ca_pubkeys; // 32n
+    std::array<unsigned char, 32> rootcapubkey; // 32n
+    std::copy(masterkey + 32, masterkey + 64, std::begin(rootcapubkey));
+    root_ca_pubkeys.push_back(rootcapubkey);
+
+    auto verify_chain = [&root_ca_pubkeys](std::vector<Cert>& chain)
+    {
+        for (Cert& c : chain) {
+            Cert* pCert = &c;
+            unsigned char* startkey = c.pubkey;
+
+            while (pCert != nullptr) {
+                if (pCert->hasValidSignature()) {
+                    if (!pCert->isRootCA()) {
+                        pCert = pCert->getIssuer(chain);
+                        if (pCert == nullptr
+                            || std::memcmp(pCert->pubkey, startkey, 32) == 0) {
+                            return false;
+                        }
+                        continue;
+                    } else if (pCert->isInTrustedList(root_ca_pubkeys)) {
+                        break;
+                    } else {
+                        return false; 
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
     Cert cert9;
     Cert cert0(masterkey);
 
@@ -326,9 +370,8 @@ TEST_F(idpass_api_tests, chain_of_trust_impl)
     cert2.Sign(cert7);
 
     bool flag;
-    unsigned char* buf;
 
-    Cert c01; // self-signed at birth
+    Cert c01; // self-signed during creation
     Cert c02;
     Cert c03;
     c01.Sign(c02);
@@ -345,8 +388,6 @@ TEST_F(idpass_api_tests, chain_of_trust_impl)
 
     flag = verify_chain(chain_invalid_circular);
     ASSERT_FALSE(flag);
-    flag = verify_chain(chain_invalid_circular, &c01);
-    ASSERT_FALSE(flag);
 
     std::vector<Cert> chain3_invalid{
         cert6,
@@ -356,11 +397,8 @@ TEST_F(idpass_api_tests, chain_of_trust_impl)
         cert2,
         cert5,
     };
-    flag = verify_chain(chain3_invalid, &cert6);
+    flag = verify_chain(chain3_invalid);
     ASSERT_FALSE(flag);
-
-    flag = verify_chain(chain3_invalid, &cert7); // but cert7 is valid in this chain
-    ASSERT_TRUE(flag);
 
     std::vector<Cert> chain33_invalid{
         cert6,

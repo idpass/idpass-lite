@@ -1,4 +1,5 @@
 #include "idpass.h"
+#include "Cert.h"
 #include "dlibapi.h"
 #include "sodium.h"
 #include "proto/card_access/card_access.pb.h"
@@ -64,6 +65,8 @@ extern int IDPASS_JNI_TLEN;
 // tells the commit hash that built
 // this library
 char dxtracker[] = DXTRACKER;
+
+std::mutex g_mutex;
 
 //===============================================
 // The JNI_OnLoad allows for a well-organized and
@@ -132,6 +135,9 @@ struct Context
     std::array<unsigned char, crypto_sign_SECRETKEYBYTES> signatureKey; // 64
     std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> verificationKeys; // 32n
 
+    std::list<std::array<unsigned char, 32>> root_ca_pubkeys; // 32n
+    std::vector<Cert> certificates;
+
     float facediff_half;
     float facediff_full;
     bool fdimension; // 128/4 if true else 64/2
@@ -159,6 +165,39 @@ struct Context
             }
         }
         return false;
+    }
+
+    bool verify_chain(std::vector<Cert>& chain)
+    {
+        for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
+            Cert* pCert = &(*it);
+            unsigned char* startkey = it->pubkey;
+
+            while (pCert != nullptr) {
+                if (pCert->hasValidSignature()) {
+                    if (helper::isRevoked(REVOKED_KEYS, pCert->pubkey, 32)) {
+                        return false;
+                    }
+                    if (!pCert->isRootCA()) {
+                        pCert = pCert->getIssuer(chain);
+                        if (pCert == nullptr
+                            || std::memcmp(pCert->pubkey, startkey, 32)
+                                   == 0) {
+                            return false;
+                        }
+                        continue;
+                    } else if (pCert->isInTrustedList(root_ca_pubkeys)) {
+                        break;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 };
 
@@ -195,6 +234,33 @@ namespace M
 extern "C" {
 #endif
 
+MODULE_API
+int idpass_api_add_certificates(void* self,
+                                 unsigned char** certificates,
+                                 int* len,
+                                 int ncertificates)
+{
+    Context* context = (Context*)self;
+    int n;
+
+    std::vector<Cert> chain;
+
+    for (int i = 0; i < ncertificates; i++) {
+        n = len[i];
+        Cert cert;
+        cert.fromBuffer(certificates[i], n);
+        if (cert.hasValidSignature()) {
+            chain.push_back(cert);
+        }
+    }
+
+    if (context->verify_chain(chain)) {
+        context->certificates = chain;
+        return 0; // no errors
+    }
+
+    return 1;
+}
 
 //=============    
 // Description:
@@ -206,7 +272,10 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
                                  unsigned char* card_signature_key,
                                  int card_signature_key_len,
                                  unsigned char* verification_keys,
-                                 int verification_keys_len)
+                                 int verification_keys_len,
+                                 unsigned char** certificates,
+                                 int* len, // 128 or 160
+                                 int ncertificates)
 {
     Context* context = M::newContext();
 
@@ -250,6 +319,22 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
     context->fdimension = false; // defaults to 64/2
     context->qrcode_ecc = ECC_MEDIUM;
     std::memset(context->acl, 0x00, sizeof context->acl); // default all fields priv
+
+    if (certificates && ncertificates > 0) {
+        for (int i = 0; i < ncertificates; i++) {
+            int n = len[i]; // 128 or 160 
+
+            Cert cert;
+            cert.fromBuffer(certificates[i], n);
+
+            if (cert.hasValidSignature() && cert.isRootCA()) {
+                std::array<unsigned char, 32> rootcapubkey;
+                std::copy(cert.pubkey, cert.pubkey + 32, std::begin(rootcapubkey));
+                context->root_ca_pubkeys.push_back(rootcapubkey);
+            }
+        }
+    }
+
     return static_cast<void*>(context);
 }
 
@@ -1153,6 +1238,101 @@ int idpass_api_compare_face_template(unsigned char* face1,
     if (fdiff) {
         *fdiff = result; 
     }
+
+    return 0;
+}
+
+MODULE_API
+int idpass_api_generate_root_certificate(unsigned char* skpk,
+                                         int skpk_len,
+                                         unsigned char* buf,
+                                         int buf_len)
+{
+    if (skpk_len != crypto_sign_SECRETKEYBYTES ||
+        skpk == nullptr ||
+        buf == nullptr ||
+        buf_len != 160) {
+        return 1;
+    }
+
+    unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
+    crypto_sign_ed25519_sk_to_pk(pubkey, skpk);
+    unsigned char signature[crypto_sign_BYTES]; // 64
+
+    if (crypto_sign_detached(
+        signature,
+        nullptr,
+        pubkey,
+        sizeof pubkey,
+        skpk)
+    != 0) {
+        return 2;
+    }
+
+    std::memcpy(buf, skpk, crypto_sign_SECRETKEYBYTES); // 64
+    std::memcpy(buf + skpk_len, signature, crypto_sign_BYTES); // 64
+    std::memcpy(buf + skpk_len + crypto_sign_BYTES, pubkey, crypto_sign_PUBLICKEYBYTES); // 32
+    // total = 160
+
+    return 0;
+}
+
+MODULE_API
+int idpass_api_generate_child_certificate(
+                                          unsigned char* parent_skpk,
+                                          int parent_skpk_len,
+                                          unsigned char* child_skpk,
+                                          int child_skpk_len,
+                                          unsigned char* buf,
+                                          int buf_len)
+{
+    if (parent_skpk_len != crypto_sign_SECRETKEYBYTES || 
+        parent_skpk == nullptr ||
+        child_skpk_len != crypto_sign_SECRETKEYBYTES || 
+        child_skpk == nullptr ||
+        buf == nullptr ||
+        buf_len != 160) {
+        return 1;
+    }
+
+    unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
+    crypto_sign_ed25519_sk_to_pk(pubkey, child_skpk); 
+
+    unsigned char issuerkey[crypto_sign_PUBLICKEYBYTES];
+    crypto_sign_ed25519_sk_to_pk(issuerkey, parent_skpk); 
+
+    unsigned char signature[crypto_sign_BYTES];
+
+    // sign the child's public key
+    if (crypto_sign_detached(
+        signature, 
+        nullptr, 
+        pubkey, 
+        sizeof pubkey, 
+        parent_skpk) 
+    != 0) {
+        return 2;
+    }
+
+    std::memcpy(buf, child_skpk, crypto_sign_SECRETKEYBYTES);
+    std::memcpy(buf + crypto_sign_SECRETKEYBYTES, signature, crypto_sign_BYTES);
+    std::memcpy(buf + crypto_sign_SECRETKEYBYTES + crypto_sign_BYTES, issuerkey, crypto_sign_PUBLICKEYBYTES);
+
+    return 0;
+}
+
+MODULE_API
+int idpass_api_add_revoked_key(unsigned char* pubkey, int pubkey_len)
+{
+    if (pubkey == nullptr || pubkey_len != crypto_sign_PUBLICKEYBYTES) {
+        return 1;
+    }
+
+    std::lock_guard<std::mutex> guard(g_mutex);
+    struct stat st;
+    std::ofstream outfile(REVOKED_KEYS, std::ios::out | std::ios::binary | std::ios::app);
+    outfile.write(reinterpret_cast<const char*>(pubkey), pubkey_len);
+    outfile.close();
 
     return 0;
 }

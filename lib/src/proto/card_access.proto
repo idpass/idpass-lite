@@ -80,7 +80,16 @@ message PublicSignedIDPassCard {
     bytes signerPublicKey = 3;
 }
 
+message Certificate {
+    bytes pubkey = 1;
+    bytes issuerkey = 2;
+    bytes signature = 3;
+}
+
 message IDPassCards {
     PublicSignedIDPassCard publicCard = 1;
     bytes encryptedCard = 2;
+
+    bytes signature = 3;
+    repeated Certificate certificates = 4;
 }

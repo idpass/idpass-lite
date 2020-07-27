@@ -35,7 +35,7 @@ std::vector<float> get128f(unsigned char* facearray, int facearray_len);
 double vectorDistance(float* first, float* last, float* first2);
 
 std::vector<char> readfile(const char* filename);
-
+bool isRevoked(const char* filename, unsigned char* key, int key_len);
 }
 
 #endif // __cplusplus

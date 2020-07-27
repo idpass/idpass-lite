@@ -46,6 +46,8 @@
 #define ACL_PLACEOFBIRTH 8
 #define ACL_CREATEDAT 16
 
+#define REVOKED_KEYS "revoked.keys"
+
 /**
  * These are the supported ioctl commands used to
  * get/set certain parmeters:
@@ -76,6 +78,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+MODULE_API
+int idpass_api_add_certificates(void* self,
+                             unsigned char** certificates,
+                             int *len,
+                             int ncertificates);
 
 /**
  * A generalized I/O function used to get/set settings
@@ -119,13 +127,17 @@ void idpass_api_freemem(void* self, void* buf);
  *        parameter
  * @return Returns an instance context of the library
  */
+
 MODULE_API
 void* idpass_api_init(unsigned char* card_encryption_key,
                       int card_encryption_key_len,
                       unsigned char* card_signature_key,
                       int card_signature_key_len,
                       unsigned char* verification_keys,
-                      int verification_keys_len);
+                      int verification_keys_len,
+                      unsigned char** certificates,
+                      int* len,
+                      int ncertificates);
 
 /**
  * Creates a new card with the given personal details
@@ -356,6 +368,24 @@ int idpass_api_generate_encryption_key(
 MODULE_API 
 int idpass_api_generate_secret_signature_key( 
     unsigned char *key, int key_len);
+
+MODULE_API
+int idpass_api_generate_root_certificate(unsigned char* skpk,
+                                         int skpk_len,
+                                         unsigned char* buf,
+                                         int buf_len);
+
+MODULE_API 
+int idpass_api_add_revoked_key( 
+    unsigned char *pubkey, int pubkey_len);
+
+MODULE_API
+int idpass_api_generate_child_certificate(unsigned char* parent_skpk,
+                                          int parent_skpk_len,
+                                          unsigned char* child_skpk,
+                                          int child_skpk_len,
+                                          unsigned char* buf,
+                                          int buf_len);
 
 MODULE_API
 int idpass_api_card_decrypt(

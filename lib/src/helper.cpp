@@ -217,6 +217,41 @@ bool decryptCard(unsigned char* encrypted_card,
     return flag;
 }
 
+bool isRevoked(const char* filename, unsigned char* key, int key_len)
+{
+    struct stat st;
+    if (stat(filename, &st) == 0) {
+        if (st.st_size % 32 != 0) {
+            throw std::runtime_error("revoked.keys malformed");
+            return false;
+        }
+        std::list<std::array<char, crypto_sign_PUBLICKEYBYTES>> revokedkeys;
+        std::array<char, crypto_sign_PUBLICKEYBYTES> rkey;
+        FILE* file = NULL;
+        size_t nread = 0;
+        file = fopen(filename, "rb");
+        if (file != NULL) {
+            while ((nread = fread(rkey.data(), 1, rkey.size(), file)) > 0) {
+                revokedkeys.push_back(rkey);
+            }
+            fclose(file);
+        } else {
+            throw std::runtime_error("revoked.keys open error");
+        }
+
+        std::copy(key, key + 32, std::begin(rkey));
+
+        if (std::find(revokedkeys.begin(),
+                      revokedkeys.end(),
+                      rkey)
+            != revokedkeys.end()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // helper
 
 extern "C" void helper_hexdump(const void* data, int size, char* title)

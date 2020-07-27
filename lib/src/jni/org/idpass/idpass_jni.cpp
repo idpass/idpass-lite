@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstring>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -28,7 +29,8 @@ idpass_init(JNIEnv *env,
             jobject thiz,
             jbyteArray enc,
             jbyteArray sig,
-            jbyteArray verif)
+            jbyteArray verif,
+            jobjectArray rootcertificates)
 {
     jbyte *bufEnc = env->GetByteArrayElements(enc, 0);
     jsize bufEnc_len = env->GetArrayLength(enc);
@@ -39,12 +41,47 @@ idpass_init(JNIEnv *env,
     jbyte *bufVerif = env->GetByteArrayElements(verif, 0);
     jsize bufVerif_len = env->GetArrayLength(verif);
 
+    //////////////////
+    int count = rootcertificates != nullptr ? env->GetArrayLength(rootcertificates) : 0;
+
+    unsigned char **cert = nullptr;
+    int *nlen = nullptr;
+
+    if (count > 0) {
+        cert = new unsigned char *[count];
+        nlen = new int[count];
+    }
+
+    for (int i = 0; i < count; i++) {
+        jbyteArray jba = (jbyteArray)env->GetObjectArrayElement(rootcertificates, i);
+        jbyte *buf = env->GetByteArrayElements(jba, 0);
+        int buf_len = env->GetArrayLength(jba);
+        nlen[i] = buf_len;
+        cert[i] = new unsigned char[buf_len];
+        std::memcpy(cert[i], buf, buf_len);
+        env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
+        env->DeleteLocalRef(jba);
+    }
+
     void *ctx = idpass_api_init(reinterpret_cast<unsigned char *>(bufEnc),
                                 bufEnc_len,
                                 reinterpret_cast<unsigned char *>(bufSig),
                                 bufSig_len,
                                 reinterpret_cast<unsigned char *>(bufVerif),
-                                bufVerif_len);
+                                bufVerif_len,
+                                cert,
+                                nlen,
+                                count);
+    // clean-up
+    if (count > 0) {
+        for (int i = 0; i < count; i++) {
+            delete[] cert[i];
+        }
+
+        delete[] cert;
+        delete[] nlen;
+    }
+    //////////////////
 
     env->ReleaseByteArrayElements(enc, bufEnc, 0);
     env->ReleaseByteArrayElements(sig, bufSig, 0);
@@ -519,7 +556,7 @@ card_decrypt(JNIEnv *env, jobject thiz, jlong context,
         return env->NewByteArray(0);
     }
 
-    jbyteArray plaintext = ecard = env->NewByteArray(len);
+    jbyteArray plaintext = env->NewByteArray(len);
     env->SetByteArrayRegion(plaintext, 0, len, ecard_buf);
 
     env->ReleaseByteArrayElements(ecard, ecard_buf, 0);
@@ -575,12 +612,9 @@ verify_with_card(JNIEnv *env,
 jfloat
 compare_face_template(JNIEnv *env,
                       jobject thiz,
-                      jlong context,
                       jbyteArray face1,
                       jbyteArray face2)
 {
-    void *ctx = reinterpret_cast<void *>(context);
-
     jbyte *face1_buf = env->GetByteArrayElements(face1, 0);
     jsize face1_buf_len = env->GetArrayLength(face1);
     jbyte *face2_buf = env->GetByteArrayElements(face2, 0);
@@ -661,13 +695,119 @@ testfunc(JNIEnv *env, jobject thiz, jlong context, jbyteArray data, jstring str)
     env->ReleaseStringUTFChars(str, bufStr);
 }
 
+jbyteArray
+generate_root_certificate(JNIEnv *env, jclass clazz, jbyteArray secretKey)
+{
+    jbyte *secretKey_buf = env->GetByteArrayElements(secretKey, 0);
+    jsize secretKey_buf_len = env->GetArrayLength(secretKey);
+
+    unsigned char buf[128];
+    jbyteArray rootCertificate = env->NewByteArray(0);
+
+    if (idpass_api_generate_root_certificate(
+            reinterpret_cast<unsigned char *>(secretKey_buf),
+            secretKey_buf_len,
+            buf,
+            sizeof buf)
+    == 0) {
+        rootCertificate = env->NewByteArray(sizeof buf);
+        env->SetByteArrayRegion(rootCertificate, 0, sizeof buf, (const jbyte*)buf);
+    }
+
+    env->ReleaseByteArrayElements(secretKey, secretKey_buf, 0);
+    return rootCertificate;
+}
+
+jbyteArray
+generate_child_certificate(JNIEnv *env, jclass clazz,
+    jbyteArray parentSecretKey, jbyteArray childSecretKey)
+{
+    jbyte *parentSecretKey_buf = env->GetByteArrayElements(parentSecretKey, 0);
+    jsize parentSecretKey_buf_len = env->GetArrayLength(parentSecretKey);
+    jbyte *childSecretKey_buf = env->GetByteArrayElements(childSecretKey, 0);
+    jsize childSecretKey_buf_len = env->GetArrayLength(childSecretKey);
+
+    unsigned char buf[128];
+    jbyteArray childCertificate = env->NewByteArray(0);
+
+    if (idpass_api_generate_child_certificate(
+            reinterpret_cast<unsigned char *>(parentSecretKey_buf),
+            parentSecretKey_buf_len,
+            reinterpret_cast<unsigned char *>(childSecretKey_buf),
+            childSecretKey_buf_len,
+            buf,
+            sizeof buf)
+    == 0) {
+        childCertificate = env->NewByteArray(sizeof buf);
+        env->SetByteArrayRegion(childCertificate, 0, sizeof buf, (const jbyte*)buf);
+    }
+
+    env->ReleaseByteArrayElements(parentSecretKey, parentSecretKey_buf, 0);
+    env->ReleaseByteArrayElements(childSecretKey, childSecretKey_buf, 0);
+    return childCertificate;
+}
+
+void
+add_revoked_key(JNIEnv *env, jclass clazz, jbyteArray pubkey)
+{
+    jbyte *pubkey_buf = env->GetByteArrayElements(pubkey, 0);
+    jsize pubkey_buf_len = env->GetArrayLength(pubkey);
+    idpass_api_add_revoked_key(reinterpret_cast<unsigned char*>(pubkey_buf), pubkey_buf_len);
+    env->ReleaseByteArrayElements(pubkey, pubkey_buf, 0);
+}
+
+jboolean
+add_certificates(JNIEnv *env,
+                 jobject thiz,
+                 jlong context,
+                 jobjectArray certificates)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+    if (!ctx || !certificates) {
+        return JNI_FALSE;
+    }
+
+    int count = env->GetArrayLength(certificates);
+
+    jbyteArray jba;
+    jbyte *buf;
+    int buf_len;
+
+    unsigned char **cert;
+    cert = new unsigned char *[count];
+    int *nlen = new int[count];
+
+    for (int i = 0; i < count; i++) {
+        jba = (jbyteArray)env->GetObjectArrayElement(certificates, i);
+        buf = env->GetByteArrayElements(jba, 0);
+        buf_len = env->GetArrayLength(jba);
+        nlen[i] = buf_len;
+        cert[i] = new unsigned char[buf_len];
+        std::memcpy(cert[i], buf, buf_len);
+        env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
+        env->DeleteLocalRef(jba);
+    }
+
+    // returns 0 if every certificate validates
+    int status = idpass_api_add_certificates(ctx, cert, nlen, count);
+
+    for (int i = 0; i < count; i++) {
+        delete[] cert[i];
+    }
+
+    delete[] cert;
+    delete[] nlen;
+
+    return status == 0 ? JNI_TRUE : JNI_FALSE;
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl",
      (char *)"(J[B)[B",
      (void *)ioctl},
 
     {(char *)"idpass_init",
-     (char *)"([B[B[B)J",
+     (char *)"([B[B[B[[B)J",
      (void *)idpass_init},
 
     {(char *)"create_card_with_face",
@@ -723,8 +863,25 @@ JNINativeMethod IDPASS_JNI[] = {
      (void *)verify_with_card},
 
     {(char *)"compare_face_template",
-     (char *)"(J[B[B)F",
+     (char *)"([B[B)F",
      (void *)compare_face_template},
+
+    {(char *)"generate_root_certificate",
+     (char *)"([B)[B",
+     (void *)generate_root_certificate},
+
+    {(char *)"generate_child_certificate",
+     (char *)"([B[B)[B",
+     (void *)generate_child_certificate},
+
+    {(char *)"add_revoked_key",
+     (char *)"([B)V",
+     (void *)add_revoked_key},
+
+    {(char *)"add_certificates",
+     (char *)"(J[[B)Z",
+     (void *)add_certificates},
+
 };
 
 int IDPASS_JNI_TLEN = sizeof IDPASS_JNI / sizeof IDPASS_JNI[0];
