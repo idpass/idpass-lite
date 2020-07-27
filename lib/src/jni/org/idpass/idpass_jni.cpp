@@ -611,7 +611,7 @@ verify_with_card(JNIEnv *env,
 
 jfloat
 compare_face_template(JNIEnv *env,
-                      jobject thiz,
+                      jclass clazz,
                       jbyteArray face1,
                       jbyteArray face2)
 {
