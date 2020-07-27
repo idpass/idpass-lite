@@ -701,7 +701,7 @@ generate_root_certificate(JNIEnv *env, jclass clazz, jbyteArray secretKey)
     jbyte *secretKey_buf = env->GetByteArrayElements(secretKey, 0);
     jsize secretKey_buf_len = env->GetArrayLength(secretKey);
 
-    unsigned char buf[128];
+    unsigned char buf[160];
     jbyteArray rootCertificate = env->NewByteArray(0);
 
     if (idpass_api_generate_root_certificate(
@@ -727,7 +727,7 @@ generate_child_certificate(JNIEnv *env, jclass clazz,
     jbyte *childSecretKey_buf = env->GetByteArrayElements(childSecretKey, 0);
     jsize childSecretKey_buf_len = env->GetArrayLength(childSecretKey);
 
-    unsigned char buf[128];
+    unsigned char buf[160];
     jbyteArray childCertificate = env->NewByteArray(0);
 
     if (idpass_api_generate_child_certificate(
