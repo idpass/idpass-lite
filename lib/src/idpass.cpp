@@ -575,6 +575,30 @@ idpass_api_create_card_with_face(void* self,
     idpassCards.mutable_publiccard()->CopyFrom(publicSignedCard);
     idpassCards.set_encryptedcard(nonce_plus_eSignedIdpasscardbuf, nonce_plus_eSignedIdpasscardbuf_len);
 
+    ///////////////////
+    int idx = context->certificates.size();
+    if (idx > 0) {
+        Cert* pcert = &context->certificates[idx - 1];     
+        if (pcert->Sign(
+                public_key, sizeof public_key, signature, crypto_sign_BYTES)) {
+            // encode signature into protobuf field
+            // encode the cert chain path of pcert
+            idpassCards.set_signature(signature, 64);
+
+            do {
+                idpass::Certificate *c = idpassCards.add_certificates();
+                c->set_pubkey(pcert->pubkey, 32);
+                c->set_signature(pcert->signature, 64);
+                c->set_issuerkey(pcert->issuerkey, 32);
+                if (pcert->isRootCA()) {
+                    break;
+                }
+                pcert = pcert->getIssuer(context->certificates);
+            } while (pcert);
+        }
+    }
+    ///////////////////
+
     delete[] nonce_plus_eSignedIdpasscardbuf;
 
     buf_len = idpassCards.ByteSizeLong();
