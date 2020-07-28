@@ -277,8 +277,6 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
                                  int* len, // 128 or 160
                                  int ncertificates)
 {
-    Context* context = M::newContext();
-
     if (!card_encryption_key || !card_signature_key || !verification_keys
         || card_encryption_key_len != crypto_aead_chacha20poly1305_IETF_KEYBYTES
         || card_signature_key_len  != crypto_sign_SECRETKEYBYTES
@@ -293,6 +291,8 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
         LOGI("sodium_init failed");
         return nullptr;
     }
+
+    Context* context = M::newContext();
 
     std::memcpy(
         context->encryptionKey.data(),
@@ -325,12 +325,15 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
             int n = len[i]; // 128 or 160 
 
             Cert cert;
-            cert.fromBuffer(certificates[i], n);
+            bool flag = cert.fromBuffer(certificates[i], n);
 
-            if (cert.hasValidSignature() && cert.isRootCA()) {
+            if (flag && cert.hasValidSignature() && cert.isRootCA()) {
                 std::array<unsigned char, 32> rootcapubkey;
                 std::copy(cert.pubkey, cert.pubkey + 32, std::begin(rootcapubkey));
                 context->root_ca_pubkeys.push_back(rootcapubkey);
+            } else {
+                M::releaseContext(context);
+                return nullptr;
             }
         }
     }
@@ -540,49 +543,52 @@ idpass_api_create_card_with_face(void* self,
     delete[] eSignedIdpasscardbuf;
 
     // HERE ....
-    buf_len = public_details.ByteSizeLong();
-    buf = new unsigned char[buf_len];
-
-    if (!public_details.SerializeToArray(buf, buf_len)) {
-        LOGI("serialize error1");
-        delete[] buf;
-        delete[] nonce_plus_eSignedIdpasscardbuf;
-        return nullptr;
-    }
-
-    // sign the idpass::IDPassCard object with sig_skpk
-    if (crypto_sign_detached(
-            signature, 
-            &signature_len, 
-            buf, 
-            buf_len, 
-            context->signatureKey.data()) 
-    != 0) {
-        LOGI("crypto_sign error");
-        delete[] buf;
-        delete[] nonce_plus_eSignedIdpasscardbuf;
-        return nullptr;
-    }
-
     idpass::PublicSignedIDPassCard publicSignedCard;
-    publicSignedCard.mutable_details()->CopyFrom(public_details);
-    publicSignedCard.set_signature(signature, signature_len);
-    publicSignedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
+    int public_details_len = public_details.ByteSizeLong();
+    if (public_details_len > 0) {
+    //if (true) {
+        buf = new unsigned char[public_details_len];
 
-    delete[] buf;
+        if (!public_details.SerializeToArray(buf, public_details_len)) {
+            LOGI("serialize error1");
+            delete[] buf;
+            delete[] nonce_plus_eSignedIdpasscardbuf;
+            return nullptr;
+        }
+
+        if (crypto_sign_detached(signature,
+                                 &signature_len,
+                                 buf,
+                                 public_details_len,
+                                 context->signatureKey.data())
+            != 0) {
+            LOGI("crypto_sign error");
+            delete[] buf;
+            delete[] nonce_plus_eSignedIdpasscardbuf;
+            return nullptr;
+        }
+
+        publicSignedCard.mutable_details()->CopyFrom(public_details);
+        publicSignedCard.set_signature(signature, signature_len);
+        publicSignedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
+
+        delete[] buf;
+    }
+
 
     idpass::IDPassCards idpassCards;
-    idpassCards.mutable_publiccard()->CopyFrom(publicSignedCard);
+    // only populate publicCard field if there is public content
+    if (public_details_len > 0) {
+        idpassCards.mutable_publiccard()->CopyFrom(publicSignedCard);
+    }
     idpassCards.set_encryptedcard(nonce_plus_eSignedIdpasscardbuf, nonce_plus_eSignedIdpasscardbuf_len);
 
     ///////////////////
     int idx = context->certificates.size();
     if (idx > 0) {
         Cert* pcert = &context->certificates[idx - 1];     
-        if (pcert->Sign(
-                public_key, sizeof public_key, signature, crypto_sign_BYTES)) {
-            // encode signature into protobuf field
-            // encode the cert chain path of pcert
+        if (pcert->Sign(ed25519_pk, sizeof ed25519_pk, signature, crypto_sign_BYTES)) {
+
             idpassCards.set_signature(signature, 64);
 
             do {
@@ -1302,45 +1308,54 @@ int idpass_api_generate_root_certificate(unsigned char* skpk,
 }
 
 MODULE_API
-int idpass_api_generate_child_certificate(
-                                          unsigned char* parent_skpk,
+int idpass_api_generate_child_certificate(unsigned char* parent_skpk,
                                           int parent_skpk_len,
-                                          unsigned char* child_skpk,
-                                          int child_skpk_len,
+                                          unsigned char* child_key,
+                                          int child_key_len,
                                           unsigned char* buf,
                                           int buf_len)
 {
-    if (parent_skpk_len != crypto_sign_SECRETKEYBYTES || 
+    if (parent_skpk_len != crypto_sign_SECRETKEYBYTES ||
         parent_skpk == nullptr ||
-        child_skpk_len != crypto_sign_SECRETKEYBYTES || 
-        child_skpk == nullptr ||
+        (child_key_len != crypto_sign_PUBLICKEYBYTES && child_key_len != crypto_sign_SECRETKEYBYTES) ||
+        child_key == nullptr ||
         buf == nullptr ||
-        buf_len != 160) {
+        (buf_len != 128 && buf_len != 160)) {
         return 1;
     }
 
-    unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
-    crypto_sign_ed25519_sk_to_pk(pubkey, child_skpk); 
-
     unsigned char issuerkey[crypto_sign_PUBLICKEYBYTES];
-    crypto_sign_ed25519_sk_to_pk(issuerkey, parent_skpk); 
-
     unsigned char signature[crypto_sign_BYTES];
+    crypto_sign_ed25519_sk_to_pk(issuerkey, parent_skpk);
 
-    // sign the child's public key
-    if (crypto_sign_detached(
-        signature, 
-        nullptr, 
-        pubkey, 
-        sizeof pubkey, 
-        parent_skpk) 
-    != 0) {
-        return 2;
+    if (child_key_len == crypto_sign_PUBLICKEYBYTES) {
+        // sign the child's public key
+        if (crypto_sign_detached(
+            signature, nullptr, child_key, crypto_sign_PUBLICKEYBYTES, parent_skpk)
+        != 0) {
+            return 2;
+        }
+
+        std::memcpy(buf, child_key, crypto_sign_PUBLICKEYBYTES);
+        std::memcpy( buf + crypto_sign_PUBLICKEYBYTES, signature, crypto_sign_BYTES);
+        std::memcpy(buf + crypto_sign_PUBLICKEYBYTES + crypto_sign_BYTES, issuerkey, crypto_sign_PUBLICKEYBYTES);
+    } else if (child_key_len == crypto_sign_SECRETKEYBYTES) {
+
+        unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
+        crypto_sign_ed25519_sk_to_pk(pubkey, child_key);
+
+        if (crypto_sign_detached(
+                signature, nullptr, pubkey, crypto_sign_PUBLICKEYBYTES, parent_skpk)
+            != 0) {
+            return 2;
+        }
+
+        std::memcpy(buf, child_key, crypto_sign_SECRETKEYBYTES);
+        std::memcpy(buf + crypto_sign_SECRETKEYBYTES, signature, crypto_sign_BYTES);
+        std::memcpy(buf + crypto_sign_SECRETKEYBYTES + crypto_sign_BYTES, issuerkey, crypto_sign_PUBLICKEYBYTES);
+    } else {
+        return 3;
     }
-
-    std::memcpy(buf, child_skpk, crypto_sign_SECRETKEYBYTES);
-    std::memcpy(buf + crypto_sign_SECRETKEYBYTES, signature, crypto_sign_BYTES);
-    std::memcpy(buf + crypto_sign_SECRETKEYBYTES + crypto_sign_BYTES, issuerkey, crypto_sign_PUBLICKEYBYTES);
 
     return 0;
 }

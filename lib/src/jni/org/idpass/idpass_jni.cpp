@@ -15,6 +15,8 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <list>
+#include <vector>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -44,23 +46,41 @@ idpass_init(JNIEnv *env,
     //////////////////
     int count = rootcertificates != nullptr ? env->GetArrayLength(rootcertificates) : 0;
 
+    std::list<std::vector<unsigned char>> CERTIFICATES;
+    std::vector<unsigned char> CERT;
+
     unsigned char **cert = nullptr;
     int *nlen = nullptr;
 
-    if (count > 0) {
-        cert = new unsigned char *[count];
-        nlen = new int[count];
-    }
-
     for (int i = 0; i < count; i++) {
         jbyteArray jba = (jbyteArray)env->GetObjectArrayElement(rootcertificates, i);
-        jbyte *buf = env->GetByteArrayElements(jba, 0);
-        int buf_len = env->GetArrayLength(jba);
-        nlen[i] = buf_len;
-        cert[i] = new unsigned char[buf_len];
-        std::memcpy(cert[i], buf, buf_len);
-        env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
-        env->DeleteLocalRef(jba);
+        if (jba) {
+            jbyte *buf = env->GetByteArrayElements(jba, 0);
+            int buf_len = env->GetArrayLength(jba);
+            if (buf_len == 160) {
+                CERT.insert(CERT.end(), buf, buf + buf_len);
+                CERTIFICATES.push_back(CERT);
+                CERT.clear();
+            }
+            env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
+            env->DeleteLocalRef(jba);
+        }
+    }
+
+    count = CERTIFICATES.size();
+
+    if (count > 0) {
+        cert = new unsigned char *[count];
+        std::memset(cert, 0x00, count * sizeof(unsigned char *));
+        nlen = new int[count];
+        int j = 0;
+
+        for (auto &c : CERTIFICATES) {
+            nlen[j] = c.size();
+            cert[j] = new unsigned char[c.size()];
+            std::memcpy(cert[j], c.data(), c.size());
+            j++;
+        }
     }
 
     void *ctx = idpass_api_init(reinterpret_cast<unsigned char *>(bufEnc),
@@ -727,7 +747,19 @@ generate_child_certificate(JNIEnv *env, jclass clazz,
     jbyte *childSecretKey_buf = env->GetByteArrayElements(childSecretKey, 0);
     jsize childSecretKey_buf_len = env->GetArrayLength(childSecretKey);
 
-    unsigned char buf[160];
+    unsigned char *buf;
+    int buf_len;
+
+    if (childSecretKey_buf_len == 32) {
+        buf = new unsigned char[128];
+        buf_len = 128;
+    } else if (childSecretKey_buf_len == 64) {
+        buf = new unsigned char[160];
+        buf_len = 160;
+    } else {
+        return env->NewByteArray(0);
+    }
+
     jbyteArray childCertificate = env->NewByteArray(0);
 
     if (idpass_api_generate_child_certificate(
@@ -736,11 +768,14 @@ generate_child_certificate(JNIEnv *env, jclass clazz,
             reinterpret_cast<unsigned char *>(childSecretKey_buf),
             childSecretKey_buf_len,
             buf,
-            sizeof buf)
+            buf_len)
     == 0) {
-        childCertificate = env->NewByteArray(sizeof buf);
-        env->SetByteArrayRegion(childCertificate, 0, sizeof buf, (const jbyte*)buf);
+        childCertificate = env->NewByteArray(buf_len);
+        env->SetByteArrayRegion(childCertificate, 0,
+            buf_len, (const jbyte*)buf);
     }
+
+    delete[] buf;
 
     env->ReleaseByteArrayElements(parentSecretKey, parentSecretKey_buf, 0);
     env->ReleaseByteArrayElements(childSecretKey, childSecretKey_buf, 0);
@@ -756,49 +791,83 @@ add_revoked_key(JNIEnv *env, jclass clazz, jbyteArray pubkey)
     env->ReleaseByteArrayElements(pubkey, pubkey_buf, 0);
 }
 
-jboolean
+jboolean 
 add_certificates(JNIEnv *env,
                  jobject thiz,
                  jlong context,
                  jobjectArray certificates)
 {
+    jboolean flag = JNI_FALSE;
     void *ctx = reinterpret_cast<void *>(context);
     if (!ctx || !certificates) {
         return JNI_FALSE;
     }
 
     int count = env->GetArrayLength(certificates);
+    if (count == 0) {
+        return JNI_FALSE;
+    }
+
+    std::list<std::vector<unsigned char>> CERTIFICATES;
+    std::vector<unsigned char> CERT;
 
     jbyteArray jba;
     jbyte *buf;
-    int buf_len;
-
-    unsigned char **cert;
-    cert = new unsigned char *[count];
-    int *nlen = new int[count];
+    int buf_len = 0;
 
     for (int i = 0; i < count; i++) {
-        jba = (jbyteArray)env->GetObjectArrayElement(certificates, i);
-        buf = env->GetByteArrayElements(jba, 0);
-        buf_len = env->GetArrayLength(jba);
-        nlen[i] = buf_len;
-        cert[i] = new unsigned char[buf_len];
-        std::memcpy(cert[i], buf, buf_len);
-        env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
-        env->DeleteLocalRef(jba);
+        jba = (jbyteArray)env->GetObjectArrayElement(certificates, i); 
+        if (jba) {
+            buf = env->GetByteArrayElements(jba, 0);
+            buf_len = env->GetArrayLength(jba);
+            if (buf_len == 128 || buf_len == 160) {
+                CERT.insert(CERT.end(), buf, buf + buf_len);
+                CERTIFICATES.push_back(CERT);
+                CERT.clear();
+            } else {
+                env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
+                env->DeleteLocalRef(jba);
+                return JNI_FALSE;
+            }
+            env->ReleaseByteArrayElements(jba, buf, JNI_ABORT);
+            env->DeleteLocalRef(jba);
+        } else {
+            return JNI_FALSE;
+        }
     }
 
-    // returns 0 if every certificate validates
-    int status = idpass_api_add_certificates(ctx, cert, nlen, count);
+    count = CERTIFICATES.size();
 
-    for (int i = 0; i < count; i++) {
-        delete[] cert[i];
+    if (count > 0) {
+        unsigned char **certChain;
+        certChain = new unsigned char *[count];
+        std::memset(certChain, 0x00, count * sizeof(unsigned char *));
+        int *nlen = new int[count]; 
+        int j = 0; 
+
+        for (auto &c : CERTIFICATES) {
+            nlen[j] = c.size();
+            certChain[j] = new unsigned char[c.size()];
+            std::memcpy(certChain[j], c.data(), c.size());
+            j++;
+        }
+
+        // status is 0 if every certificate validates
+        if (idpass_api_add_certificates(ctx, certChain, nlen, count) == 0) {
+            flag = JNI_TRUE;
+        }
+
+        for (int i = 0; i < count; i++) {
+            if (certChain[i]) {
+                delete[] certChain[i];
+            }
+        }
+
+        delete[] certChain;
+        delete[] nlen;
     }
 
-    delete[] cert;
-    delete[] nlen;
-
-    return status == 0 ? JNI_TRUE : JNI_FALSE;
+    return flag;
 }
 
 JNINativeMethod IDPASS_JNI[] = {

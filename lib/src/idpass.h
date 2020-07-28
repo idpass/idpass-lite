@@ -382,8 +382,8 @@ int idpass_api_add_revoked_key(
 MODULE_API
 int idpass_api_generate_child_certificate(unsigned char* parent_skpk,
                                           int parent_skpk_len,
-                                          unsigned char* child_skpk,
-                                          int child_skpk_len,
+                                          unsigned char* child_pubkey,
+                                          int child_pubkey_len,
                                           unsigned char* buf,
                                           int buf_len);
 
