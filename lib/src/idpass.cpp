@@ -320,19 +320,38 @@ idpass_api_create_card_with_face(void* self,
     }
 
     idpass::CardDetails details;
-    details.set_surname(surname);
-    details.set_givenname(given_name);
-    details.set_placeofbirth(place_of_birth);
-    details.set_createdat(epochSeconds);
-    details.mutable_dateofbirth()->CopyFrom(dob);
 
     idpass::CardDetails public_details;
     unsigned char acl = context->acl[0];
-    if (acl & ACL_SURNAME) public_details.set_surname(surname);
-    if (acl & ACL_GIVENNAME) public_details.set_givenname(given_name);
-    if (acl & ACL_PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
-    if (acl & ACL_CREATEDAT) public_details.set_createdat(epochSeconds);
-    if (acl & ACL_DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
+    if (acl & ACL_SURNAME) {
+        public_details.set_surname(surname);
+    } else {
+        details.set_surname(surname);
+    }
+
+    if (acl & ACL_GIVENNAME) {
+        public_details.set_givenname(given_name);
+    } else {
+        details.set_givenname(given_name);
+    }
+
+    if (acl & ACL_PLACEOFBIRTH) {
+        public_details.set_placeofbirth(place_of_birth);
+    } else {
+        details.set_placeofbirth(place_of_birth);
+    }
+
+    if (acl & ACL_CREATEDAT) {
+        public_details.set_createdat(epochSeconds);
+    } else {
+        details.set_createdat(epochSeconds);
+    }
+
+    if (acl & ACL_DATEOFBIRTH) {
+        public_details.mutable_dateofbirth()->CopyFrom(dob);
+    } else {
+        details.mutable_dateofbirth()->CopyFrom(dob);
+    }
 
     idpass::Pair* kv = nullptr;
 
