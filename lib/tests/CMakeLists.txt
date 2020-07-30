@@ -25,7 +25,7 @@ set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/../src/)
 set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/../../build/idpass/desktop/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
-set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/protogen)
+set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/card_access)
 
 set(idpasstests_DEPENDS 
     protobuf

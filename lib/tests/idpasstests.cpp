@@ -1,5 +1,5 @@
 #include "idpass.h"
-#include "protogen/card_access.pb.h"
+#include "proto/card_access/card_access.pb.h"
 #include "sodium.h"
 
 #include "Cert.h"
@@ -17,24 +17,27 @@
 #include <thread>
 #include <vector>
 
+#ifdef _WIN32
+  // https://stackoverflow.com/questions/11238918/s-isreg-macro-undefined
+  #define _CRT_INTERNAL_NONSTDC_NAMES 1
+  #include <sys/stat.h>
+
+  #if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+    #define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
+  #endif
+
+  #if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+    #define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+  #endif
+#endif
+
 char const* datapath = "data/";
 
-unsigned char knownHash[] = {
-    0x93, 0x99, 0x99, 0xab, 0xbe, 0xd0, 0x74, 0x64,
-    0xe8, 0x74, 0x11, 0xdb, 0x41, 0x29, 0xc7, 0xbe,
-    0x67, 0x6e, 0xad, 0xd1, 0x9f, 0x23, 0xd6, 0xa0,
-    0xfa, 0x59, 0x4f, 0x4d, 0xc8, 0x4e, 0x95, 0x54};
-
 unsigned char encryptionKey[] = {
-  0xf8, 0x0b, 0x95, 0x79, 0x69, 0xd1, 0xe8, 0x60, 0x6c, 0x33, 0x56, 0x00,
-  0x76, 0x31, 0xe9, 0x2d, 0x14, 0x79, 0x9d, 0x65, 0x1f, 0x35, 0x0f, 0x89,
+  0xf8, 0x0b, 0x95, 0x79, 0x69, 0xd1, 0xe8, 0x60, 
+  0x6c, 0x33, 0x56, 0x00, 0x76, 0x31, 0xe9, 0x2d, 
+  0x14, 0x79, 0x9d, 0x65, 0x1f, 0x35, 0x0f, 0x89,
   0x87, 0x7c, 0x05, 0xa0, 0x3e, 0xc5, 0xaa, 0x3e
-}; // 32
-
-unsigned char signature_pk[] = {
-  0x57, 0xc6, 0x33, 0x09, 0xfa, 0xc2, 0x1b, 0x60, 0x04, 0x76, 0x4e, 0xf6,
-  0xf7, 0xc6, 0x2f, 0x28, 0xcf, 0x63, 0x40, 0xbe, 0x13, 0x10, 0x6e, 0x80,
-  0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4
 }; // 32
 
 unsigned char signature_sk[] = {
@@ -88,12 +91,21 @@ void single_instance_test(void* ctx)
 
     idpass_api_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
+    idpass::Date dob;
+    dob.set_year(1980);
+    dob.set_month(12);
+    dob.set_day(17);
+    int len = dob.ByteSizeLong();
+    std::vector<unsigned char> dob_buf(len);
+    dob.SerializeToArray(dob_buf.data(), len);
+
     int card_len;
     unsigned char* card = idpass_api_create_card_with_face(ctx,
                                                            &card_len,
                                                            "Doe",
                                                            "John",
-                                                           "1980/12/25",
+                                                           dob_buf.data(),
+                                                           dob_buf.size(),
                                                            "USA",
                                                            "12345",
                                                            photo.data(),
@@ -124,7 +136,7 @@ void single_instance_test(void* ctx)
 
     int buf_len;
     unsigned char* buf = idpass_api_verify_card_with_face(
-        ctx, &buf_len, ecard, ecard_len, photo.data(), photo.size());
+        ctx, &buf_len, card, card_len, photo.data(), photo.size());
 
     ASSERT_TRUE(buf != nullptr);
 
@@ -179,13 +191,22 @@ void multiple_instance_test()
     pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
     priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
 
+    idpass::Date dob;
+    dob.set_year(1980);
+    dob.set_month(12);
+    dob.set_day(17);
+    int len = dob.ByteSizeLong();
+    std::vector<unsigned char> dob_buf(len);
+    dob.SerializeToArray(dob_buf.data(), len);
+
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
     int card_len;
     unsigned char* card = idpass_api_create_card_with_face(context,
                                                            &card_len,
                                                            "Doe",
                                                            "John",
-                                                           "1980/12/25",
+                                                           dob_buf.data(), //"1980/12/25",
+                                                           dob_buf.size(),
                                                            "USA",
                                                            "12345",
                                                            photo.data(),
@@ -204,7 +225,7 @@ void multiple_instance_test()
 
     int buf_len;
     unsigned char* buf = idpass_api_verify_card_with_face(
-        context, &buf_len, ecard, ecard_len, photo.data(), photo.size());
+        context, &buf_len, card, card_len, photo.data(), photo.size());
 
     ASSERT_TRUE(buf != nullptr);
 
@@ -217,7 +238,6 @@ void multiple_instance_test()
         }
     }
 }
-
 
 void savetobitmap(int qrcode_size, unsigned char* pixelbits,
     const char* outfile = "/tmp/qrcode.bmp")
@@ -276,6 +296,8 @@ protected:
     time_t start_time_;
     int status;
     void* ctx;
+    Cert* pROOTCA;
+    std::vector<unsigned char> dob_buf;
 
     void SetUp() override
     {
@@ -287,146 +309,212 @@ protected:
             std::cout << "sodium_init failed";
         }
 
+        idpass::Date dob;
+        dob.set_year(1980);
+        dob.set_month(12);
+        dob.set_day(17);
+        int len = dob.ByteSizeLong();
+        dob_buf.resize(len);
+        dob.SerializeToArray(dob_buf.data(), len);
+
+        pROOTCA = new Cert(); // self-signed Cert
+
+        int count = 1;
+        unsigned char** cert = nullptr;
+        int* nlen = nullptr;
+        cert = new unsigned char*[count];
+        nlen = new int[count];
+        nlen[0] = pROOTCA->toByteArray(true).size(); // 160
+        cert[0] = new unsigned char[pROOTCA->toByteArray(true).size()];
+        std::memcpy(cert[0], pROOTCA->toByteArray(true).data(), pROOTCA->toByteArray(true).size());
+
         ctx = idpass_api_init(
             encryptionKey, 
             crypto_aead_chacha20poly1305_IETF_KEYBYTES, 
             signature_sk, 
             crypto_sign_SECRETKEYBYTES,
             verification_pk,
-            crypto_sign_PUBLICKEYBYTES, nullptr, nullptr, 0);
+            crypto_sign_PUBLICKEYBYTES, cert, nlen, count);
+
+        delete[] cert[0];
+        delete[] cert;
+        delete[] nlen;
     }
 
     void TearDown() override
     {
         // Gets the time when the test finishes
         const time_t end_time = time(nullptr);
+        idpass_api_freemem(ctx, ctx);
+        delete pROOTCA;
     }
 
 
 };
 
-TEST_F(idpass_api_tests, chain_of_trust_impl)
+TEST_F(idpass_api_tests, basic_initialization)
 {
-    unsigned char masterkey[] = {
-    0x2d, 0x52, 0xf8, 0x6a, 0xaa, 0x4d, 0x62, 0xfc, 
-    0xab, 0x4d, 0xb0, 0x0a, 0x21, 0x1a, 0x12, 0x60, 
-    0xf8, 0x17, 0xc5, 0xf2, 0xba, 0xb7, 0x3e, 0xfe, 
-    0xd6, 0x36, 0x07, 0xbc, 0x9d, 0xb3, 0x96, 0xee, 
-    0x57, 0xc6, 0x33, 0x09, 0xfa, 0xc2, 0x1b, 0x60, 
-    0x04, 0x76, 0x4e, 0xf6, 0xf7, 0xc6, 0x2f, 0x28, 
-    0xcf, 0x63, 0x40, 0xbe, 0x13, 0x10, 0x6e, 0x80, 
-    0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4};
+    ASSERT_TRUE(ctx != nullptr);
+}
 
-    std::list<std::array<unsigned char, 32>> root_ca_pubkeys; // 32n
-    std::array<unsigned char, 32> rootcapubkey; // 32n
-    std::copy(masterkey + 32, masterkey + 64, std::begin(rootcapubkey));
-    root_ca_pubkeys.push_back(rootcapubkey);
+TEST_F(idpass_api_tests, chain_of_trust_test2)
+{
+    auto verify_chain = [this](std::vector<Cert>& chain, bool expected) {
+        int count = chain.size();
+        unsigned char** cert = new unsigned char*[count];
+        std::memset(cert, 0x00, count * sizeof(unsigned char*));
+        int* nlen = new int[count];
+        int j = 0;
 
-    auto verify_chain = [&root_ca_pubkeys](std::vector<Cert>& chain)
-    {
-        for (Cert& c : chain) {
-            Cert* pCert = &c;
-            unsigned char* startkey = c.pubkey;
-
-            while (pCert != nullptr) {
-                if (pCert->hasValidSignature()) {
-                    if (!pCert->isRootCA()) {
-                        pCert = pCert->getIssuer(chain);
-                        if (pCert == nullptr
-                            || std::memcmp(pCert->pubkey, startkey, 32) == 0) {
-                            return false;
-                        }
-                        continue;
-                    } else if (pCert->isInTrustedList(root_ca_pubkeys)) {
-                        break;
-                    } else {
-                        return false; 
-                    }
-                } else {
-                    return false;
-                }
-            }
+        for (auto& c : chain) {
+            std::vector<unsigned char> buffe = c.toByteArray();
+            nlen[j] = buffe.size();
+            cert[j] = new unsigned char[buffe.size()];
+            std::memcpy(cert[j], buffe.data(), buffe.size());
+            j++;
         }
 
-        return true;
+        int status;
+        status = idpass_api_add_certificates(ctx, cert, nlen, count);
+
+        for (int i = 0; i < count; i++) {
+            if (cert[i]) {
+                delete[] cert[i];
+            }
+        }
+        delete[] cert;
+        delete[] nlen;
+
+        return status == expected ? 0 : 1;
     };
 
-    Cert cert9;
-    Cert cert0(masterkey);
+    Cert cert2_rootca;
+    Cert cert7_cert2(signature_sk);
 
-    Cert cert1;
-    cert0.Sign(cert1);
-    Cert cert2;
-    cert0.Sign(cert2);
-    Cert cert3;
-    cert1.Sign(cert3);
-    Cert cert4;
-    cert3.Sign(cert4);
-    Cert cert5;
-    cert9.Sign(cert5);
-    Cert cert6;
-    cert5.Sign(cert6);
-    Cert cert7;
-    cert2.Sign(cert7);
+    pROOTCA->Sign(cert2_rootca);
+    cert2_rootca.Sign(cert7_cert2);
 
-    bool flag;
+    std::vector<Cert> chain2_valid{cert2_rootca, cert7_cert2};
+    ASSERT_TRUE(verify_chain(chain2_valid, true));
 
-    Cert c01; // self-signed during creation
-    Cert c02;
-    Cert c03;
-    c01.Sign(c02);
-    c02.Sign(c03);
-    c03.Sign(c01); // make it circular
+    Cert c01_c03; // self-signed during creation
+    Cert c02_c01;
+    Cert c03_c02;
+    c01_c03.Sign(c02_c01);
+    c02_c01.Sign(c03_c02);
+    c03_c02.Sign(c01_c03); // make it circular
 
-    std::vector<Cert> chain4_valid{cert4, cert1, cert0, cert3};
-    flag = verify_chain(chain4_valid);
-    ASSERT_TRUE(flag);
+    std::vector<Cert> chain_invalid_circular{ c01_c03, c02_c01, c03_c02 };
+    ASSERT_TRUE(verify_chain(chain_invalid_circular, false));
 
-    std::vector<Cert> chain_invalid_circular{
-        c01, c02, c03
-    };
+    Cert gamma;
+    Cert cert8_gamma;
+    gamma.Sign(cert8_gamma);
+ 
+    std::vector<Cert> chain12_valid{gamma, cert8_gamma};
+    ASSERT_TRUE(verify_chain(chain12_valid, false));
 
-    flag = verify_chain(chain_invalid_circular);
-    ASSERT_FALSE(flag);
+    pROOTCA->Sign(gamma);
+    std::vector<Cert> chain_valid{gamma, cert8_gamma};
+    ASSERT_TRUE(verify_chain(chain_valid, true));
 
-    std::vector<Cert> chain3_invalid{
-        cert6,
-        cert1,
-        cert7,
-        cert0,
-        cert2,
-        cert5,
-    };
-    flag = verify_chain(chain3_invalid);
-    ASSERT_FALSE(flag);
+    Cert cert001(signature_sk);
+    pROOTCA->Sign(cert001);
+    std::vector<Cert> chain_1{cert001};
+    ASSERT_TRUE(verify_chain(chain_1, true));
 
-    std::vector<Cert> chain33_invalid{
-        cert6,
-        cert1,
-        cert7,
-        cert9,
-        cert0,
-        cert5,
-    };
+    Cert cert002(signature_sk);
+    std::vector<Cert> chain_2{cert002};
+    ASSERT_TRUE(verify_chain(chain_2, false));
+}
 
-    flag = verify_chain(chain33_invalid);
-    ASSERT_FALSE(flag);
+TEST_F(idpass_api_tests, create_card_with_certificates)
+{
+    Cert certifi(signature_sk);
 
-    std::vector<Cert> chain1_valid{cert7, cert2, cert1, cert0};
-    flag = verify_chain(chain1_valid);
-    ASSERT_TRUE(flag);
+    ASSERT_TRUE(certifi.isRootCA());
+    ASSERT_TRUE(certifi.hasValidSignature());
 
-    std::vector<Cert> chain2_valid{cert7, cert2, cert0};
-    flag = verify_chain(chain2_valid);
-    ASSERT_TRUE(flag);
+    pROOTCA->Sign(certifi);
 
-    std::vector<Cert> chain5_valid{cert0, cert9, cert5};
-    flag = verify_chain(chain5_valid);
-    ASSERT_FALSE(flag);
+    ASSERT_TRUE(certifi.hasValidSignature());
+    ASSERT_FALSE(certifi.isRootCA());
 
-    std::vector<Cert> chain6_invalid{cert6, cert5, cert0};
-    flag = verify_chain(chain6_invalid);
-    ASSERT_FALSE(flag);
+    int count = 1;
+    unsigned char** cert = nullptr;
+    int* nlen = nullptr;
+    cert = new unsigned char*[count];
+    nlen = new int[count];
+    nlen[0] = 128;
+    cert[0] = new unsigned char[128];
+    std::memcpy(cert[0], certifi.toByteArray().data(), certifi.toByteArray().size());
+
+    ASSERT_TRUE(idpass_api_add_certificates(ctx, cert, nlen, count) == 0);
+
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
+    std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
+
+    idpass::Dictionary pub_extras;
+    idpass::Dictionary priv_extras;
+
+    idpass::Pair *kv = pub_extras.add_pairs();
+    kv->set_key("gender");
+    kv->set_value("male");
+
+    kv = priv_extras.add_pairs();
+    kv->set_key("color");
+    kv->set_value("brown");
+
+    std::vector<unsigned char> pubExtras(pub_extras.ByteSizeLong());
+    std::vector<unsigned char> privExtras(priv_extras.ByteSizeLong());
+
+    pub_extras.SerializeToArray(pubExtras.data(), pubExtras.size());
+    priv_extras.SerializeToArray(privExtras.data(), privExtras.size());
+
+    // transfer givenname, placeofbirth to public region
+    // thus, these fields will no longer be in the private region
+    // this is to avoid redundancy 
+    unsigned char ioctlcmd[] = { IOCTL_SET_ACL, 
+        ACL_PLACEOFBIRTH | ACL_GIVENNAME }; 
+    idpass_api_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+
+    int ecard_len;
+    unsigned char* ecard = idpass_api_create_card_with_face(
+		ctx,
+        &ecard_len,
+        "Pacquiao",
+        "Manny",
+        dob_buf.data(), //"1980/12/25",
+        dob_buf.size(),
+        "Kibawe, Bukidnon",
+        "12345",
+        img1.data(),
+        img1.size(),
+        pubExtras.data(),
+        pubExtras.size(),
+        privExtras.data(),
+        privExtras.size());
+
+    ASSERT_TRUE(ecard != nullptr);
+
+    idpass::IDPassCards cards;
+    ASSERT_TRUE(cards.ParseFromArray(ecard, ecard_len));
+
+    idpass::Certificate certi;
+    for (auto& c : cards.certificates()) {
+        std::cout << ".";
+    }
+
+    int details_len = 0;
+    unsigned char* details = idpass_api_verify_card_with_pin(
+        ctx, &details_len, ecard, ecard_len, "12345");
+
+    ASSERT_TRUE(details != nullptr);
+
+    delete[] cert[0];
+    delete[] cert;
+    delete[] nlen;
 }
 
 TEST_F(idpass_api_tests, check_qrcode_md5sum)
@@ -458,7 +546,8 @@ TEST_F(idpass_api_tests, check_qrcode_md5sum)
         &eSignedIDPassCard_len,
         "Pacquiao",
         "Manny",
-        "1978/12/17",
+        dob_buf.data(), //"1980/12/25",
+        dob_buf.size(),
         "Kibawe, Bukidnon",
         "12345",
         img1.data(),
@@ -476,16 +565,22 @@ TEST_F(idpass_api_tests, check_qrcode_md5sum)
             eSignedIDPassCard,
             eSignedIDPassCard_len,
             &qrsize);
-
+#ifdef _WIN32
+        FILE *fp = fopen("c:/Users/63927/Documents/qrcode.dat", "wb");
+#else
         FILE *fp = fopen("/tmp/qrcode.dat", "wb");
+#endif
         int nwritten = 0;
         nwritten = fwrite(eSignedIDPassCard , 1, eSignedIDPassCard_len, fp);
         while (nwritten < eSignedIDPassCard_len) {
             nwritten += fwrite(eSignedIDPassCard , 1, eSignedIDPassCard_len + nwritten, fp);
         }
         fclose(fp);
-
-        savetobitmap(qrsize, pixel);
+#ifdef _WIN32
+        savetobitmap(qrsize, pixel, "c:/Users/63927/Documents/qrcode.bmp");
+#else
+        savetobitmap(qrsize, pixel, "qrcode.bmp");
+#endif
     }
 }
 
@@ -522,7 +617,8 @@ TEST_F(idpass_api_tests, createcard_manny_verify_as_brad)
         &ecard_len,
         "Pacquiao",
         "Manny",
-        "1978/12/17",
+        dob_buf.data(), //"1980/12/25",
+        dob_buf.size(),
         "Kibawe, Bukidnon",
         "12345",
         img1.data(),
@@ -578,7 +674,8 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
         &ecard_len,
         "Pacquiao",
         "Manny",
-        "1978/12/17",
+        dob_buf.data(), //"1980/12/25",
+        dob_buf.size(),
         "Kibawe, Bukidnon",
         "12345",
         img1.data(),
@@ -599,8 +696,8 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
     unsigned char* signature = idpass_api_sign_with_card(
         ctx,
         &signature_len,
-		e_card,
-		e_card_len,
+		ecard,
+		ecard_len,
         (unsigned char*)data,
         std::strlen(data));
 
@@ -610,8 +707,8 @@ TEST_F(idpass_api_tests, cansign_and_verify_with_pin)
     unsigned char* card = idpass_api_verify_card_with_pin(
         ctx, 
         &card_len, 
-		e_card,
-		e_card_len,
+		ecard,
+		ecard_len,
         "12345");
 
     idpass::CardDetails cardDetails;
@@ -659,7 +756,8 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
         &ecard_len,
         "Pacquiao",
         "Manny",
-        "1978/12/17",
+        dob_buf.data(), //"1980/12/25",
+        dob_buf.size(),
         "Kibawe, Bukidnon",
         "12345",
         img1.data(),
@@ -677,16 +775,16 @@ TEST_F(idpass_api_tests, create_card_verify_with_face)
     int details_len;
     unsigned char* details = idpass_api_verify_card_with_face(
         ctx, &details_len, 
-		e_card,
-		e_card_len,
+		ecard,
+		ecard_len,
 		img3.data(), img3.size());
 
     ASSERT_TRUE(nullptr == details); // different person's face should not verify
 
     details = idpass_api_verify_card_with_face(
         ctx, &details_len, 
-		e_card, 
-		e_card_len, 
+		ecard, 
+		ecard_len, 
 		img2.data(), img2.size());
 
     ASSERT_TRUE(nullptr != details); // same person's face should verify

@@ -1,9 +1,10 @@
 #include "Cert.h"
 
-Cert *Cert::getIssuer(std::vector<Cert> &chain)
+Cert *Cert::getIssuer(std::vector<Cert> &chain, std::vector<Cert> &rootcerts)
 {
     unsigned char *pubkey = this->issuerkey;
-
+    
+    // first search into certchain list
     std::vector<Cert>::iterator it
         = std::find_if(chain.begin(), chain.end(), [&pubkey](const Cert &c) {
               if (std::memcmp(c.pubkey, pubkey, 32) == 0)
@@ -12,6 +13,17 @@ Cert *Cert::getIssuer(std::vector<Cert> &chain)
           });
 
     if (it != chain.end()) {
+        return &(*it);
+    }
+
+    // if not in certchain list then search into rootCA list
+    it = std::find_if(rootcerts.begin(), rootcerts.end(), [&pubkey](const Cert &c) {
+              if (std::memcmp(c.pubkey, pubkey, 32) == 0)
+                  return true;
+              return false;
+          });
+
+    if (it != rootcerts.end()) {
         return &(*it);
     }
 
@@ -90,6 +102,7 @@ Cert::Cert(const unsigned char *sk)
     } else {
         crypto_sign_keypair(pubkey, privkey);
     }
+
     std::memcpy(issuerkey, pubkey, crypto_sign_PUBLICKEYBYTES);
     if (crypto_sign_detached(
             signature, nullptr, pubkey, crypto_sign_PUBLICKEYBYTES, privkey)
@@ -116,6 +129,7 @@ bool Cert::fromBuffer(unsigned char *buf, int buf_len)
         std::memcpy(issuerkey,
                     buf + crypto_sign_SECRETKEYBYTES + crypto_sign_BYTES,
                     crypto_sign_PUBLICKEYBYTES);
+
         return true;
     } else if (128) {
         /*
@@ -130,8 +144,24 @@ bool Cert::fromBuffer(unsigned char *buf, int buf_len)
         std::memcpy(issuerkey,
                     buf + crypto_sign_PUBLICKEYBYTES + crypto_sign_BYTES,
                     crypto_sign_PUBLICKEYBYTES);
+
         return true;
     }
 
     return false;
+}
+
+std::vector<unsigned char> Cert::toByteArray(bool flag)
+{
+    std::vector<unsigned char> buf;
+    if (flag) {
+        std::copy(privkey, privkey + 64, std::back_inserter(buf));
+        std::copy(signature, signature + 64, std::back_inserter(buf));
+        std::copy(issuerkey, issuerkey + 32, std::back_inserter(buf));
+    } else {
+        std::copy(pubkey, pubkey + 32, std::back_inserter(buf));
+        std::copy(signature, signature + 64, std::back_inserter(buf));
+        std::copy(issuerkey, issuerkey + 32, std::back_inserter(buf));
+    }
+    return buf;
 }

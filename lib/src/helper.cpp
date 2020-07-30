@@ -17,6 +17,8 @@
 #include <vector>
 #include <list>
 
+#include "helper.h"
+
 #ifdef ANDROID
   #include <android/log.h>
 
@@ -132,88 +134,100 @@ double computeFaceDiff(char* photo, int photo_len, const std::string& cardAccess
     return face_diff;
 }
 
-bool decryptCard(unsigned char* encrypted_card,
-                 int encrypted_card_len,
-                 const unsigned char* encryptionKey,
-                 const unsigned char* signatureKey,
-                 const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> &verificationKeys,
-                 idpass::SignedIDPassCard& ecard)
+bool decryptCard(
+    unsigned char* full_card_buf,
+    int full_card_buf_len,
+    const unsigned char* encryptionKey,
+    const unsigned char* signatureKey,
+    const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>>&
+        verificationKeys,
+    idpass::IDPassCard& card)
 {
-    unsigned char* cardserialized
-        = new unsigned char[encrypted_card_len
-                            - crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+    idpass::IDPassCards fullCard;
+    if (!fullCard.ParseFromArray(full_card_buf, full_card_buf_len)) {
+        return false;
+    }
 
+    ////////////////////
+    const unsigned char* ecardbuf = reinterpret_cast<const unsigned char*>(fullCard.encryptedcard().data());
+    int ecardbuf_len = fullCard.encryptedcard().size();
+
+    const unsigned char* signature = reinterpret_cast<const unsigned char*>(fullCard.signature().data()); 
+    const unsigned char* pubkey = reinterpret_cast<const unsigned char*>(fullCard.signerpublickey().data());
+
+    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> signerPublicKey;
+    std::copy(pubkey, pubkey + crypto_sign_PUBLICKEYBYTES, std::begin(signerPublicKey));
+    // Check signerPublicKey is in our trusted list
+    if (std::find(verificationKeys.begin(),
+                  verificationKeys.end(),
+                  signerPublicKey)
+        == verificationKeys.end()) {
+        LOGI("signerPublicKey not found");
+        return false;
+    }
+
+    idpass::PublicSignedIDPassCard publicRegion;
+    if (fullCard.has_publiccard()) {
+        publicRegion = fullCard.publiccard();
+    }
+    ////////////////////
+    int privateRegionBuf_len = ecardbuf_len - crypto_aead_chacha20poly1305_IETF_NPUBBYTES;
+    unsigned char* privateRegionBuf = new unsigned char[privateRegionBuf_len];
     unsigned long long decrypted_len;
 
     unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
-
-    std::memcpy(
-        nonce, 
-        encrypted_card, 
-        crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
+    std::memcpy(nonce, ecardbuf, crypto_aead_chacha20poly1305_IETF_NPUBBYTES);
 
     if (crypto_aead_chacha20poly1305_ietf_decrypt(
-            cardserialized,
+            privateRegionBuf,
             &decrypted_len,
             NULL, // always
-            encrypted_card + crypto_aead_chacha20poly1305_IETF_NPUBBYTES,
-            encrypted_card_len - crypto_aead_chacha20poly1305_IETF_NPUBBYTES,
+            ecardbuf + crypto_aead_chacha20poly1305_IETF_NPUBBYTES,
+            ecardbuf_len - crypto_aead_chacha20poly1305_IETF_NPUBBYTES,
             NULL,
             0,
             nonce,
             encryptionKey)
-    != 0) {
+        != 0) {
         LOGI("decrypt error");
-        delete[] cardserialized;
+        delete[] privateRegionBuf;
         return false;
     }
 
-    const bool flag = ecard.ParseFromArray(cardserialized, decrypted_len);
-    delete[] cardserialized;
+    idpass::SignedIDPassCard privateRegion;
+    bool flag = privateRegion.ParseFromArray(privateRegionBuf, decrypted_len);
 
     if (flag) {
-        // extract signerPublicKey and card member fields
-        std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> signerPublicKey;
-        std::copy(
-            ecard.signerpublickey().data(),
-            ecard.signerpublickey().data() + crypto_sign_PUBLICKEYBYTES,
-            std::begin(signerPublicKey));
+        /////////////////////////////////////
+        std::vector<unsigned char> blob_publicRegion;
+        std::vector<unsigned char> priv_pub_blob;
+        unsigned char priv_pub_blob_signature[crypto_sign_BYTES];
 
-        // Check signerPublicKey is in our trusted list
-        if (std::find(
-            verificationKeys.begin(),
-            verificationKeys.end(),
-            signerPublicKey)
-         == verificationKeys.end()) {
-            LOGI("signerPublicKey not found");
-            return false; 
-        }
+        helper::serialize(publicRegion, blob_publicRegion);
 
-        int buf_len = ecard.card().ByteSizeLong();
-        unsigned char* buf = new unsigned char[buf_len];
+        std::copy(privateRegionBuf,
+                  privateRegionBuf + /*privateRegionBuf_len*/ decrypted_len,
+                  std::back_inserter(priv_pub_blob));
 
-        // Seriliaze the card for signature verification
-        if (!ecard.card().SerializeToArray(buf, buf_len)) {
-            LOGI("serialize error1");
-            delete[] buf;
-            return false;
-        }
+        std::copy(blob_publicRegion.data(),
+                  blob_publicRegion.data() + blob_publicRegion.size(),
+                  std::back_inserter(priv_pub_blob));
+        /////////////////////////////////////
 
-        // verify the signature of idpass::IDPassCard against signerpublic key.
         if (crypto_sign_verify_detached(
-            reinterpret_cast<const unsigned char*>(ecard.signature().data()), 
-            buf,
-            buf_len,
-            reinterpret_cast<const unsigned char*>(ecard.signerpublickey().data()))
+            signature, 
+            priv_pub_blob.data(),
+            priv_pub_blob.size(),
+            pubkey)
         != 0) {
             LOGI("crypto_sign error");
-            delete[] buf;
-            return false;
+            flag = false;
+        } else {
+            card = privateRegion.card(); 
         }
-
-        delete[] buf;
     }
 
+    delete[] privateRegionBuf;
     return flag;
 }
 
@@ -250,6 +264,174 @@ bool isRevoked(const char* filename, unsigned char* key, int key_len)
     }
 
     return false;
+}
+
+bool sign_object(idpass::IDPassCard& object, unsigned char* key, unsigned char* sig)
+{
+    int buf_len = object.ByteSizeLong();
+    unsigned char* buf = new unsigned char[buf_len];
+
+    if (!object.SerializeToArray(buf, buf_len)) {
+        LOGI("serialize error1");
+        delete[] buf;
+        return false;
+    }
+
+    if (crypto_sign_detached(sig,
+                             nullptr,
+                             buf,
+                             buf_len,
+                             key)
+        != 0) {
+        LOGI("crypto_sign error");
+        delete[] buf;
+        return false;
+    }
+
+    return true;
+}
+
+bool sign_object(idpass::PublicSignedIDPassCard& object,
+                       unsigned char* key,
+                       unsigned char* sig)
+{
+    int buf_len = object.ByteSizeLong();
+    unsigned char* buf = new unsigned char[buf_len];
+
+    if (!object.SerializeToArray(buf, buf_len)) {
+        LOGI("serialize error1");
+        delete[] buf;
+        return false;
+    }
+
+    if (crypto_sign_detached(sig,
+                             nullptr,
+                             buf,
+                             buf_len,
+                             key)
+        != 0) {
+        LOGI("crypto_sign error");
+        delete[] buf;
+        return false;
+    }
+
+    return true;
+}
+
+bool sign_object(idpass::CardDetails& object,
+                       unsigned char* key,
+                       unsigned char* sig)
+{
+    int buf_len = object.ByteSizeLong();
+    unsigned char* buf = new unsigned char[buf_len];
+
+    if (!object.SerializeToArray(buf, buf_len)) {
+        LOGI("serialize error1");
+        delete[] buf;
+        return false;
+    }
+
+    if (crypto_sign_detached(sig,
+                             nullptr,
+                             buf,
+                             buf_len,
+                             key)
+        != 0) {
+        LOGI("crypto_sign error");
+        delete[] buf;
+        return false;
+    }
+
+    return true;
+}
+
+bool sign_object(std::vector<unsigned char>& blob,
+                 unsigned char* key,
+                 unsigned char* sig)
+{
+    if (crypto_sign_detached(sig,
+                             nullptr,
+                             blob.data(),
+                             blob.size(),
+                             key)
+        != 0) {
+        LOGI("crypto_sign error");
+        return false;
+    }
+
+    return true;
+}
+
+int encrypt_object(idpass::SignedIDPassCard& object,
+                    unsigned char* key,
+                    std::vector<unsigned char>& encrypted)
+{
+    int buf_len = object.ByteSizeLong();
+    std::vector<unsigned char> buf(buf_len);
+
+    if (!object.SerializeToArray(buf.data(), buf_len)) {
+        LOGI("serialize error2");
+        return 0;
+    }
+
+    unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES]; // 12
+    randombytes_buf(nonce, sizeof nonce);
+
+    int lenn = buf_len + crypto_aead_chacha20poly1305_IETF_ABYTES; // +16
+    std::vector<unsigned char> ciphertext(lenn);
+    unsigned long long ciphertext_len = 0;
+
+    /*
+    At most mlen + crypto_aead_chacha20poly1305_IETF_ABYTES bytes are put into
+    c, and the actual number of bytes is stored into clen unless clen is a NULL
+    pointer.
+    */
+
+    if (crypto_aead_chacha20poly1305_ietf_encrypt(ciphertext.data(),
+                                                  &ciphertext_len,
+                                                  buf.data(),
+                                                  buf_len,
+                                                  NULL,
+                                                  0,
+                                                  NULL,
+                                                  nonce,
+                                                  key)
+        != 0) {
+        LOGI("ietf_encrypt failed");
+        return 0;
+    }
+
+    const int nonce_encrypted_len = sizeof nonce + ciphertext_len;
+    std::copy(nonce, nonce + sizeof nonce, std::back_inserter(encrypted));
+    std::copy(ciphertext.data(), ciphertext.data() + ciphertext_len, std::back_inserter(encrypted));
+
+    return nonce_encrypted_len;
+}
+
+bool serialize(idpass::PublicSignedIDPassCard& object, std::vector<unsigned char>& buf)
+{
+    int len = object.ByteSizeLong();
+    buf.resize(len);
+
+    if (!object.SerializeToArray(buf.data(), len)) {
+        LOGI("serialize error2");
+        return false;
+    }
+
+    return true;
+}
+
+bool serialize(idpass::SignedIDPassCard& object, std::vector<unsigned char>& buf)
+{
+    int len = object.ByteSizeLong();
+    buf.resize(len);
+
+    if (!object.SerializeToArray(buf.data(), len)) {
+        LOGI("serialize error2");
+        return false;
+    }
+
+    return true;
 }
 
 } // helper

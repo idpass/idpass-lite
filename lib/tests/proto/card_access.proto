@@ -70,14 +70,10 @@ message IDPassCard {
 
 message SignedIDPassCard {
     IDPassCard card = 1;
-    bytes signature = 2;
-    bytes signerPublicKey = 3;
 }
 
 message PublicSignedIDPassCard {
     CardDetails details = 1;
-    bytes signature = 2;
-    bytes signerPublicKey = 3;
 }
 
 message Certificate {
@@ -91,5 +87,6 @@ message IDPassCards {
     bytes encryptedCard = 2;
 
     bytes signature = 3;
-    repeated Certificate certificates = 4;
+    bytes signerPublicKey = 4;
+    repeated Certificate certificates = 5;
 }

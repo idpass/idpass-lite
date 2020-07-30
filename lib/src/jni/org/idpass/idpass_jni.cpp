@@ -144,7 +144,7 @@ create_card_with_face(JNIEnv *env,
                       jlong context,
                       jstring sur_name,
                       jstring given_name,
-                      jstring date_of_birth,
+                      jbyteArray date_of_birth,
                       jstring place_of_birth,
                       jstring pin,
                       jbyteArray photo,
@@ -168,9 +168,11 @@ create_card_with_face(JNIEnv *env,
 
     const char *bufSurname = sur_name? env->GetStringUTFChars(sur_name, 0) : "";
     const char *bufGivenName = given_name? env->GetStringUTFChars(given_name, 0) : "";
-    const char *bufDateOfBirth = date_of_birth? env->GetStringUTFChars(date_of_birth, 0) : "";
     const char *bufPlaceOfBirth = place_of_birth? env->GetStringUTFChars(place_of_birth, 0) : "";
     const char *bufPin = pin? env->GetStringUTFChars(pin, 0) : "";
+
+    jbyte *dob_buf = env->GetByteArrayElements(date_of_birth, 0);
+    jsize dob_buf_len = env->GetArrayLength(date_of_birth);
 
     jbyte *pub_extras_buf = env->GetByteArrayElements(pub_extras, 0);
     jsize pub_extras_buf_len = env->GetArrayLength(pub_extras);
@@ -184,7 +186,8 @@ create_card_with_face(JNIEnv *env,
                                            &eSignedIDPassCard_len,
                                            bufSurname,
                                            bufGivenName,
-                                           bufDateOfBirth,
+                                           reinterpret_cast<unsigned char *>(dob_buf),
+                                           dob_buf_len,
                                            bufPlaceOfBirth,
                                            bufPin,
                                            reinterpret_cast<char *>(buf),
@@ -205,7 +208,7 @@ create_card_with_face(JNIEnv *env,
     if (photo) env->ReleaseByteArrayElements(photo, buf, 0);
     if (sur_name) env->ReleaseStringUTFChars(sur_name, bufSurname);
     if (given_name) env->ReleaseStringUTFChars(given_name, bufGivenName);
-    if (date_of_birth) env->ReleaseStringUTFChars(date_of_birth, bufDateOfBirth);
+    if (date_of_birth) env->ReleaseByteArrayElements(date_of_birth, dob_buf, 0);
     if (place_of_birth) env->ReleaseStringUTFChars(place_of_birth, bufPlaceOfBirth);
     if (pub_extras) env->ReleaseByteArrayElements(pub_extras, pub_extras_buf, 0);
     if (priv_extras) env->ReleaseByteArrayElements(priv_extras, priv_extras_buf, 0);
@@ -820,7 +823,7 @@ add_certificates(JNIEnv *env,
         if (jba) {
             buf = env->GetByteArrayElements(jba, 0);
             buf_len = env->GetArrayLength(jba);
-            if (buf_len == 128 || buf_len == 160) {
+            if (buf_len == 128) {
                 CERT.insert(CERT.end(), buf, buf + buf_len);
                 CERTIFICATES.push_back(CERT);
                 CERT.clear();
@@ -880,7 +883,7 @@ JNINativeMethod IDPASS_JNI[] = {
      (void *)idpass_init},
 
     {(char *)"create_card_with_face",
-     (char *)"(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[B[B[B)[B",
+     (char *)"(JLjava/lang/String;Ljava/lang/String;[B;Ljava/lang/String;Ljava/lang/String;[B[B[B)[B",
      (void *)create_card_with_face},
 
     {(char *)"verify_card_with_face",

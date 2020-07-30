@@ -75,6 +75,9 @@
 #define IOCTL_SET_ECC 0x04
 #define IOCTL_SET_ACL 0x05
 
+#define ROOTCA_LEN 160
+#define INTERMEDCA_LEN 128
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -161,7 +164,8 @@ unsigned char* idpass_api_create_card_with_face(
     int* outlen,
     const char* surname,
     const char* given_name,
-    const char* date_of_birth,
+    unsigned char* date_of_birth,
+    int date_of_birth_len,
     const char* place_of_birth,
     const char* pin,
     char* photo,

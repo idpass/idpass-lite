@@ -30,12 +30,35 @@ bool decryptCard(unsigned char* encrypted_card,
                  const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> &verificationKeys,
                  idpass::SignedIDPassCard&);
 
+bool decryptCard(
+    unsigned char* encrypted_card,
+    int encrypted_card_len,
+    const unsigned char* encryptionKey,
+    const unsigned char* signatureKey,
+    const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>>&
+        verificationKeys,
+    idpass::IDPassCard&);
+
 std::vector<float> get128f(unsigned char* facearray, int facearray_len);
 
 double vectorDistance(float* first, float* last, float* first2);
 
 std::vector<char> readfile(const char* filename);
 bool isRevoked(const char* filename, unsigned char* key, int key_len);
+bool sign_object(idpass::IDPassCard& object, unsigned char* key, unsigned char* sig);
+bool sign_object(idpass::PublicSignedIDPassCard& object,
+                       unsigned char* key,
+                       unsigned char* sig);
+bool sign_object(idpass::CardDetails& object,
+                       unsigned char* key,
+                       unsigned char* sig);
+bool sign_object(std::vector<unsigned char>& blob,
+                       unsigned char* key,
+                       unsigned char* sig);
+int encrypt_object(idpass::SignedIDPassCard& object, unsigned char* key, std::vector<unsigned char>&);
+// PublicSignedIDPassCard
+bool serialize(idpass::PublicSignedIDPassCard& object, std::vector<unsigned char>&);
+bool serialize(idpass::SignedIDPassCard& object,       std::vector<unsigned char>&);
 }
 
 #endif // __cplusplus

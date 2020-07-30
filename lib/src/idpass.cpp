@@ -135,8 +135,9 @@ struct Context
     std::array<unsigned char, crypto_sign_SECRETKEYBYTES> signatureKey; // 64
     std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> verificationKeys; // 32n
 
-    std::list<std::array<unsigned char, 32>> root_ca_pubkeys; // 32n
-    std::vector<Cert> certificates;
+    std::vector<Cert> root_certificates;     // 160n
+    std::vector<Cert> intermed_certificates; // 128n
+    //std::vector<Cert> certificates;
 
     float facediff_half;
     float facediff_full;
@@ -167,37 +168,59 @@ struct Context
         return false;
     }
 
-    bool verify_chain(std::vector<Cert>& chain)
+    bool verify_chain(std::vector<Cert>& chain) 
     {
-        for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
-            Cert* pCert = &(*it);
-            unsigned char* startkey = it->pubkey;
+        auto in_root_certificates = [this](const Cert* c) {
+            return std::find_if(
+                root_certificates.begin(),
+                root_certificates.end(),
+                [&c](const Cert& m) -> bool {
+                    return std::memcmp(m.pubkey, c->pubkey, 32) == 0;
+                }) != root_certificates.end();
+        };
 
-            while (pCert != nullptr) {
-                if (pCert->hasValidSignature()) {
-                    if (helper::isRevoked(REVOKED_KEYS, pCert->pubkey, 32)) {
-                        return false;
-                    }
-                    if (!pCert->isRootCA()) {
-                        pCert = pCert->getIssuer(chain);
-                        if (pCert == nullptr
-                            || std::memcmp(pCert->pubkey, startkey, 32)
-                                   == 0) {
-                            return false;
-                        }
-                        continue;
-                    } else if (pCert->isInTrustedList(root_ca_pubkeys)) {
-                        break;
-                    } else {
-                        return false;
-                    }
-                } else {
+        if (chain.size() == 0) {
+            return false;
+        }
+
+        Cert* pCert = &chain.back();
+        unsigned char* startkey = pCert->pubkey;
+
+        while (pCert != nullptr) 
+        {
+            if (pCert->hasValidSignature()) {
+                if (helper::isRevoked(REVOKED_KEYS, pCert->pubkey, 32)) {
                     return false;
                 }
+                if (!pCert->isRootCA()) {
+                    pCert = pCert->getIssuer(chain, root_certificates);
+                    if (pCert == nullptr
+                        || std::memcmp(pCert->pubkey, startkey, 32) == 0) {
+                        return false;
+                    }
+
+                    continue;
+
+                } else {
+                    return in_root_certificates(pCert);
+                }
+            } else {
+                return false;
             }
         }
 
         return true;
+    }
+
+    Context()
+    {
+        //std::cout << " Context[" << this << "]" << std::flush << std::endl;    
+    }
+
+    ~Context() 
+    {
+        // handle clean up here ...
+        //std::cout << "~Context[" << this << "]" << std::flush << std::endl;    
     }
 };
 
@@ -248,14 +271,14 @@ int idpass_api_add_certificates(void* self,
     for (int i = 0; i < ncertificates; i++) {
         n = len[i];
         Cert cert;
-        cert.fromBuffer(certificates[i], n);
-        if (cert.hasValidSignature()) {
+        bool flag = cert.fromBuffer(certificates[i], n);
+        if (flag && cert.hasValidSignature()) {
             chain.push_back(cert);
         }
     }
 
-    if (context->verify_chain(chain)) {
-        context->certificates = chain;
+    if (chain.size() > 0 && context->verify_chain(chain)) {
+        context->intermed_certificates = chain;
         return 0; // no errors
     }
 
@@ -266,7 +289,7 @@ int idpass_api_add_certificates(void* self,
 // Description:
 // card_encryption_key : used to encrypt the card data
 // card_signature_key  : used to sign the IDPassCard in the SignedIDPassCard object
-// verification_keys   : list of trusted signerPublicKey
+// verification_keys   : list of trusted signer public keys
 MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
                                  int card_encryption_key_len,
                                  unsigned char* card_signature_key,
@@ -274,7 +297,7 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
                                  unsigned char* verification_keys,
                                  int verification_keys_len,
                                  unsigned char** certificates,
-                                 int* len, // 128 or 160
+                                 int* len, // 160 each
                                  int ncertificates)
 {
     if (!card_encryption_key || !card_signature_key || !verification_keys
@@ -322,15 +345,13 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
 
     if (certificates && ncertificates > 0) {
         for (int i = 0; i < ncertificates; i++) {
-            int n = len[i]; // 128 or 160 
+            int n = len[i]; // 160 
 
             Cert cert;
             bool flag = cert.fromBuffer(certificates[i], n);
 
             if (flag && cert.hasValidSignature() && cert.isRootCA()) {
-                std::array<unsigned char, 32> rootcapubkey;
-                std::copy(cert.pubkey, cert.pubkey + 32, std::begin(rootcapubkey));
-                context->root_ca_pubkeys.push_back(rootcapubkey);
+                context->root_certificates.push_back(cert);
             } else {
                 M::releaseContext(context);
                 return nullptr;
@@ -360,7 +381,8 @@ idpass_api_create_card_with_face(void* self,
                                  int* outlen,
                                  const char* surname,
                                  const char* given_name,
-                                 const char* date_of_birth,
+                                 unsigned char* date_of_birth,
+                                 int date_of_birth_len,
                                  const char* place_of_birth,
                                  const char* pin,
                                  char* photo,
@@ -372,243 +394,171 @@ idpass_api_create_card_with_face(void* self,
 {
     Context* context = (Context*)self;
     *outlen = 0;
-
-    unsigned char* eSignedIdpasscardbuf = nullptr;
     unsigned long int epochSeconds = std::time(nullptr);
-
     float faceArray[128];
-    int year, month, day;
-    // 1970/12/25
-    sscanf(date_of_birth, "%d %*c %d %*c %d", &year, &month, &day); 
 
     if (dlib_api::computeface128d(photo, photo_len, faceArray) != 1) {
         LOGI("idpass_api_create_card_with_face: fail");
         return nullptr;
     }
 
-    idpass::Date dob;
-    dob.set_year(year);
-    dob.set_month(month);
-    dob.set_day(day);
+    ////////////////////////////////////////////////////////
+    //////// card signer public key ///////////////////////
+    unsigned char card_signerPublicKey[crypto_sign_PUBLICKEYBYTES];
+    if (!context->intermed_certificates.empty()) {
+        Cert c = context->intermed_certificates.back();
+        std::memcpy(card_signerPublicKey, c.pubkey, 32);
+    } else {
+        crypto_sign_ed25519_sk_to_pk(card_signerPublicKey,
+                                     context->signatureKey.data());
+    }
 
+    //////////////////////////
+    // populate date of birth
+    idpass::Date dob;
+    if (date_of_birth && date_of_birth_len > 0) {
+        dob.ParseFromArray(date_of_birth, date_of_birth_len);
+    }
+
+    //////////////////////////
+    // populate user's access
     idpass::CardAccess access;
     access.set_pin(pin);
 
     if (context->fdimension) {
-        // full
         unsigned char fdim_full[128 * 4];
         bin16::f4_to_f4b(faceArray, 128, fdim_full);
         access.set_face(fdim_full, sizeof fdim_full);
     } else {
-        // half
         unsigned char fdim_half[64 * 2];
         bin16::f4_to_f2b(faceArray, 64, fdim_half);
-        // helper_hexdump(faceArrayBuf, 64*2, "faceArrayBuf");
         access.set_face(fdim_half, sizeof fdim_half);
     }
 
-    idpass::CardDetails details;
-    details.set_surname(surname);
-    details.set_givenname(given_name);
-    details.set_placeofbirth(place_of_birth);
-    details.set_createdat(epochSeconds);
-    details.mutable_dateofbirth()->CopyFrom(dob);
+    ///////////////////////////////////////
+    // populate private and public details
+    idpass::CardDetails privDetails;
+    idpass::CardDetails pubDetails;
 
-    idpass::CardDetails public_details;
     unsigned char acl = context->acl[0];
-    if (acl & ACL_SURNAME) public_details.set_surname(surname);
-    if (acl & ACL_GIVENNAME) public_details.set_givenname(given_name);
-    if (acl & ACL_PLACEOFBIRTH) public_details.set_placeofbirth(place_of_birth);
-    if (acl & ACL_CREATEDAT) public_details.set_createdat(epochSeconds);
-    if (acl & ACL_DATEOFBIRTH) public_details.mutable_dateofbirth()->CopyFrom(dob);
+
+    if (acl & ACL_SURNAME) pubDetails.set_surname(surname);
+    else privDetails.set_surname(surname);
+
+    if (acl & ACL_GIVENNAME) pubDetails.set_givenname(given_name);
+    else privDetails.set_givenname(given_name);
+
+    if (acl & ACL_PLACEOFBIRTH) pubDetails.set_placeofbirth(place_of_birth);
+    else privDetails.set_placeofbirth(place_of_birth);
+
+    if (acl & ACL_CREATEDAT) pubDetails.set_createdat(epochSeconds);
+    else privDetails.set_createdat(epochSeconds);
+
+    if (dob.ByteSizeLong() > 0) {
+        if (acl & ACL_DATEOFBIRTH)
+            pubDetails.mutable_dateofbirth()->CopyFrom(dob);
+        else
+            privDetails.mutable_dateofbirth()->CopyFrom(dob);
+    }
 
     idpass::Pair* kv = nullptr;
 
-    idpass::Dictionary pub_extras;
+    idpass::Dictionary pubExtras;
     if (pub_extras_buf && pub_extras_buf_len > 0) {
-        if (pub_extras.ParseFromArray(pub_extras_buf, pub_extras_buf_len)) {
-            for (auto extra : pub_extras.pairs()) {
-                kv = public_details.add_extra();
+        if (pubExtras.ParseFromArray(pub_extras_buf, pub_extras_buf_len)) {
+            for (auto extra : pubExtras.pairs()) {
+                kv = pubDetails.add_extra();
                 kv->set_key(extra.key());
                 kv->set_value(extra.value());
             }
         }
     }
 
-    idpass::Dictionary priv_extras;
+    idpass::Dictionary privExtras;
     if (priv_extras_buf && priv_extras_buf_len > 0) {
-        if (priv_extras.ParseFromArray(priv_extras_buf, priv_extras_buf_len)) {
-            for (auto extra : priv_extras.pairs()) {
-                kv = details.add_extra();
+        if (privExtras.ParseFromArray(priv_extras_buf, priv_extras_buf_len)) {
+            for (auto extra : privExtras.pairs()) {
+                kv = privDetails.add_extra();
                 kv->set_key(extra.key());
                 kv->set_value(extra.value());
             }
         }
     }
 
-    // ed25519_skpk is a concat of the form: sk + pk
-    unsigned char ed25519_pk[crypto_sign_PUBLICKEYBYTES];   // 32
-    unsigned char ed25519_skpk[crypto_sign_SECRETKEYBYTES]; // 64
-    crypto_sign_keypair(ed25519_pk, ed25519_skpk);
-
-    idpass::IDPassCard card;
-    card.mutable_access()->CopyFrom(access);
-    card.mutable_details()->CopyFrom(details);
-    card.set_encryptionkey(ed25519_skpk, crypto_sign_SECRETKEYBYTES);
-
-    int buf_len = card.ByteSizeLong();
-    unsigned char* buf = new unsigned char[buf_len];
-
-    if (!card.SerializeToArray(buf, buf_len)) {
-        LOGI("serialize error1");
-        delete[] buf;
-        return nullptr;
+    idpass::PublicSignedIDPassCard publicRegion;
+    if (pubDetails.ByteSizeLong() > 0) {
+        publicRegion.mutable_details()->CopyFrom(pubDetails);
     }
 
-    unsigned char signature[crypto_sign_BYTES];
-    unsigned long long signature_len;
+     //////////////////////////////////////
+    // generate user's unique ed25519 key
+    unsigned char user_ed25519PubKey[crypto_sign_PUBLICKEYBYTES];   
+    unsigned char user_ed25519PrivKey[crypto_sign_SECRETKEYBYTES]; 
+    crypto_sign_keypair(user_ed25519PubKey, user_ed25519PrivKey);
 
-    // sign the idpass::IDPassCard object with sig_skpk
-    if (crypto_sign_detached(
-            signature, 
-            &signature_len, 
-            buf, 
-            buf_len, 
-            context->signatureKey.data()) 
-    != 0) {
-        LOGI("crypto_sign error");
-        delete[] buf;
-        return nullptr;
+     /////////////////
+    // assemble ecard
+    // IDPassCard: [access, details, encryptionKey]
+    idpass::IDPassCard ecard;
+    ecard.mutable_access()->CopyFrom(access);
+    if (privDetails.ByteSizeLong() > 0) {
+        ecard.mutable_details()->CopyFrom(privDetails);
     }
+    ecard.set_encryptionkey(user_ed25519PrivKey, crypto_sign_SECRETKEYBYTES);
 
-    delete[] buf; 
+    idpass::SignedIDPassCard privateRegion;
+    privateRegion.mutable_card()->CopyFrom(ecard);
 
-    idpass::SignedIDPassCard signedCard;
-    signedCard.mutable_card()->CopyFrom(card);
-    signedCard.set_signature(signature, signature_len);
+    int privateRegionEncrypted_len = 0;
+    std::vector<unsigned char> privateRegionEncrypted;
+    privateRegionEncrypted_len = helper::encrypt_object(
+        privateRegion, context->encryptionKey.data(), privateRegionEncrypted);
 
-    unsigned char public_key[crypto_sign_PUBLICKEYBYTES];
-    crypto_sign_ed25519_sk_to_pk(public_key, context->signatureKey.data());
+     ////////////////////////////////////////////////////////////
+    // concatinate privateRegion and publicRegion (in this order) 
+    // into a blob and then signed this blob
+    std::vector<unsigned char> blob_privateRegion;
+    std::vector<unsigned char> blob_publicRegion;
+    std::vector<unsigned char> priv_pub_blob;
+    unsigned char priv_pub_blob_signature[crypto_sign_BYTES];
 
-    signedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
+    helper::serialize(privateRegion, blob_privateRegion);
+    helper::serialize(publicRegion, blob_publicRegion);
+    std::copy(blob_privateRegion.data(), blob_privateRegion.data() + blob_privateRegion.size(), std::back_inserter(priv_pub_blob));
+    std::copy(blob_publicRegion.data(), blob_publicRegion.data() + blob_publicRegion.size(), std::back_inserter(priv_pub_blob));
+    helper::sign_object(priv_pub_blob, context->signatureKey.data(), priv_pub_blob_signature);
 
-    buf_len = signedCard.ByteSizeLong();
-    buf = new unsigned char[buf_len];
-
-    if (!signedCard.SerializeToArray(buf, buf_len)) {
-        LOGI("serialize error2");
-        delete[] buf;
-        return nullptr;
-    }
-
-    unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES]; // 12
-    randombytes_buf(nonce, sizeof nonce);
-
-    int lenn = buf_len + crypto_aead_chacha20poly1305_IETF_ABYTES;
-    eSignedIdpasscardbuf = new unsigned char[lenn];
-    unsigned long long ciphertext_len = 0;
-
-    if (crypto_aead_chacha20poly1305_ietf_encrypt(
-            eSignedIdpasscardbuf,
-            &ciphertext_len,
-            buf,
-            buf_len,
-            NULL,
-            0,
-            NULL,
-            nonce,
-            context->encryptionKey.data())
-    != 0) {
-        LOGI("ietf_encrypt failed");
-        delete[] buf;
-        delete[] eSignedIdpasscardbuf;
-        return nullptr;
-    }
-
-    delete[] buf;
-    const int nonce_plus_eSignedIdpasscardbuf_len = sizeof nonce + ciphertext_len;
-    unsigned char* nonce_plus_eSignedIdpasscardbuf
-        = new unsigned char[nonce_plus_eSignedIdpasscardbuf_len];
-
-    std::memcpy(
-        nonce_plus_eSignedIdpasscardbuf, 
-        nonce, 
-        sizeof nonce);
-
-    std::memcpy(
-        nonce_plus_eSignedIdpasscardbuf + sizeof nonce,
-        eSignedIdpasscardbuf,
-        ciphertext_len);
-
-    delete[] eSignedIdpasscardbuf;
-
-    // HERE ....
-    idpass::PublicSignedIDPassCard publicSignedCard;
-    int public_details_len = public_details.ByteSizeLong();
-    if (public_details_len > 0) {
-    //if (true) {
-        buf = new unsigned char[public_details_len];
-
-        if (!public_details.SerializeToArray(buf, public_details_len)) {
-            LOGI("serialize error1");
-            delete[] buf;
-            delete[] nonce_plus_eSignedIdpasscardbuf;
-            return nullptr;
-        }
-
-        if (crypto_sign_detached(signature,
-                                 &signature_len,
-                                 buf,
-                                 public_details_len,
-                                 context->signatureKey.data())
-            != 0) {
-            LOGI("crypto_sign error");
-            delete[] buf;
-            delete[] nonce_plus_eSignedIdpasscardbuf;
-            return nullptr;
-        }
-
-        publicSignedCard.mutable_details()->CopyFrom(public_details);
-        publicSignedCard.set_signature(signature, signature_len);
-        publicSignedCard.set_signerpublickey(public_key, crypto_sign_PUBLICKEYBYTES);
-
-        delete[] buf;
-    }
-
-
+     ///////////////////////////////
+    // assemble final output object
     idpass::IDPassCards idpassCards;
-    // only populate publicCard field if there is public content
-    if (public_details_len > 0) {
-        idpassCards.mutable_publiccard()->CopyFrom(publicSignedCard);
+    idpassCards.set_signature(priv_pub_blob_signature, crypto_sign_BYTES);
+    idpassCards.set_signerpublickey(card_signerPublicKey, sizeof card_signerPublicKey);
+    idpassCards.set_encryptedcard(privateRegionEncrypted.data(), privateRegionEncrypted_len);
+    if (publicRegion.ByteSizeLong() > 0) {
+        idpassCards.mutable_publiccard()->CopyFrom(publicRegion);
     }
-    idpassCards.set_encryptedcard(nonce_plus_eSignedIdpasscardbuf, nonce_plus_eSignedIdpasscardbuf_len);
 
-    ///////////////////
-    int idx = context->certificates.size();
-    if (idx > 0) {
-        Cert* pcert = &context->certificates[idx - 1];     
-        if (pcert->Sign(ed25519_pk, sizeof ed25519_pk, signature, crypto_sign_BYTES)) {
-
-            idpassCards.set_signature(signature, 64);
-
-            do {
-                idpass::Certificate *c = idpassCards.add_certificates();
-                c->set_pubkey(pcert->pubkey, 32);
-                c->set_signature(pcert->signature, 64);
-                c->set_issuerkey(pcert->issuerkey, 32);
-                if (pcert->isRootCA()) {
-                    break;
-                }
-                pcert = pcert->getIssuer(context->certificates);
-            } while (pcert);
-        }
+     ///////////////////////////////////////////////////////////////////
+    // now attach certificate chain if any into the final output object
+    if (!context->intermed_certificates.empty()) {
+        Cert* pcert = &context->intermed_certificates.back();
+        do {
+            idpass::Certificate *c = idpassCards.add_certificates();
+            c->set_pubkey(pcert->pubkey, 32);
+            c->set_signature(pcert->signature, 64);
+            c->set_issuerkey(pcert->issuerkey, 32);
+            if (pcert->isRootCA()) {
+                break;
+            }
+            pcert = pcert->getIssuer(context->intermed_certificates, context->root_certificates);
+        } while (pcert);
     }
-    ///////////////////
 
-    delete[] nonce_plus_eSignedIdpasscardbuf;
-
-    buf_len = idpassCards.ByteSizeLong();
-    buf = context->NewByteArray(buf_len);
+     ////////////////////////////////////////////////////////
+    // finally, serialiaze final output object as byte[] and
+    // return it
+    int buf_len = idpassCards.ByteSizeLong();
+    unsigned char* buf = context->NewByteArray(buf_len);
 
     if (!idpassCards.SerializeToArray(buf, buf_len)) {
         LOGI("serialize error9");
@@ -632,23 +582,23 @@ idpass_api_verify_card_with_face(void* self,
     Context* context = (Context*)self;
     *outlen = 0;
 
-    idpass::SignedIDPassCard signedCard;
+    idpass::IDPassCard card;
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
                              context->encryptionKey.data(),
                              context->signatureKey.data(),
                              context->verificationKeys,
-                             signedCard)) {
+                             card)) {
         return nullptr;
     }
 
-    idpass::CardAccess access = signedCard.card().access();
+    idpass::CardAccess access = card.access();
     double face_diff = helper::computeFaceDiff(photo, photo_len, access.face());
     double threshold = access.face().length() == 128 * 4 ? context->facediff_full :
                                                        context->facediff_half;
     if (face_diff <= threshold) {
-        idpass::CardDetails details = signedCard.card().details();
+        idpass::CardDetails details = card.details();
         int n = details.ByteSizeLong();
         unsigned char* buf = context->NewByteArray(n);
 
@@ -672,21 +622,21 @@ idpass_api_verify_card_with_pin(void* self,
     Context* context = (Context*)self;
     *outlen = 0;
 
-    idpass::SignedIDPassCard signedCard;
+    idpass::IDPassCard card;
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
                              context->encryptionKey.data(),
                              context->signatureKey.data(),
                              context->verificationKeys,
-                             signedCard)) {
+                             card)) {
         return nullptr;
     }
 
-    idpass::CardAccess access = signedCard.card().access();
+    idpass::CardAccess access = card.access();
 
     if (access.pin().compare(pin) == 0) {
-        idpass::CardDetails details = signedCard.card().details();
+        idpass::CardDetails details = card.details();
         int n = details.ByteSizeLong();
         unsigned char* buf = context->NewByteArray(n);
 
@@ -719,20 +669,20 @@ idpass_api_encrypt_with_card(void* self,
     unsigned char* ciphertext = nullptr;
     unsigned long long ciphertext_len = 0;
 
-    idpass::SignedIDPassCard signedCard;
+    idpass::IDPassCard card;
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
                              context->encryptionKey.data(),
                              context->signatureKey.data(),
                              context->verificationKeys,
-                             signedCard)) {
+                             card)) {
         return nullptr;
     }
 
     // convert ed25519 to curve25519 and use curve25519 for encryption
     const unsigned char* ed25519_skpk
-        = (const unsigned char*)signedCard.card().encryptionkey().data();
+        = (const unsigned char*)card.encryptionkey().data();
 
     unsigned char ed25519_pk[crypto_sign_ed25519_PUBLICKEYBYTES];
 
@@ -946,14 +896,14 @@ idpass_api_sign_with_card(void* self,
 
     unsigned char* signature = nullptr;
 
-    idpass::SignedIDPassCard signedCard;
+    idpass::IDPassCard card;
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
                              context->encryptionKey.data(),
                              context->signatureKey.data(),
                              context->verificationKeys,
-                             signedCard)) {
+                             card)) {
         return nullptr;
     }
 
@@ -966,7 +916,7 @@ idpass_api_sign_with_card(void* self,
             &smlen,
             data,
             data_len,
-            (const unsigned char*)signedCard.card().encryptionkey().data())
+            (const unsigned char*)card.encryptionkey().data())
     != 0) {
         LOGI("crypto_sign: error");
         context->ReleaseByteArray(signature);

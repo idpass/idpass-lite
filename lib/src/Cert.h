@@ -27,7 +27,9 @@ public:
      * @return - Returns a certificate object if a match is
      *           found, or returns nullptr otherwise
      */
-    Cert *getIssuer(std::vector<Cert> &chain);
+    Cert *getIssuer(std::vector<Cert> &chain, std::vector<Cert> &rootcerts);
+
+    std::vector<unsigned char> toByteArray(bool flag = false);
 
 public:
     /**
