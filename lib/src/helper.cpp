@@ -434,6 +434,37 @@ bool serialize(idpass::SignedIDPassCard& object, std::vector<unsigned char>& buf
     return true;
 }
 
+bool is_valid_ed25519_key(unsigned char* key)
+{
+    const char* msg = "attack at dawn!";
+    unsigned char signature[crypto_sign_BYTES];
+    unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
+
+    if (0 != crypto_sign_ed25519_sk_to_pk(pubkey, key)) {
+        return false;
+    }
+
+    if (0
+        != crypto_sign_detached(signature,
+                                nullptr,
+                                reinterpret_cast<const unsigned char*>(msg),
+                                std::strlen(msg),
+                                key)) {
+        return false;
+    }
+
+    if (0
+        != crypto_sign_verify_detached(
+            signature,
+            reinterpret_cast<const unsigned char*>(msg),
+            std::strlen(msg),
+            pubkey)) {
+        return false;
+    }
+
+    return true;
+}
+
 } // helper
 
 extern "C" void helper_hexdump(const void* data, int size, char* title)

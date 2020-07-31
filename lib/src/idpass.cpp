@@ -315,6 +315,10 @@ MODULE_API void* idpass_api_init(unsigned char* card_encryption_key,
         return nullptr;
     }
 
+    if (!helper::is_valid_ed25519_key(card_signature_key)) {
+        return nullptr; 
+    }
+
     Context* context = M::newContext();
 
     std::memcpy(

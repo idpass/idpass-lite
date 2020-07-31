@@ -59,6 +59,8 @@ int encrypt_object(idpass::SignedIDPassCard& object, unsigned char* key, std::ve
 // PublicSignedIDPassCard
 bool serialize(idpass::PublicSignedIDPassCard& object, std::vector<unsigned char>&);
 bool serialize(idpass::SignedIDPassCard& object,       std::vector<unsigned char>&);
+
+bool is_valid_ed25519_key(unsigned char* key);
 }
 
 #endif // __cplusplus

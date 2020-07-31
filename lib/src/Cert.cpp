@@ -1,5 +1,36 @@
 #include "Cert.h"
 
+bool is_valid_ed25519_key(unsigned char *key)
+{
+    const char *msg = "attack at dawn!";
+    unsigned char signature[crypto_sign_BYTES];
+    unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
+
+    if (0 != crypto_sign_ed25519_sk_to_pk(pubkey, key)) {
+        return false;
+    }
+
+    if (0
+        != crypto_sign_detached(signature,
+                                nullptr,
+                                reinterpret_cast<const unsigned char *>(msg),
+                                std::strlen(msg),
+                                key)) {
+        return false;
+    }
+
+    if (0
+        != crypto_sign_verify_detached(
+            signature,
+            reinterpret_cast<const unsigned char *>(msg),
+            std::strlen(msg),
+            pubkey)) {
+        return false;
+    }
+
+    return true;
+}
+
 Cert *Cert::getIssuer(std::vector<Cert> &chain, std::vector<Cert> &rootcerts)
 {
     unsigned char *pubkey = this->issuerkey;
@@ -69,9 +100,10 @@ bool Cert::isRootCA()
 
 bool Cert::hasValidSignature()
 {
+    int status;
     // TODO: check pubkey, issuerkey in revoked list
-    if (crypto_sign_verify_detached(
-            signature, pubkey, crypto_sign_PUBLICKEYBYTES, issuerkey)
+    if ((status = crypto_sign_verify_detached(
+            signature, pubkey, crypto_sign_PUBLICKEYBYTES, issuerkey))
         == 0) {
         return true;
     }
@@ -96,9 +128,13 @@ bool Cert::isInTrustedList(std::list<std::array<unsigned char, 32>> &pubkeys)
 
 Cert::Cert(const unsigned char *sk)
 {
+    int status;
     if (sk) {
         std::memcpy(privkey, sk, crypto_sign_SECRETKEYBYTES);
-        crypto_sign_ed25519_sk_to_pk(pubkey, sk);
+        status = crypto_sign_ed25519_sk_to_pk(pubkey, sk);
+        if (!is_valid_ed25519_key(privkey)) {
+            throw std::runtime_error("certificate creation error:invalid ed25519 key");
+        }
     } else {
         crypto_sign_keypair(pubkey, privkey);
     }
@@ -121,16 +157,18 @@ bool Cert::fromBuffer(unsigned char *buf, int buf_len)
         // - issuerkey .......... 32 = 160
         */
         std::memcpy(privkey, buf, crypto_sign_SECRETKEYBYTES);
-        std::memcpy(pubkey,
-                    buf + crypto_sign_PUBLICKEYBYTES,
-                    crypto_sign_PUBLICKEYBYTES);
-        std::memcpy(
-            signature, buf + crypto_sign_SECRETKEYBYTES, crypto_sign_BYTES);
-        std::memcpy(issuerkey,
-                    buf + crypto_sign_SECRETKEYBYTES + crypto_sign_BYTES,
-                    crypto_sign_PUBLICKEYBYTES);
+        if (is_valid_ed25519_key(privkey)) {
+            std::memcpy(pubkey,
+                        buf + crypto_sign_PUBLICKEYBYTES,
+                        crypto_sign_PUBLICKEYBYTES);
+            std::memcpy(
+                signature, buf + crypto_sign_SECRETKEYBYTES, crypto_sign_BYTES);
+            std::memcpy(issuerkey,
+                        buf + crypto_sign_SECRETKEYBYTES + crypto_sign_BYTES,
+                        crypto_sign_PUBLICKEYBYTES);
 
-        return true;
+            return true;
+        }
     } else if (128) {
         /*
         // bytes layout:
@@ -165,3 +203,4 @@ std::vector<unsigned char> Cert::toByteArray(bool flag)
     }
     return buf;
 }
+
