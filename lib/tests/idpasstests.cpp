@@ -505,9 +505,85 @@ TEST_F(idpass_api_tests, generate_encryption_key)
     ASSERT_TRUE(status != 0);
 }
 
+TEST_F(idpass_api_tests, create_card_with_certificates_content_tampering)
+{
+    Cert certifi(signature_sk);
+    pROOTCA->Sign(certifi);
+
+    int count = 1;
+    unsigned char** cert = nullptr;
+    int* nlen = nullptr;
+    cert = new unsigned char*[count];
+    nlen = new int[count];
+    nlen[0] = 128;
+    cert[0] = new unsigned char[128];
+    std::memcpy(
+        cert[0], certifi.toByteArray().data(), certifi.toByteArray().size());
+
+    ASSERT_TRUE(idpass_api_add_certificates(ctx, cert, nlen, count) == 0);
+
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
+    std::vector<char> img1(std::istreambuf_iterator<char>{f1}, {});
+
+    unsigned char ioctlcmd[] = { IOCTL_SET_ACL, 
+         ACL_SURNAME | ACL_DATEOFBIRTH | ACL_PLACEOFBIRTH | ACL_CREATEDAT | ACL_GIVENNAME }; 
+    idpass_api_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+
+    int ecard_len;
+    unsigned char* ecard = idpass_api_create_card_with_face(
+		ctx,
+        &ecard_len,
+        "Pacquiao",
+        "Manny",
+        dob_buf.data(), //"1980/12/25",
+        dob_buf.size(),
+        "Kibawe, Bukidnon",
+        "12345",
+        img1.data(),
+        img1.size(),
+        nullptr,
+        0,
+        nullptr,
+        0);
+
+    ASSERT_TRUE(ecard != nullptr);
+
+    idpass::IDPassCards cards;
+    ASSERT_TRUE(cards.ParseFromArray(ecard, ecard_len));
+
+    idpass::PublicSignedIDPassCard publicRegion;
+    publicRegion = cards.publiccard();
+
+    ASSERT_STREQ(publicRegion.details().surname().c_str(), "Pacquiao");
+    ASSERT_STREQ(publicRegion.details().givenname().c_str(), "Manny");
+    ASSERT_STREQ(publicRegion.details().placeofbirth().c_str(), "Kibawe, Bukidnon");
+
+    idpass::PublicSignedIDPassCard publicRegion_tampered;
+    idpass::CardDetails details_tampered;
+    details_tampered.set_placeofbirth("Kibawe,Bukidnon");
+    publicRegion_tampered.mutable_details()->CopyFrom(details_tampered);
+
+    cards.mutable_publiccard()->CopyFrom(publicRegion_tampered);
+
+    int tlen = cards.ByteSizeLong();
+    unsigned char* ecard_tampered = new unsigned char[tlen];
+    ASSERT_TRUE(cards.SerializeToArray(ecard_tampered, tlen));
+
+    int details_len = 0;
+    unsigned char* details = idpass_api_verify_card_with_pin(
+        ctx, &details_len, ecard_tampered, tlen, "12345");
+
+    ASSERT_TRUE(details == nullptr);
+
+    delete[] ecard_tampered;
+    delete[] cert[0];
+    delete[] cert;
+    delete[] nlen;
+}
+
 TEST_F(idpass_api_tests, create_card_with_certificates)
 {
-    Cert certif;
     Cert certifi(signature_sk);
 
     ASSERT_TRUE(certifi.isRootCA());
