@@ -19,7 +19,7 @@ endif()
 
 set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
 set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
-set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/lib/idpass/)
+set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/lib/src/)
 set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/build/idpass/desktop/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
