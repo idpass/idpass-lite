@@ -317,6 +317,11 @@ int idpass_lite_add_certificates(void* self,
         return 1;
     }
 
+    if (context->m_rootCerts.size() == 0) {
+        return 1; // cannot add intermed certs 
+        // without rootcerts set
+    }
+
     api::Certificats intermedCerts;
     if (!intermedCerts.ParseFromArray(certs_buf, certs_buf_len)) {
         return 2;

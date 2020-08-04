@@ -549,7 +549,7 @@ TEST_F(TestCases, idpass_lite_init_test)
                                rootcerts_buf.data(),
                                rootcerts_buf.size());
 
-    ASSERT_TRUE(context == nullptr);
+    ASSERT_TRUE(context != nullptr); // make rootcerts optional
 
     CCertificate rootCA;
 
