@@ -25,8 +25,8 @@ jlong idpass_init(JNIEnv *env,
     jbyte *cryptokeys_buf = env->GetByteArrayElements(cryptokeys, 0);
     jsize cryptokeys_buf_len = env->GetArrayLength(cryptokeys);
 
-    jbyte *rootcerts_buf = env->GetByteArrayElements(rootcerts, 0);
-    jsize rootcerts_buf_len = env->GetArrayLength(rootcerts);
+    jbyte *rootcerts_buf = rootcerts != nullptr ? env->GetByteArrayElements(rootcerts, 0) : nullptr;
+    jsize rootcerts_buf_len = rootcerts != nullptr ? env->GetArrayLength(rootcerts) : 0;
 
     void *ctx
         = idpass_lite_init(reinterpret_cast<unsigned char *>(cryptokeys_buf),
@@ -35,7 +35,9 @@ jlong idpass_init(JNIEnv *env,
                            rootcerts_buf_len);
 
     env->ReleaseByteArrayElements(cryptokeys, cryptokeys_buf, 0);
-    env->ReleaseByteArrayElements(rootcerts, rootcerts_buf, 0);
+    if (rootcerts) {
+        env->ReleaseByteArrayElements(rootcerts, rootcerts_buf, 0);
+    }
 
     if (ctx) {
         LOGI("idpass_api_init ok");

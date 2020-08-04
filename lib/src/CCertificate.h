@@ -54,7 +54,8 @@ public:
 
     api::Certificat getValue(bool flag = false)
     {
-        api::Certificat c = value;
+        api::Certificat c;//
+        c.CopyFrom(value);
         if (!flag) {
             c.clear_privkey();
         }
@@ -126,6 +127,10 @@ public:
         unsigned char pubkey[32];
         std::memcpy(pubkey, c.pubkey().data(), 32);
 
+        int siglen = c.signature().size();
+        int issuerkeylen = c.issuerkey().size();
+        const char* sigbuf = c.signature().data();
+
         if (crypto_sign_verify_detached(
                 reinterpret_cast<const unsigned char*>(c.signature().data()),
                 pubkey,
@@ -141,7 +146,8 @@ public:
         tmp.set_signature(c.signature().data(), 64);
         tmp.set_issuerkey(c.issuerkey().data(), 32);
 
-        value = tmp;
+        value.CopyFrom(tmp);
+        //value = tmp;
     }
 
     CCertificate(const api::Certificat& c)
@@ -168,7 +174,7 @@ public:
             throw std::logic_error("certificate anomaly error");
         }
 
-        value = c;
+        value.CopyFrom(c);
     }
 
     bool hasValidSignature()

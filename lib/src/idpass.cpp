@@ -139,6 +139,7 @@ struct Context {
 
     bool verify_chain(idpass::IDPassCards& fullCard)
     {
+        int n = fullCard.certificates_size();
         if (fullCard.certificates_size() > 0) {
             std::vector<CCertificate> chain;
 
@@ -149,7 +150,7 @@ struct Context {
                     chain.push_back(cer);
                 }
             } catch (std::exception& e) {
-                return 3;
+                return false;
             }
 
             if (chain.size() > 0 && verify_chain(chain)) {
@@ -347,8 +348,8 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
                        unsigned char* rootcerts_buf,
                        int rootcerts_buf_len)
 {
-    if (!cryptokeys_buf || !rootcerts_buf || cryptokeys_buf_len == 0
-        || rootcerts_buf_len == 0) {
+    if (!cryptokeys_buf || cryptokeys_buf_len == 0
+        ) {
         LOGI("invalid params");
         return nullptr;
     }
@@ -357,9 +358,15 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
     api::Certificats rootCerts;
 
     if (!cryptoKeys.ParseFromArray(cryptokeys_buf, cryptokeys_buf_len)
-        || !rootCerts.ParseFromArray(rootcerts_buf, rootcerts_buf_len)) {
+        ) {
         LOGI("invalid params deserialization");
         return nullptr;
+    }
+
+    if (rootcerts_buf && rootcerts_buf_len > 0) {
+        if (!rootCerts.ParseFromArray(rootcerts_buf, rootcerts_buf_len)) {
+            return nullptr; 
+        }
     }
 
     if (!helper::is_valid(cryptoKeys)) {
@@ -599,9 +606,9 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     if (n > 0) {
         for (auto& cer : context->m_intermedCerts) {
             idpass::Certificate* c = idpassCards.add_certificates();
-            c->set_pubkey(cer.value.pubkey().data());
-            c->set_signature(cer.value.signature().data());
-            c->set_issuerkey(cer.value.issuerkey().data());
+            c->set_pubkey(cer.value.pubkey().data(), 32);
+            c->set_signature(cer.value.signature().data(), 64);
+            c->set_issuerkey(cer.value.issuerkey().data(), 32);
             // TODO add check like before?
         }
     }
