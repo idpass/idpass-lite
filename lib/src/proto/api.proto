@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package api;
+option java_package = "org.api.proto";
+option java_multiple_files = true;
+
+message Par {
+  string key = 1;
+  string value = 2;
+}
+
+message Pars { repeated Par pars = 1; }
+
+message Dat {
+  int32 year = 1;
+  int32 month = 2;
+  int32 day = 3;
+}
+
+message byteArray {
+  enum Typ {
+    BLOB = 0;
+    AEADKEY = 1;
+    ED25519PUBKEY = 2;
+    ED25519PRIVKEY = 3;
+    ED25519SIGNATURE = 4;
+    PHOTO = 5;
+  }
+
+  Typ typ = 1;
+  bytes val = 2;
+}
+
+message byteArrays { repeated byteArray vals = 1; }
+
+message KeySet {
+  bytes enckey = 1;
+  bytes sigkey = 2;
+  repeated byteArray verkeys = 3;
+}
+
+message Certificat {
+  bytes privkey = 1;
+  bytes pubkey = 2;
+  bytes issuerkey = 3;
+  bytes signature = 4;
+  string desc = 5;
+}
+
+message Certificats { repeated Certificat cert = 1; }
+
+message Ident {
+  string surName = 1;
+  string givenName = 2;
+  string placeOfBirth = 3;
+  string pin = 4;
+  Dat dateOfBirth = 5;
+  byteArrays photos = 6;
+  bytes photo = 7;
+  repeated Par privExtra = 8;
+  repeated Par pubExtra = 9;
+}
+
+message Idents { repeated Ident ident = 1; }

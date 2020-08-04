@@ -25,7 +25,8 @@ set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/../src/)
 set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/../../build/idpass/desktop/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
-set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/card_access)
+set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite)
+set(PROTOGEN2 ${CMAKE_CURRENT_BINARY_DIR}/proto/api)
 
 set(idpasstests_DEPENDS 
     protobuf
@@ -34,10 +35,16 @@ set(idpasstests_DEPENDS
     gtest
     )
 
-add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN}/idpasslite.pb.cc
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN}
-    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/card_access.proto
-    COMMENT "Compiling card_access.proto ..."
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/idpasslite.proto
+    COMMENT "Compiling idpasslite.proto ..."
+    )
+
+add_custom_command(OUTPUT ${PROTOGEN2}/api.pb.cc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN2}
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN2} ${PROTO}/api.proto
+    COMMENT "Compiling api.proto ..."
     )
 
 add_custom_target(testdata
@@ -51,7 +58,8 @@ link_directories(
     )
 
 add_executable(idpasstests
-    ${PROTOGEN}/card_access.pb.cc
+    ${PROTOGEN}/idpasslite.pb.cc
+    ${PROTOGEN2}/api.pb.cc
     idpasstests.cpp
     ${IDPASSAPI_INCLUDE}/Cert.cpp
     )

@@ -38,7 +38,8 @@ set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_AN
 set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_SOURCE_DIR}/proto)
-set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/card_access/)
+set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite/)
+set(PROTOGEN2 ${CMAKE_CURRENT_BINARY_DIR}/proto/api/)
 
 if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)
@@ -51,10 +52,16 @@ set(idpass_DEPENDS
     models
     )
 
-add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN}/idpasslite.pb.cc
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN}
-    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/card_access.proto
-    COMMENT "Compiling card_access.proto ..."
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/idpasslite.proto
+    COMMENT "Compiling idpasslite.proto ..."
+    )
+
+add_custom_command(OUTPUT ${PROTOGEN2}/api.pb.cc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN2}
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN2} ${PROTO}/api.proto
+    COMMENT "Compiling api.proto ..."
     )
 
 link_directories(
@@ -63,8 +70,9 @@ link_directories(
     )
 
 add_library(idpasslite SHARED
-    ${PROTOGEN}/card_access.pb.cc
-    ${CMAKE_SOURCE_DIR}/jni/org/idpass/idpass_jni.cpp
+    ${PROTOGEN}/idpasslite.pb.cc
+    ${PROTOGEN2}/api.pb.cc
+    ${CMAKE_SOURCE_DIR}/jni/idpass_jni.cpp
     Cert.cpp
     idpass.cpp
     helper.cpp

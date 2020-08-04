@@ -34,7 +34,7 @@ bool is_valid_ed25519_key(unsigned char *key)
 Cert *Cert::getIssuer(std::vector<Cert> &chain, std::vector<Cert> &rootcerts)
 {
     unsigned char *pubkey = this->issuerkey;
-    
+
     // first search into certchain list
     std::vector<Cert>::iterator it
         = std::find_if(chain.begin(), chain.end(), [&pubkey](const Cert &c) {
@@ -48,11 +48,12 @@ Cert *Cert::getIssuer(std::vector<Cert> &chain, std::vector<Cert> &rootcerts)
     }
 
     // if not in certchain list then search into rootCA list
-    it = std::find_if(rootcerts.begin(), rootcerts.end(), [&pubkey](const Cert &c) {
-              if (std::memcmp(c.pubkey, pubkey, 32) == 0)
-                  return true;
-              return false;
-          });
+    it = std::find_if(
+        rootcerts.begin(), rootcerts.end(), [&pubkey](const Cert &c) {
+            if (std::memcmp(c.pubkey, pubkey, 32) == 0)
+                return true;
+            return false;
+        });
 
     if (it != rootcerts.end()) {
         return &(*it);
@@ -103,7 +104,7 @@ bool Cert::hasValidSignature()
     int status;
     // TODO: check pubkey, issuerkey in revoked list
     if ((status = crypto_sign_verify_detached(
-            signature, pubkey, crypto_sign_PUBLICKEYBYTES, issuerkey))
+             signature, pubkey, crypto_sign_PUBLICKEYBYTES, issuerkey))
         == 0) {
         return true;
     }
@@ -133,7 +134,8 @@ Cert::Cert(const unsigned char *sk)
         std::memcpy(privkey, sk, crypto_sign_SECRETKEYBYTES);
         status = crypto_sign_ed25519_sk_to_pk(pubkey, sk);
         if (!is_valid_ed25519_key(privkey)) {
-            throw std::runtime_error("certificate creation error:invalid ed25519 key");
+            throw std::runtime_error(
+                "certificate creation error:invalid ed25519 key");
         }
     } else {
         crypto_sign_keypair(pubkey, privkey);
@@ -203,4 +205,3 @@ std::vector<unsigned char> Cert::toByteArray(bool flag)
     }
     return buf;
 }
-
