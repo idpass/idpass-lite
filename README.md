@@ -9,19 +9,19 @@ git clone --recurse-submodules ssh://git@github.com/newlogic42/lab_idpass_lite.g
 
 ## How to build `libidpasslite.so` only for your local machine
 
-To build `libidpasslite.so` locally in a compatible Linux machine without 
-using Docker:
+To build locally `libidpasslite.so`:
 
 ```
 cd lab_idpass_lite/
-./build.sh desktop
+mkdir build && cd build
+cmake ..
+cmake --build .
+ls -l lib/idpass/libidpasslite.so
 ```
 
-The locally built library is: `build/idpass/build.desktop/libidpasslite.so`
+## How to build `libidpasslite.so` for Android architectures
 
-## How to build `libidpasslite.so` for all architectures
-
-This uses the Docker container in order to contain the required setup to build
+This uses the Docker container having the required setup to build
 the following Android architectures:
 
 - armeabi-v7a
@@ -30,11 +30,12 @@ the following Android architectures:
 - x86_64
 
 ```
+docker run -it newlogic42/circleci-android bash
 cd lab_idpass_lite/
-./build.sh
+./build.sh buildandroid
 ```
 
-The Android outputs are in: `build/idpass/jniLibs/`
+The Android outputs are in: `build/build.<arch>/` folder
 
 ## Opensource Dependencies
 

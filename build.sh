@@ -45,14 +45,41 @@ build_desktop_idpasslite() {
     assert_exists java 
     assert_exists javac 
 
-    export project=`pwd`
-    export build=$project/build
-    mkdir -p build/idpasstests/desktop/
-    cp scripts/build.idpass.desktop.sh build/
-    build/build.idpass.desktop.sh
+    mkdir build && cd build
+    cmake -DCOVERAGE=1 -DTESTAPP=1 ..
+    cmake --build .
+    #ctest -R create_card_verify_with_face
+    ctest
+}
 
-    cp scripts/build.idpasstests.desktop.sh build/idpasstests/
-    build/idpasstests/build.idpasstests.desktop.sh
+buildandroid() {
+	for abi in x86 x86_64 armeabi-v7a arm64-v8a;do
+		echo "=========================================="
+		echo "Building for Android architecture $abi ..."
+		echo "=========================================="
+
+		mkdir -p build/android.$abi && cd build/android.$abi
+
+		cmake \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+		-DANDROID_NDK=$ANDROID_NDK_HOME \
+		-DANDROID_TOOLCHAIN=clang \
+		-DCMAKE_ANDROID_ARCH_ABI=$abi \
+		-DANDROID_ABI=$abi \
+		-DANDROID_LINKER_FLAGS="-landroid -llog" \
+		-DANDROID_NATIVE_API_LEVEL=23 \
+		-DANDROID_STL=c++_static \
+		-DANDROID_CPP_FEATURES="rtti exceptions" ../..
+
+		cmake --build .
+
+		echo "*************************"
+		echo "--- done Android $abi ---"
+		echo "*************************"
+		cd -
+		sleep 3
+	done
 }
 
 case "$1" in 
@@ -69,7 +96,11 @@ desktop)
 build_desktop_idpasslite
 ;;
 
+android)
+buildandroid
+;;
+
 *)
-build_lib_idpasslite
+build_desktop_idpasslite
 ;;
 esac
