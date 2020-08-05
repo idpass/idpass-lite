@@ -442,9 +442,14 @@ bool is_valid(api::KeySet& ckeys)
             }
         }
     } else {
-        unsigned char pubkey[32];
+        unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
         crypto_sign_ed25519_sk_to_pk(pubkey, 
             reinterpret_cast<const unsigned char*>(ckeys.signaturekey().data()));
+        // the public part of KeySet::signaturekey is, by default, a 
+        // verification key
+        api::byteArray* vk = ckeys.mutable_verificationkeys()->Add();
+        vk->set_typ(api::byteArray_Typ_ED25519PUBKEY);
+        vk->set_val(pubkey, crypto_sign_PUBLICKEYBYTES);
     }
 
     return true;
