@@ -51,6 +51,13 @@ build_debug() {
     ctest
     cd -
     ls -l build/debug/lib/src/libidpasslite.so
+    md5sum build/release/lib/src/libidpasslite.so > build/release/lib/src/libidpasslite.so.md5sum
+
+    # Generate test coverage report
+    lcov -c --directory build/debug/lib/src/CMakeFiles/idpasslite.dir --output-file build/cov.info
+    lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_idpass.info
+    genhtml build/cov_idpass.info -o build/html/
+    tar cvpf build/html.tar build/html
 }
 
 build_release() {
