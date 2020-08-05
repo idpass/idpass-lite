@@ -329,9 +329,9 @@ protected:
         idpass_lite_generate_encryption_key(m_enc, 32);
         std::memcpy(m_ver, m_sig + 32, 32);
 
-        cryptoKeys.set_enckey(m_enc, 32);
-        cryptoKeys.set_sigkey(m_sig, 64);
-        api::byteArray* verkey = cryptoKeys.add_verkeys();
+        cryptoKeys.set_encryptionkey(m_enc, 32);
+        cryptoKeys.set_signaturekey(m_sig, 64);
+        api::byteArray* verkey = cryptoKeys.add_verificationkeys();
         verkey->set_typ(api::byteArray_Typ_ED25519PUBKEY);
         verkey->set_val(m_ver, 32);
 
@@ -344,10 +344,10 @@ protected:
         CCertificate rootCert2;
         CCertificate rootCert3;
 
-        api::Certificats rootCertificates;
-        api::Certificat* cert1 = rootCertificates.add_cert();
-        api::Certificat* cert2 = rootCertificates.add_cert();
-        api::Certificat* cert3 = rootCertificates.add_cert();
+        api::Certificates rootCertificates;
+        api::Certificate* cert1 = rootCertificates.add_cert();
+        api::Certificate* cert2 = rootCertificates.add_cert();
+        api::Certificate* cert3 = rootCertificates.add_cert();
         cert1->CopyFrom(m_rootCert1->getValue(true));
         cert2->CopyFrom(rootCert2.getValue(true));
         cert3->CopyFrom(rootCert3.getValue(true));
@@ -449,10 +449,10 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_certificates)
     m_rootCert1->Sign(child0);
     child0.Sign(child1);
 
-    api::Certificats intermediateCertificates;
-    api::Certificat* c1 = intermediateCertificates.add_cert();
+    api::Certificates intermediateCertificates;
+    api::Certificate* c1 = intermediateCertificates.add_cert();
     c1->CopyFrom(child0.getValue());
-    api::Certificat* c2 = intermediateCertificates.add_cert();
+    api::Certificate* c2 = intermediateCertificates.add_cert();
     c2->CopyFrom(child1.getValue());
 
     std::vector<unsigned char> intermedcerts_buf(intermediateCertificates.ByteSizeLong());
@@ -523,7 +523,7 @@ TEST_F(TestCases, idpass_lite_init_test)
     void* context = nullptr;
 
     api::KeySet cryptoKeys;
-    api::Certificats rootCerts;
+    api::Certificates rootCerts;
 
     std::vector<unsigned char> cryptokeys_buf;
     std::vector<unsigned char> rootcerts_buf;
@@ -535,9 +535,9 @@ TEST_F(TestCases, idpass_lite_init_test)
 
     ASSERT_TRUE(context == nullptr);
 
-    cryptoKeys.set_enckey(enc, 32);
-    cryptoKeys.set_sigkey(sig, 64);
-    api::byteArray* verkey = cryptoKeys.add_verkeys();
+    cryptoKeys.set_encryptionkey(enc, 32);
+    cryptoKeys.set_signaturekey(sig, 64);
+    api::byteArray* verkey = cryptoKeys.add_verificationkeys();
     verkey->set_typ(api::byteArray_Typ_ED25519PUBKEY);
     verkey->set_val(ver, 32);
 
@@ -553,7 +553,7 @@ TEST_F(TestCases, idpass_lite_init_test)
 
     CCertificate rootCA;
 
-    api::Certificat* pcer = rootCerts.add_cert();
+    api::Certificate* pcer = rootCerts.add_cert();
     pcer->CopyFrom(rootCA.getValue(true));
     rootcerts_buf.resize(rootCerts.ByteSizeLong());
     rootCerts.SerializeToArray(rootcerts_buf.data(), rootcerts_buf.size());
@@ -596,7 +596,7 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
     ident.mutable_dateofbirth()->set_month(12);
     ident.mutable_dateofbirth()->set_day(17);
     ident.set_photo(photo.data(), photo.size());
-    api::Par* kv = ident.add_pubextra();
+    api::KV* kv = ident.add_pubextra();
     kv->set_key("gender");
     kv->set_value("male");
 

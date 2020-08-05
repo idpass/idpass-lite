@@ -322,7 +322,7 @@ int idpass_lite_add_certificates(void* self,
         // without rootcerts set
     }
 
-    api::Certificats intermedCerts;
+    api::Certificates intermedCerts;
     if (!intermedCerts.ParseFromArray(certs_buf, certs_buf_len)) {
         return 2;
     }
@@ -360,7 +360,7 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
     }
 
     api::KeySet cryptoKeys;
-    api::Certificats rootCerts;
+    api::Certificates rootCerts;
 
     if (!cryptoKeys.ParseFromArray(cryptokeys_buf, cryptokeys_buf_len)
         ) {
@@ -463,7 +463,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
         crypto_sign_ed25519_sk_to_pk(
             card_signerPublicKey,
             reinterpret_cast<const unsigned char*>(
-                context->m_cryptoKeys.sigkey().data()));
+                context->m_cryptoKeys.signaturekey().data()));
     }
 
     //////////////////////////
@@ -569,7 +569,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
 
     privateRegionEncrypted_len
         = helper::encrypt_object(privateRegion,
-                                 context->m_cryptoKeys.enckey().data(),
+                                 context->m_cryptoKeys.encryptionkey().data(),
                                  privateRegionEncrypted);
 
     ////////////////////////////////////////////////////////////
@@ -590,7 +590,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
               std::back_inserter(priv_pub_blob));
     // context->m_cryptoKeys.sigkey().data() ---> const char*
     helper::sign_object(priv_pub_blob,
-                        context->m_cryptoKeys.sigkey().data(),
+                        context->m_cryptoKeys.signaturekey().data(),
                         priv_pub_blob_signature);
 
     ///////////////////////////////
@@ -1273,7 +1273,7 @@ unsigned char* idpass_lite_generate_root_certificate(unsigned char* skpk,
         return nullptr;
     }
 
-    api::Certificat rootCERT;
+    api::Certificate rootCERT;
     rootCERT.set_privkey(skpk, skpk_len);
     rootCERT.set_pubkey(pubkey, crypto_sign_PUBLICKEYBYTES);
     rootCERT.set_signature(signature, crypto_sign_BYTES);
@@ -1315,7 +1315,7 @@ idpass_lite_generate_child_certificate(const unsigned char* parent_skpk,
         return nullptr;
     }
 
-    api::Certificat intermedCert;
+    api::Certificate intermedCert;
     intermedCert.set_pubkey(child_pubkey, crypto_sign_PUBLICKEYBYTES);
     intermedCert.set_signature(signature, crypto_sign_BYTES);
     intermedCert.set_issuerkey(issuerkey, crypto_sign_PUBLICKEYBYTES);

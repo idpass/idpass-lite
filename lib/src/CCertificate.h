@@ -10,7 +10,7 @@
 class CCertificate
 {
 public:
-    api::Certificat value;
+    api::Certificate value;
 
 public:
     bool hasPrivateKey()
@@ -52,9 +52,9 @@ public:
         return nullptr;
     }
 
-    api::Certificat getValue(bool flag = false)
+    api::Certificate getValue(bool flag = false)
     {
-        api::Certificat c;//
+        api::Certificate c;//
         c.CopyFrom(value);
         if (!flag) {
             c.clear_privkey();
@@ -78,7 +78,7 @@ public:
             32,
             &buf_len);
 
-        api::Certificat ccc;
+        api::Certificate ccc;
         ccc.ParseFromArray(buf, buf_len);
 
         cer.value.set_signature(ccc.signature().data(), ccc.signature().size());
@@ -140,7 +140,7 @@ public:
             throw std::logic_error("certificate anomaly error");
         }
 
-        api::Certificat tmp;
+        api::Certificate tmp;
         tmp.clear_privkey();
         tmp.set_pubkey(pubkey, 32);
         tmp.set_signature(c.signature().data(), 64);
@@ -150,7 +150,7 @@ public:
         //value = tmp;
     }
 
-    CCertificate(const api::Certificat& c)
+    CCertificate(const api::Certificate& c)
     {
         unsigned char pubkey[32];
 

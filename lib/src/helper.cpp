@@ -105,7 +105,7 @@ bool decryptCard(unsigned char* full_card_buf,
               std::begin(signerPublicKey));
 
     bool found = false;
-    for (auto& pub : cryptoKeys.verkeys()) {
+    for (auto& pub : cryptoKeys.verificationkeys()) {
         if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
             if (std::memcmp(pub.val().data(), pubkey, 32) == 0) {
                 found = true;
@@ -140,7 +140,7 @@ bool decryptCard(unsigned char* full_card_buf,
             NULL,
             0,
             nonce,
-            reinterpret_cast<const unsigned char*>(cryptoKeys.enckey().data()))
+            reinterpret_cast<const unsigned char*>(cryptoKeys.encryptionkey().data()))
         != 0) {
         LOGI("decrypt error");
         delete[] privateRegionBuf;
@@ -407,7 +407,7 @@ bool is_valid_ed25519_key(const unsigned char* key)
     return true;
 }
 
-bool is_valid(api::Certificats& rootcerts)
+bool is_valid(api::Certificates& rootcerts)
 {
     for (auto& c : rootcerts.cert()) {
         if (c.privkey().size() == 64) { // root CA
@@ -424,25 +424,27 @@ bool is_valid(api::Certificats& rootcerts)
 
 bool is_valid(api::KeySet& ckeys)
 {
-    if (ckeys.enckey().size() != crypto_aead_chacha20poly1305_IETF_KEYBYTES
-        || ckeys.sigkey().size() != crypto_sign_SECRETKEYBYTES) {
+    if (ckeys.encryptionkey().size() != crypto_aead_chacha20poly1305_IETF_KEYBYTES
+        || ckeys.signaturekey().size() != crypto_sign_SECRETKEYBYTES) {
         return false;
     }
 
     if (!is_valid_ed25519_key(
-            reinterpret_cast<const unsigned char*>(ckeys.sigkey().data()))) {
+            reinterpret_cast<const unsigned char*>(ckeys.signaturekey().data()))) {
         return false;
     }
 
-    if (ckeys.verkeys_size() == 0) {
-        return false;
-    }
-
-    for (auto& verkey : ckeys.verkeys()) {
-        if (verkey.typ() != api::byteArray_Typ_ED25519PUBKEY
-            || verkey.val().size() != crypto_sign_PUBLICKEYBYTES) {
-            return false;
+    if (ckeys.verificationkeys_size() > 0) {
+        for (auto& verkey : ckeys.verificationkeys()) {
+            if (verkey.typ() != api::byteArray_Typ_ED25519PUBKEY
+                || verkey.val().size() != crypto_sign_PUBLICKEYBYTES) {
+                return false;
+            }
         }
+    } else {
+        unsigned char pubkey[32];
+        crypto_sign_ed25519_sk_to_pk(pubkey, 
+            reinterpret_cast<const unsigned char*>(ckeys.signaturekey().data()));
     }
 
     return true;

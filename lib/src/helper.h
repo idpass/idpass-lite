@@ -68,7 +68,7 @@ bool serialize(idpass::SignedIDPassCard& object, std::vector<unsigned char>&);
 bool is_valid_ed25519_key(const unsigned char* key);
 
 bool is_valid(api::KeySet& ckeys);
-bool is_valid(api::Certificats& rootcerts);
+bool is_valid(api::Certificates& rootcerts);
 }
 
 #endif // __cplusplus
