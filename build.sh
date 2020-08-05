@@ -15,7 +15,11 @@ build_dependencies() {
     else
         # get latest updates
         #docker pull newlogic42/circleci-android:latest
-        docker run -it --user $(id -u):$(id -g) --rm -v `pwd`:/home/circleci/project -e API_LEVEL=23 newlogic42/circleci-android:latest /home/circleci/project/scripts/build.dependencies.sh
+        docker run -it --user $(id -u):$(id -g) --rm \
+            -v `pwd`:/home/circleci/project \
+            -e API_LEVEL=23  \
+            newlogic42/circleci-android:latest \
+            /home/circleci/project/scripts/build.dependencies.sh
     fi
 }
 
@@ -35,6 +39,39 @@ assert_exists() {
     exit 1
 }
 
+build_debug() {
+    echo "***********************************"
+    echo "Building debug libidpasslite.so ..."
+    echo "***********************************"
+    sleep 3
+    rm -rf build/debug
+    mkdir -p build/debug && cd build/debug
+    cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
+    cmake --build .
+    ctest
+    cd -
+    ls -l build/debug/lib/src/libidpasslite.so
+}
+
+build_release() {
+    echo "*************************************"
+    echo "Building release libidpasslite.so ..."
+    echo "*************************************"
+    sleep 3
+    rm -rf build/release
+    mkdir -p build/release && cd build/release
+    cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
+    cmake --build .
+    ctest
+    echo
+    cd -
+    ls -l build/release/lib/src/libidpasslite.so
+}
+
+###########################################################
+# The build_desktop_idpasslite function directly does the 
+# cmake build without using a container
+###########################################################
 build_desktop_idpasslite() {
     # Check needed pre-requisites 
     assert_exists gcc 
@@ -45,41 +82,106 @@ build_desktop_idpasslite() {
     assert_exists java 
     assert_exists javac 
 
-    mkdir build && cd build
-    cmake -DCOVERAGE=1 -DTESTAPP=1 ..
-    cmake --build .
-    #ctest -R create_card_verify_with_face
-    ctest
+    build_release
 }
 
-buildandroid() {
-	for abi in x86 x86_64 armeabi-v7a arm64-v8a;do
-		echo "=========================================="
-		echo "Building for Android architecture $abi ..."
-		echo "=========================================="
+build_inside_container() {
+    if iscontainer; then
+        case "$1" in
+        debug)
+        build_debug  
+        ;;
+        release)
+        build_release
+        ;;
+        android)
+        build_android $2
+        ;;
+        *)
+        build_debug && build_release
+        esac
+    else
+        ####################
+        # get latest updates
+        #docker pull newlogic42/circleci-android:latest
 
-		mkdir -p build/android.$abi && cd build/android.$abi
+        docker run -it --user $(id -u):$(id -g) --rm \
+            -v `pwd`:/home/circleci/project \
+            -e API_LEVEL=23 \
+            -w /home/circleci/project/ \
+            newlogic42/circleci-android:latest \
+            /home/circleci/project/build.sh $@
+    fi
+}
 
-		cmake \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
-		-DANDROID_NDK=$ANDROID_NDK_HOME \
-		-DANDROID_TOOLCHAIN=clang \
-		-DCMAKE_ANDROID_ARCH_ABI=$abi \
-		-DANDROID_ABI=$abi \
-		-DANDROID_LINKER_FLAGS="-landroid -llog" \
-		-DANDROID_NATIVE_API_LEVEL=23 \
-		-DANDROID_STL=c++_static \
-		-DANDROID_CPP_FEATURES="rtti exceptions" ../..
+build_android() {
+    local abi
+    if [ $# -eq 0 ]; then
+        echo "*** Building all supported Android architectures ***"
+        sleep 3
+        for abi in x86 x86_64 armeabi-v7a arm64-v8a;do
+            echo "=========================================="
+            echo "Building for Android architecture $abi ..."
+            echo "=========================================="
 
-		cmake --build .
+            local builddir=build/android.$abi
+            rm -rf $builddir
+            mkdir -p $builddir && cd $builddir
 
-		echo "*************************"
-		echo "--- done Android $abi ---"
-		echo "*************************"
-		cd -
-		sleep 3
-	done
+            cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+                -DANDROID_NDK=$ANDROID_NDK_HOME \
+                -DANDROID_TOOLCHAIN=clang \
+                -DCMAKE_ANDROID_ARCH_ABI=$abi \
+                -DANDROID_ABI=$abi \
+                -DANDROID_LINKER_FLAGS="-landroid -llog" \
+                -DANDROID_NATIVE_API_LEVEL=23 \
+                -DANDROID_STL=c++_static \
+                -DANDROID_CPP_FEATURES="rtti exceptions" ../..
+
+            cmake --build .
+
+            echo "***********************************"
+            echo "--- Done building Android $abi ---"
+            echo "***********************************"
+            cd -
+            sleep 3
+        done
+    else
+        case "$1" in
+        x86|x86_64|armeabi-v7a|arm64-v8a)
+        echo "*** Building Android architectures $1 ***"
+        sleep 3
+        abi=$1    
+        local builddir=build/android.$abi
+        rm -rf $builddir
+        mkdir -p $builddir && cd $builddir
+
+        cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+            -DANDROID_NDK=$ANDROID_NDK_HOME \
+            -DANDROID_TOOLCHAIN=clang \
+            -DCMAKE_ANDROID_ARCH_ABI=$abi \
+            -DANDROID_ABI=$abi \
+            -DANDROID_LINKER_FLAGS="-landroid -llog" \
+            -DANDROID_NATIVE_API_LEVEL=23 \
+            -DANDROID_STL=c++_static \
+            -DANDROID_CPP_FEATURES="rtti exceptions" ../..
+
+        cmake --build .
+
+        echo "***********************************"
+        echo "--- Done building Android $abi ---"
+        echo "***********************************"
+        cd -
+        ;;
+
+        *)
+        echo "Unknown android arch $1"
+        esac
+    fi
 }
 
 case "$1" in 
@@ -97,10 +199,18 @@ build_desktop_idpasslite
 ;;
 
 android)
-buildandroid
+build_inside_container $@
+;;
+
+debug)
+build_inside_container debug
+;;
+
+release)
+build_inside_container release
 ;;
 
 *)
-build_desktop_idpasslite
+build_inside_container
 ;;
 esac
