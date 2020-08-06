@@ -20,4 +20,4 @@ jobs:
           path: /home/circleci/project/build/html.tar
           destination: html.tar
       - store_test_results:
-          path: build/test_results/
+          path: build/test_results/demangle/results.xml
