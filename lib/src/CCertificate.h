@@ -13,6 +13,16 @@ public:
     api::Certificate value;
 
 public:
+    void setPublicKey(unsigned char* key, int len) 
+    {
+        if (key == nullptr || len != 32) {
+            throw std::logic_error("cert pubkey init error");
+        }
+
+        value.Clear();
+        value.set_pubkey(key, len);
+    }
+
     bool hasPrivateKey()
     {
         return value.privkey().size() > 0;
@@ -103,14 +113,17 @@ public:
         if (skpk == nullptr || skpk_len != 64) {
             throw std::logic_error("cert init error");
         }
+        if (skpk_len == 64) {
+            unsigned char privkey[64];
+            std::memcpy(privkey, skpk, skpk_len);
 
-        unsigned char privkey[64];
-        std::memcpy(privkey, skpk, skpk_len);
-
-        int len = 0;
-        unsigned char* buffer
-            = idpass_lite_generate_root_certificate(privkey, 64, &len);
-        value.ParseFromArray(buffer, len);
+            int len = 0;
+            unsigned char* buffer
+                = idpass_lite_generate_root_certificate(privkey, 64, &len);
+            value.ParseFromArray(buffer, len);
+        } else {
+             
+        }
     }
 
     bool parseFrom(unsigned char* buf, int buf_len)
