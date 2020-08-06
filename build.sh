@@ -49,8 +49,13 @@ build_debug() {
     mkdir -p build/debug && cd build/debug
     cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
-    ctest
     cd -
+
+    build/debug/lib/tests/idpasstests build/debug/lib/tests/data/
+    if [ $? -ne 0 ];then
+        return 1
+    fi
+
     ls -l build/debug/lib/src/libidpasslite.so
     #md5sum build/release/lib/src/libidpasslite.so > build/release/lib/src/libidpasslite.so.md5sum
 
@@ -85,9 +90,8 @@ build_release() {
     mkdir -p build/release && cd build/release
     cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
-    ctest
-    echo
     cd -
+    echo
     ls -l build/release/lib/src/libidpasslite.so
 }
 
