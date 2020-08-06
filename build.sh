@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 
+export GTEST_OUTPUT="xml:/home/circleci/project/build/reports.xml"
 API_LEVEL=23
 p=/home/circleci/project
 
