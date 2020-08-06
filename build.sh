@@ -51,7 +51,7 @@ build_debug() {
     ctest
     cd -
     ls -l build/debug/lib/src/libidpasslite.so
-    md5sum build/release/lib/src/libidpasslite.so > build/release/lib/src/libidpasslite.so.md5sum
+    #md5sum build/release/lib/src/libidpasslite.so > build/release/lib/src/libidpasslite.so.md5sum
 
     # Generate test coverage report
     lcov -c --directory build/debug/lib/src/CMakeFiles/idpasslite.dir --output-file build/cov.info
@@ -62,13 +62,13 @@ build_debug() {
     mkdir -p build/test_results/demangle/
     mkdir build/test_results/nomangle/
 
-    python /home/circleci/bin/lcov_cobertura.py \
+    python /home/circleci/project/scripts/lcov_cobertura.py \
         build/cov_idpass.info \
         --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
         --output build/test_results/demangle/results.xml \
         --demangle
 
-    python3 /home/circleci/bin/lcov_cobertura.py \
+    python3 /home/circleci/project/scripts/lcov_cobertura.py \
         build/cov_idpass.info \
         --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
         --output build/test_results/nomangle/results.xml
