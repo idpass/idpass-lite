@@ -205,6 +205,10 @@ int idpass_lite_saveToBitmap(void* self,
                              int data_len,
                              const char* bitmapfile);
 
+MODULE_API
+unsigned char* idpass_lite_uio(void* self,
+                               int typ);
+
 #ifdef __cplusplus
 }
 #endif

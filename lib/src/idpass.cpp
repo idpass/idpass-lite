@@ -1356,6 +1356,28 @@ MODULE_API int idpass_lite_saveToBitmap(void* self,
     return qrcode_saveToBitmap(data, data_len, bitmapfile, context->qrcode_ecc);
 }
 
+MODULE_API
+unsigned char* idpass_lite_uio(void* self, int typ) 
+{
+    Context* context = (Context*)self;
+    if (self == nullptr) {
+        return nullptr; 
+    }
+
+    api::Ident ident;
+    ident.set_surname("Doe");
+    ident.set_givenname("John");
+    std::vector<unsigned char> _ident(ident.ByteSizeLong());
+    ident.SerializeToArray(_ident.data(), _ident.size());
+    int len = _ident.size();
+    unsigned char* c_buf = context->NewByteArray(sizeof len + len);
+
+    std::memcpy(c_buf, &len, sizeof len);
+    std::memcpy(c_buf + sizeof len, _ident.data(), _ident.size());
+
+    return c_buf;
+}
+
 #ifdef __cplusplus
 }
 #endif

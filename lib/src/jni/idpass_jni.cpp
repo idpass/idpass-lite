@@ -648,6 +648,32 @@ jint verify_card_certificate(JNIEnv *env,
     return status;
 }
 
+jbyteArray uio(JNIEnv *env, jobject thiz, jlong context, jint typ)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+    if (!ctx) {
+        LOGI("null ctx");
+        return env->NewByteArray(0);
+    }
+
+    jbyteArray ecard = nullptr;
+
+    unsigned char *buf = idpass_lite_uio(ctx, typ);
+    int buf_len = 0;
+
+    if (buf != nullptr) {
+        std::memcpy(&buf_len, buf, sizeof(int));
+        ecard = env->NewByteArray(buf_len);
+        env->SetByteArrayRegion(
+            ecard, 0, buf_len, (const jbyte *)(buf + sizeof(int)));
+        idpass_lite_freemem(ctx, buf);
+    } else {
+        ecard = env->NewByteArray(0);
+    }
+
+    return ecard; 
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl", (char *)"(J[B)[B", (void *)ioctl},
 
