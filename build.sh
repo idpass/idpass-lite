@@ -58,6 +58,21 @@ build_debug() {
     lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_idpass.info
     genhtml build/cov_idpass.info -o build/html/
     tar cvpf build/html.tar build/html
+
+    mkdir -p build/test_results/demangle/
+    mkdir build/test_results/nomangle/
+
+    python /home/circleci/bin/lcov_cobertura.py \
+        build/cov_idpass.info \
+        --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
+        --output build/test_results/demangle/results.xml \
+        --demangle
+
+    python3 /home/circleci/bin/lcov_cobertura.py \
+        build/cov_idpass.info \
+        --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
+        --output build/test_results/nomangle/results.xml
+
 }
 
 build_release() {
