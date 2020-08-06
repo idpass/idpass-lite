@@ -68,10 +68,10 @@ build_debug() {
         --output build/test_results/demangle/results.xml \
         --demangle
 
-    python3 /home/circleci/project/scripts/lcov_cobertura.py \
-        build/cov_idpass.info \
-        --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
-        --output build/test_results/nomangle/results.xml
+    #python3 /home/circleci/project/scripts/lcov_cobertura.py \
+    #    build/cov_idpass.info \
+    #    --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
+    #    --output build/test_results/nomangle/results.xml
 
 }
 
