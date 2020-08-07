@@ -934,7 +934,7 @@ TEST_F(TestCases, threading_multiple_instance_test)
         ASSERT_TRUE(userDetails.ParseFromArray(buf, buf_len));
     };
 
-    const int N = 1000;
+    const int N = 10;
     std::thread* T[N];
 
     for (int i = 0; i < N; i++) {
@@ -997,7 +997,7 @@ TEST_F(TestCases, threading_single_instance_test)
         ASSERT_TRUE(details.ParseFromArray(buf, buf_len));
     };
 
-    const int N = 1000;
+    const int N = 10;
     std::thread* T[N];
 
     for (int i = 0; i < N; i++) {
