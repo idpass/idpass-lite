@@ -45,7 +45,7 @@ build_debug() {
     echo "Building debug libidpasslite.so ..."
     echo "***********************************"
     sleep 3
-    rm -rf build/debug
+    #rm -rf build/debug
     mkdir -p build/debug && cd build/debug
     cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
@@ -65,8 +65,10 @@ build_debug() {
     genhtml build/cov_idpass.info -o build/html/
     tar cvpf build/html.tar build/html
 
+    rm -rf build/test_results/demangle/
+    rm -rf build/test_results/nomangle/
     mkdir -p build/test_results/demangle/
-    mkdir build/test_results/nomangle/
+    mkdir -p build/test_results/nomangle/
 
     python /home/circleci/project/scripts/lcov_cobertura.py \
         build/cov_idpass.info \
@@ -86,7 +88,7 @@ build_release() {
     echo "Building release libidpasslite.so ..."
     echo "*************************************"
     sleep 3
-    rm -rf build/release
+    #rm -rf build/release
     mkdir -p build/release && cd build/release
     cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .

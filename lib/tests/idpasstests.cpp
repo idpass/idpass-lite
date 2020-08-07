@@ -592,7 +592,7 @@ TEST_F(TestCases, check_qrcode_md5sum)
 {
     auto savetobitmap = [](int qrcode_size,
                            unsigned char* pixelbits,
-                           const char* outfile = "/tmp/qrcode.bmp") {
+                           const char* outfile) {
         auto TestBit = [](unsigned char A[], int k) {
             return ((A[k / 8] & (1 << (k % 8))) != 0);
         };
@@ -666,7 +666,7 @@ TEST_F(TestCases, check_qrcode_md5sum)
 #ifdef _WIN32
         FILE *fp = fopen("c:/Users/63927/Documents/qrcode.dat", "wb");
 #else
-        FILE *fp = fopen("/tmp/qrcode.dat", "wb");
+        FILE *fp = fopen("build/qrcode.dat", "wb");
 #endif
         int nwritten = 0;
         nwritten = fwrite(card , 1, card_len, fp);
@@ -678,7 +678,7 @@ TEST_F(TestCases, check_qrcode_md5sum)
 #ifdef _WIN32
         savetobitmap(qrsize, pixel, "c:/Users/63927/Documents/qrcode.bmp");
 #else
-        savetobitmap(qrsize, pixel, "qrcode.bmp");
+        savetobitmap(qrsize, pixel, "build/qrcode.bmp");
 #endif
 }
 
