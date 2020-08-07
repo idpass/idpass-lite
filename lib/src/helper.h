@@ -3,13 +3,14 @@
 #define HELPER_H
 
 #ifdef __cplusplus
-#include "proto/card_access/card_access.pb.h"
+#include "proto/api/api.pb.h"
+#include "proto/idpasslite/idpasslite.pb.h"
 
 #include <functional>
+#include <list>
 #include <map>
 #include <sstream>
 #include <vector>
-#include <list>
 
 namespace helper
 {
@@ -23,19 +24,51 @@ computeFaceDiff(char* photo, int photo_len, const std::string& facearray);
 
 float euclidean_diff(float face1[], float face2[], int n);
 
-bool decryptCard(unsigned char* encrypted_card,
-                 int encrypted_card_len,
-                 const unsigned char* encryptionKey,
-                 const unsigned char* signatureKey,
-                 const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> &verificationKeys,
-                 idpass::SignedIDPassCard&);
+bool decryptCard(unsigned char* full_card_buf,
+                 int full_card_buf_len,
+                 api::KeySet& cryptoKeys,
+                 idpass::IDPassCard& card,
+                 idpass::IDPassCards& fullCard);
+
+bool decryptCard(
+    unsigned char* encrypted_card,
+    int encrypted_card_len,
+    const unsigned char* encryptionKey,
+    const unsigned char* signatureKey,
+    const std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>>&
+        verificationKeys,
+    idpass::IDPassCard&);
 
 std::vector<float> get128f(unsigned char* facearray, int facearray_len);
 
 double vectorDistance(float* first, float* last, float* first2);
 
 std::vector<char> readfile(const char* filename);
+bool isRevoked(const char* filename, const char* key, int key_len);
+bool sign_object(idpass::IDPassCard& object,
+                 unsigned char* key,
+                 unsigned char* sig);
+bool sign_object(idpass::PublicSignedIDPassCard& object,
+                 unsigned char* key,
+                 unsigned char* sig);
+bool sign_object(idpass::CardDetails& object,
+                 const unsigned char* key,
+                 unsigned char* sig);
+bool sign_object(std::vector<unsigned char>& blob,
+                 const char* key,
+                 unsigned char* sig);
+int encrypt_object(idpass::SignedIDPassCard& object,
+                   const char* key,
+                   std::vector<unsigned char>&);
+// PublicSignedIDPassCard
+bool serialize(idpass::PublicSignedIDPassCard& object,
+               std::vector<unsigned char>&);
+bool serialize(idpass::SignedIDPassCard& object, std::vector<unsigned char>&);
 
+bool is_valid_ed25519_key(const unsigned char* key);
+
+bool is_valid(api::KeySet& ckeys);
+bool is_valid(api::Certificates& rootcerts);
 }
 
 #endif // __cplusplus

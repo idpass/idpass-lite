@@ -42,8 +42,8 @@ void bin16::f2b_to_f2(unsigned char* float2buf, int float2buf_len, float* f2)
 {
     float f;
     unsigned short hf;
-    for (int i = 0; i < float2buf_len/2; i++) {
-        std::memcpy(&hf, float2buf + i * 2, 2);    
+    for (int i = 0; i < float2buf_len / 2; i++) {
+        std::memcpy(&hf, float2buf + i * 2, 2);
         f = half_to_float(hf);
         f2[i] = f;
     }

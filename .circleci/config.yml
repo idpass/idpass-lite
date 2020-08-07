@@ -8,14 +8,16 @@ jobs:
       - checkout
       - run: git submodule update --init
       - run:
-          name: "Initial"
+          name: "Build debug/release and run tests"
           command: |
               if test -f "build.sh"; then
                   ./build.sh
               fi
       - store_artifacts:
-          path: /home/circleci/project/build/idpass/jniLibs.tar.bz2
-          destination: jniLibs.tar.bz2
+          path: /home/circleci/project/build/release/lib/src/libidpasslite.so
+          destination: libidpasslite.so
       - store_artifacts:
-          path: /home/circleci/project/build/idpass/jniLibs.tar.bz2.md5sum
-          destination: jniLibs.tar.bz2.md5sum
+          path: /home/circleci/project/build/html.tar
+          destination: html.tar
+      - store_test_results:
+          path: /home/circleci/project/build/reports.xml

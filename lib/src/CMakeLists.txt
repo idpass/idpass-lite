@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.10.1)
 project(idpasslite)
 
 if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
@@ -28,17 +27,18 @@ endif()
 set(DXTRACKER "DXTRACKER ${DXTRACKER}")
 
 configure_file (
-    "${CMAKE_SOURCE_DIR}/dxtracker.h.in"
-    "${CMAKE_BINARY_DIR}/dxtracker.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dxtracker.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/dxtracker.h"
     )
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
-set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
-set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/../../dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
-set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/../../dependencies/build/desktop/bin/protoc)
-set(PROTO ${CMAKE_SOURCE_DIR}/proto)
-set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/card_access/)
+set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
+set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/dependencies/build/desktop/bin/protoc)
+set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
+set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite/)
+set(PROTOGEN2 ${CMAKE_CURRENT_BINARY_DIR}/proto/api/)
 
 if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)
@@ -51,10 +51,16 @@ set(idpass_DEPENDS
     models
     )
 
-add_custom_command(OUTPUT ${PROTOGEN}/card_access.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN}/idpasslite.pb.cc
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN}
-    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/card_access.proto
-    COMMENT "Compiling card_access.proto ..."
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/idpasslite.proto
+    COMMENT "Compiling idpasslite.proto ..."
+    )
+
+add_custom_command(OUTPUT ${PROTOGEN2}/api.pb.cc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN2}
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN2} ${PROTO}/api.proto
+    COMMENT "Compiling api.proto ..."
     )
 
 link_directories(
@@ -63,8 +69,9 @@ link_directories(
     )
 
 add_library(idpasslite SHARED
-    ${PROTOGEN}/card_access.pb.cc
-    ${CMAKE_SOURCE_DIR}/jni/org/idpass/idpass_jni.cpp
+    ${PROTOGEN}/idpasslite.pb.cc
+    ${PROTOGEN2}/api.pb.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/jni/idpass_jni.cpp
     idpass.cpp
     helper.cpp
     dlibapi.cpp
@@ -73,7 +80,7 @@ add_library(idpasslite SHARED
     dxtracker.h
     )
 
-target_compile_definitions(idpasslite PRIVATE _IDPASS_JNI_)
+target_compile_definitions (idpasslite PRIVATE _IDPASS_JNI_)
 
 include_directories(
     ${DEPENDENCIES_INCLUDE}
@@ -89,12 +96,12 @@ endif()
 get_target_property(target_type idpasslite TYPE)
 if (target_type STREQUAL "SHARED_LIBRARY")
     if (CMAKE_BUILD_TYPE STREQUAL Release)
-        add_custom_command(TARGET ${PROJECT_NAME}
+	    add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
-            COMMAND ${CMAKE_STRIP} ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}
+	    COMMAND ${CMAKE_STRIP} ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}
             )
     endif()
 endif ()
 
-target_link_libraries(idpasslite ${idpass_DEPENDS})
+target_link_libraries(idpasslite PUBLIC ${idpass_DEPENDS} PUBLIC covcfg)
 install(TARGETS idpasslite DESTINATION ${CMAKE_INSTALL_PREFIX})
