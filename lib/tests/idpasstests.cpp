@@ -294,9 +294,9 @@ TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
         context, &card_len, _ident.data(), _ident.size());
 
     // can still create cards without root certs and intermed certs
-    ASSERT_TRUE(card != nullptr);
+    EXPECT_TRUE(card != nullptr);
     idpass::IDPassCards fullcard;
-    ASSERT_TRUE(fullcard.ParseFromArray(card, card_len));
+    EXPECT_TRUE(fullcard.ParseFromArray(card, card_len));
     
     // rough check that card is created by checking surname field
     ASSERT_TRUE(fullcard.publiccard().details().surname().compare("Pacquiao")
