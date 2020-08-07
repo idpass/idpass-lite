@@ -119,13 +119,8 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
-    api::Ident ident;
-    ident.set_surname("Pacquiao");
-    ident.set_placeofbirth("Kibawe, Bukidnon");
-    ident.set_photo(photo.data(), photo.size());
-
-    std::vector<unsigned char> buf(ident.ByteSizeLong());
-    ident.SerializeToArray(buf.data(), buf.size());
+    std::vector<unsigned char> buf(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(buf.data(), buf.size());
     
     int len;
     unsigned char* cards
@@ -166,22 +161,12 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
 
 TEST_F(TestCases, idpass_lite_create_card_with_face_certificates)
 {
-    api::Ident ident;
     std::string filename = std::string(datapath) + "manny1.bmp";
     std::ifstream photofile(filename, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
-    ident.set_surname("Pacquiao");
-    ident.set_givenname("Manny");
-    ident.set_placeofbirth("Kibawe, Bukidnon");
-    ident.set_pin("12345");
-    ident.mutable_dateofbirth()->set_year(1978);
-    ident.mutable_dateofbirth()->set_month(12);
-    ident.mutable_dateofbirth()->set_day(17);
-    ident.set_photo(photo.data(), photo.size());
-
-    std::vector<unsigned char> ident_buf(ident.ByteSizeLong());
-    ident.SerializeToArray(ident_buf.data(), ident_buf.size());
+    std::vector<unsigned char> ident_buf(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
 
     int n;
 
@@ -251,6 +236,114 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_certificates)
     ASSERT_TRUE(details != nullptr);
 }
 
+TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
+{
+    CCertificate cert0;
+    CCertificate cert1;
+    
+    cert1.setPublicKey(m_ver, 32); // very important
+    cert0.Sign(cert1);
+    m_rootCert1->Sign(cert1);
+
+    api::Certificates intermedcerts;
+    intermedcerts.add_cert()->CopyFrom(cert0.value);
+    intermedcerts.add_cert()->CopyFrom(cert1.value);
+
+    std::vector<unsigned char> buf(intermedcerts.ByteSizeLong());
+    intermedcerts.SerializeToArray(buf.data(), buf.size());
+
+    api::KeySet keyset;
+    unsigned char enc[32];
+    unsigned char sig[64];
+    unsigned char ver[32];
+
+    idpass_lite_generate_secret_signature_key(sig, 64);
+    idpass_lite_generate_encryption_key(enc, 32);
+    std::memcpy(ver, sig + 32, 32);
+
+    keyset.set_encryptionkey(enc, 32);
+    keyset.set_signaturekey(sig, 64);
+    api::byteArray* verkey = keyset.add_verificationkeys();
+    verkey->set_typ(api::byteArray_Typ_ED25519PUBKEY);
+    verkey->set_val(ver, 32);
+
+    std::vector<unsigned char> _keyset(keyset.ByteSizeLong());
+    keyset.SerializeToArray(_keyset.data(), _keyset.size());
+
+    void* context
+        = idpass_lite_init(_keyset.data(), _keyset.size(), nullptr, 0);
+
+    // have surname visible in public region so we can do quick check below
+    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
+                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+    idpass_lite_ioctl(context, nullptr, ioctlcmd, sizeof ioctlcmd);
+
+
+    // should still initialize even without rootcerts
+    ASSERT_TRUE(context != nullptr);     
+
+    // cannot add intermed certs without rootcerts
+    ASSERT_TRUE(0 != idpass_lite_add_certificates(context, 
+        buf.data(), buf.size())); 
+
+    std::vector<unsigned char> _ident(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(_ident.data(), _ident.size());
+
+    int card_len = 0;
+    unsigned char* card = idpass_lite_create_card_with_face(
+        context, &card_len, _ident.data(), _ident.size());
+
+    // can still create cards without root certs and intermed certs
+    ASSERT_TRUE(card != nullptr);
+    idpass::IDPassCards fullcard;
+    ASSERT_TRUE(fullcard.ParseFromArray(card, card_len));
+    
+    // rough check that card is created by checking surname field
+    ASSERT_TRUE(fullcard.publiccard().details().surname().compare("Pacquiao")
+                == 0);
+
+    // and the created card shall have no certificate content
+    ASSERT_TRUE(fullcard.certificates_size() == 0);
+}
+
+TEST_F(TestCases, idpass_lite_verify_certificate)
+{
+    CCertificate cert0;
+    CCertificate cert1;
+    
+    cert1.setPublicKey(m_ver, 32); // very important
+    cert0.Sign(cert1);
+    m_rootCert1->Sign(cert1);
+
+    api::Certificates intermedcerts;
+    intermedcerts.add_cert()->CopyFrom(cert0.value);
+    intermedcerts.add_cert()->CopyFrom(cert1.value);
+
+    std::vector<unsigned char> buf(intermedcerts.ByteSizeLong());
+    intermedcerts.SerializeToArray(buf.data(), buf.size());
+
+    ASSERT_TRUE(0 == idpass_lite_add_certificates(ctx, buf.data(), buf.size()));
+
+    std::vector<unsigned char> _ident(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(_ident.data(), _ident.size());
+    
+    int cards_len = 0;
+    unsigned char* cards
+        = idpass_lite_create_card_with_face(ctx, &cards_len, _ident.data(), _ident.size());
+
+    ASSERT_TRUE(cards != nullptr);
+    ASSERT_EQ(idpass_lite_verify_certificate(ctx, cards, cards_len), 2); // 2 certs
+
+    idpass::IDPassCards fullcard;
+    ASSERT_TRUE(fullcard.ParseFromArray(cards, cards_len));
+
+    std::vector<idpass::Certificate> cardcerts(fullcard.certificates().begin(),
+                                               fullcard.certificates().end());
+
+    ASSERT_TRUE(cardcerts[0].pubkey().data(), cert0.value.pubkey().data(), 32);
+    ASSERT_TRUE(cardcerts[1].pubkey().data(), cert1.value.pubkey().data(), 32);
+}
+
 TEST_F(TestCases, idpass_lite_init_test)
 {
     unsigned char enc[32];
@@ -318,7 +411,7 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
     unsigned char* buf = idpass_lite_create_card_with_face(
         ctx, &buf_len, ident_buf.data(), ident_buf.size());
 
-    ASSERT_TRUE(buf == nullptr);
+    ASSERT_TRUE(buf == nullptr); // because ident has no photo
 
     std::string filename = std::string(datapath) + "manny1.bmp";
     std::ifstream photofile(filename, std::ios::binary);
@@ -329,20 +422,12 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
-    ident.set_surname("Pacquiao");
-    ident.set_givenname("Manny");
-    ident.set_placeofbirth("Kibawe, Bukidnon");
-    ident.set_pin("12345");
-    ident.mutable_dateofbirth()->set_year(1978);
-    ident.mutable_dateofbirth()->set_month(12);
-    ident.mutable_dateofbirth()->set_day(17);
-    ident.set_photo(photo.data(), photo.size());
-    api::KV* kv = ident.add_pubextra();
+    api::KV* kv = m_ident.add_pubextra();
     kv->set_key("gender");
     kv->set_value("male");
 
-    ident_buf.resize(ident.ByteSizeLong());
-    ident.SerializeToArray(ident_buf.data(), ident_buf.size());
+    ident_buf.resize(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
 
     buf = idpass_lite_create_card_with_face(
         ctx, &buf_len, ident_buf.data(), ident_buf.size());
@@ -775,7 +860,7 @@ TEST_F(TestCases, create_card_verify_with_face)
 TEST_F(TestCases, threading_multiple_instance_test)
 {
     // Multiple different instances of idpass_lite_init contexts
-    auto multiple_instance_test = []()
+    auto multiple_instance_test = [this]()
     {
         unsigned char enc[crypto_aead_chacha20poly1305_IETF_KEYBYTES];
         unsigned char sig_skpk[crypto_sign_SECRETKEYBYTES];
@@ -828,19 +913,8 @@ TEST_F(TestCases, threading_multiple_instance_test)
         int card_len = 0;
         unsigned char* card;
 
-        api::Ident ident;
-
-        ident.set_surname("Pacquiao");
-        ident.set_givenname("Manny");
-        ident.set_placeofbirth("Kibawe, Bukidnon");
-        ident.set_pin("12345");
-        ident.mutable_dateofbirth()->set_year(1978);
-        ident.mutable_dateofbirth()->set_month(12);
-        ident.mutable_dateofbirth()->set_day(17);
-        ident.set_photo(photo.data(), photo.size());
-
-        std::vector<unsigned char> identbuf(ident.ByteSizeLong());
-        ident.SerializeToArray(identbuf.data(), identbuf.size());
+        std::vector<unsigned char> identbuf(m_ident.ByteSizeLong());
+        m_ident.SerializeToArray(identbuf.data(), identbuf.size());
 
         card = idpass_lite_create_card_with_face(
             context, &card_len, identbuf.data(), identbuf.size());
@@ -860,7 +934,7 @@ TEST_F(TestCases, threading_multiple_instance_test)
         ASSERT_TRUE(userDetails.ParseFromArray(buf, buf_len));
     };
 
-    const int N = 3;
+    const int N = 1000;
     std::thread* T[N];
 
     for (int i = 0; i < N; i++) {
@@ -877,7 +951,7 @@ TEST_F(TestCases, threading_single_instance_test)
 {
     // A single instance of idpass_api_init context
     // called in multiple threads
-    auto single_instance_test = [](void* ctx)
+    auto single_instance_test = [this](void* ctx)
     {
         std::string inputfile = std::string(datapath) + "manny1.bmp";
         std::ifstream f1(inputfile, std::ios::binary);
@@ -892,19 +966,8 @@ TEST_F(TestCases, threading_single_instance_test)
 
         idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
-        api::Ident ident;
-
-        ident.set_surname("Pacquiao");
-        ident.set_givenname("Manny");
-        ident.set_placeofbirth("Kibawe, Bukidnon");
-        ident.set_pin("12345");
-        ident.mutable_dateofbirth()->set_year(1978);
-        ident.mutable_dateofbirth()->set_month(12);
-        ident.mutable_dateofbirth()->set_day(17);
-        ident.set_photo(photo.data(), photo.size());
-
-        std::vector<unsigned char> identbuf(ident.ByteSizeLong());
-        ident.SerializeToArray(identbuf.data(), identbuf.size());
+        std::vector<unsigned char> identbuf(m_ident.ByteSizeLong());
+        m_ident.SerializeToArray(identbuf.data(), identbuf.size());
 
         int card_len;
         unsigned char* card = idpass_lite_create_card_with_face(
@@ -934,7 +997,7 @@ TEST_F(TestCases, threading_single_instance_test)
         ASSERT_TRUE(details.ParseFromArray(buf, buf_len));
     };
 
-    const int N = 10;
+    const int N = 1000;
     std::thread* T[N];
 
     for (int i = 0; i < N; i++) {
