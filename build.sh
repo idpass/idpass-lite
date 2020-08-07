@@ -3,7 +3,6 @@
 
 export GTEST_OUTPUT="xml:/home/circleci/project/build/reports.xml"
 API_LEVEL=23
-p=/home/circleci/project
 
 iscontainer() {
     cat /proc/1/cgroup | grep -w docker > /dev/null
@@ -15,22 +14,12 @@ build_dependencies() {
         scripts/build.dependencies.sh
     else
         # get latest updates
-        #docker pull newlogic42/circleci-android:latest
+        docker pull newlogic42/circleci-android:latest
         docker run -it --user $(id -u):$(id -g) --rm \
             -v `pwd`:/home/circleci/project \
             -e API_LEVEL=23  \
             newlogic42/circleci-android:latest \
             /home/circleci/project/scripts/build.dependencies.sh
-    fi
-}
-
-build_lib_idpasslite() {
-    if iscontainer; then
-        scripts/build.lib.idpass.sh
-    else
-        # get latest updates
-        #docker pull newlogic42/circleci-android:latest
-        docker run -it --user $(id -u):$(id -g) --rm -v `pwd`:/home/circleci/project -e API_LEVEL=23 newlogic42/circleci-android:latest /home/circleci/project/scripts/build.lib.idpass.sh
     fi
 }
 
@@ -93,6 +82,12 @@ build_release() {
     cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
     cd -
+
+    build/release/lib/tests/idpasstests build/release/lib/tests/data/
+    if [ $? -ne 0 ];then
+        return 1
+    fi
+
     echo
     ls -l build/release/lib/src/libidpasslite.so
 }
@@ -132,7 +127,7 @@ build_inside_container() {
     else
         ####################
         # get latest updates
-        #docker pull newlogic42/circleci-android:latest
+        docker pull newlogic42/circleci-android:latest
 
         docker run -it --user $(id -u):$(id -g) --rm \
             -v `pwd`:/home/circleci/project \
@@ -208,38 +203,45 @@ build_android() {
         ;;
 
         *)
+        echo
         echo "Unknown android arch $1"
+        echo "Choose: x86 | x86_64 | armeabi-v7a | arm64-v8a"
         esac
     fi
 }
 
-case "$1" in 
-dependencies)
-build_dependencies
-;;
+########################
+# main entrypoint here #
+########################
 
-all)
-build_dependencies
-build_lib_idpasslite
-;;
+if [ $# -eq 0 ];then
+    build_inside_container
+else
+    case "$1" in 
+    dependencies)
+    build_dependencies
+    ;;
 
-desktop)
-build_desktop_idpasslite
-;;
+    desktop)
+    build_desktop_idpasslite
+    ;;
 
-android)
-build_inside_container $@
-;;
+    android)
+    build_inside_container $@
+    ;;
 
-debug)
-build_inside_container debug
-;;
+    debug)
+    build_inside_container debug
+    ;;
 
-release)
-build_inside_container release
-;;
+    release)
+    build_inside_container release
+    ;;
 
-*)
-build_inside_container
-;;
-esac
+    *)
+    echo
+    echo "Unrecognized option"
+    echo "Choose: desktop | debug | release | android [x86 | x86_64 | armeabi-v7a | arm64-v8a]"
+    ;;
+    esac
+fi
