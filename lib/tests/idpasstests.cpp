@@ -340,8 +340,8 @@ TEST_F(TestCases, idpass_lite_verify_certificate)
     std::vector<idpass::Certificate> cardcerts(fullcard.certificates().begin(),
                                                fullcard.certificates().end());
 
-    ASSERT_TRUE(cardcerts[0].pubkey().data(), cert0.value.pubkey().data(), 32);
-    ASSERT_TRUE(cardcerts[1].pubkey().data(), cert1.value.pubkey().data(), 32);
+    ASSERT_TRUE(std::memcmp(cardcerts[0].pubkey().data(), cert0.value.pubkey().data(), 32) == 0);
+    ASSERT_TRUE(std::memcmp(cardcerts[1].pubkey().data(), cert1.value.pubkey().data(), 32) == 0);
 }
 
 TEST_F(TestCases, idpass_lite_init_test)
