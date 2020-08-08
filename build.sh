@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 
-export GTEST_OUTPUT="xml:/home/circleci/project/build/reports.xml"
+export GTEST_OUTPUT="xml:$(pwd)/build/reports.xml"
 API_LEVEL=23
 
 iscontainer() {
@@ -39,18 +39,28 @@ build_debug() {
     cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
     cd -
-
+	
+    echo "**************************************"
+    echo "Executing test cases for code coverage"
+    echo "**************************************"
     build/debug/lib/tests/idpasstests build/debug/lib/tests/data/
     if [ $? -ne 0 ];then
         return 1
     fi
 
-    ls -l build/debug/lib/src/libidpasslite.so
+    ls -lh build/debug/lib/src/libidpasslite.so
     #md5sum build/release/lib/src/libidpasslite.so > build/release/lib/src/libidpasslite.so.md5sum
 
-    # Generate test coverage report
+    echo
+    echo "****************************"
+    echo "Gathering code coverage data"
+    echo "****************************"
     lcov -c --directory build/debug/lib/src/CMakeFiles/idpasslite.dir --output-file build/cov.info
     lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_idpass.info
+    echo
+    echo "*******************************"
+    echo "Generating code coverage report"
+    echo "*******************************"
     genhtml build/cov_idpass.info -o build/html/
     tar cvpf build/html.tar build/html
 
@@ -83,13 +93,16 @@ build_release() {
     cmake --build .
     cd -
 
+    echo "********************************"
+    echo "Executing final test for release"
+    echo "********************************"
     build/release/lib/tests/idpasstests build/release/lib/tests/data/
     if [ $? -ne 0 ];then
         return 1
     fi
 
     echo
-    ls -l build/release/lib/src/libidpasslite.so
+    ls -lh build/release/lib/src/libidpasslite.so
 }
 
 ###########################################################

@@ -2,7 +2,7 @@
 if(EXISTS "$ENV{ANDROID_NDK_HOME}/sources/third_party/googletest/")
     set(GTEST $ENV{ANDROID_NDK_HOME}/sources/third_party/googletest/)
 else()
-    set(GTEST ${CMAKE_SOURCE_DIR}/googletest/)
+	set(GTEST ${CMAKE_CURRENT_SOURCE_DIR}/googletest/)
 endif()
 
 add_library(gtest STATIC
