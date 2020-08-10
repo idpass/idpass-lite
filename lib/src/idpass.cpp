@@ -1,7 +1,6 @@
 #include "idpass.h"
 
 #include "CCertificate.h"
-#include "Cert.h"
 #include "bin16.h"
 #include "dlibapi.h"
 #include "dxtracker.h"
@@ -280,6 +279,19 @@ bool ReleaseByteArray(void* addr)
 extern "C" {
 #endif
 
+/**
+* Verifies the fullcard's attached certificate against the root
+* certificate configured in the context. Returns 0 if the
+* card has no attached certificates. Returns greater than 0 if
+* the attached certificates is validated against a root certificate.
+* Returns -1 if the attached certificates fails to validate.
+*
+* @param self Calling context
+* @param certs_buf The fullcard bytes content
+* @param certs_buf_len The bytes length of certs_buf
+@ @return int Either -1, 0, or > 0
+*/
+
 MODULE_API
 int idpass_lite_verify_certificate(void* self,
                                    unsigned char* fullcard,
@@ -305,6 +317,18 @@ int idpass_lite_verify_certificate(void* self,
 
     return count;
 }
+
+/**
+* Adds intermediate certificates into the calling context.
+* Cards created, thereafter, shall attached these certificates
+* into the issued QR code ID. Intermediate certificates can only
+* be added into the calling context having initialized with root certificates.
+*
+* @param self Calling context
+* @param certs_buf The list of intermediate certificates
+* @param certs_buf_len The bytes length of certs_buf
+* @return int Returns 0 on success
+*/
 
 MODULE_API
 int idpass_lite_add_certificates(void* self,
@@ -346,6 +370,16 @@ int idpass_lite_add_certificates(void* self,
 
     return 1;
 }
+
+/**
+* The main initilizationfunction of the library.
+*
+* @param cryptokeys_buf The cryptographic key settings for the context.
+* @param cryptokeys_buf_len Length of bytes of cryptokeys_buf
+* @param rootcerts_buf The root certificates for the context.
+* @param rootcerts_buf_len The length of bytes of rootcerts_buf
+* @return void* Returns the library context.
+*/
 
 MODULE_API
 void* idpass_lite_init(unsigned char* cryptokeys_buf,
@@ -412,6 +446,13 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
     return static_cast<void*>(context);
 }
 
+/**
+* Explicitely frees up memory blocks returned by context.
+*
+* @param self Calling context
+* @param buf Memory address returned by context
+*/
+
 MODULE_API
 void idpass_lite_freemem(void* self, void* buf)
 {
@@ -422,6 +463,16 @@ void idpass_lite_freemem(void* self, void* buf)
         }
     }
 }
+
+/**
+* Returns a QR code ID of a registered identity.
+*
+* @param self Calling context
+* @param outlen Bytes length of returned bytes
+* @ident_buf The personal details of the registered identity
+* @ident_buf_len Bytes length of ident_buf
+* @return Returns an encrypted QR code ID
+*/
 
 MODULE_API
 unsigned char* idpass_lite_create_card_with_face(void* self,
@@ -634,6 +685,18 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     return buf;
 }
 
+/**
+* Verify user's QR code ID against a matching photo.
+*
+* @param self Calling context
+* @param *outlen Bytes length of returned bytes
+* @param encrypted_card The user's QR code ID
+* @param encrypted_card_len Bytes length of encrypted_card
+* @param photo The ID owner's photo capture
+* @param photo_len Length of bytes of photo
+* @return Returns the user's CardDetails if there is facial match.
+*/
+
 // Returns CardDetails object if face matches
 MODULE_API unsigned char*
 idpass_lite_verify_card_with_face(void* self,
@@ -680,7 +743,17 @@ idpass_lite_verify_card_with_face(void* self,
     return nullptr;
 }
 
-// returns CardDetails object if pin matches
+/**
+* Verify user's QR code ID against a matching pin.
+*
+* @param self Calling context
+* @param *outlen Bytes length of returned bytes
+* @param encrypted_card The user's QR code ID
+* @param encrypted_card_len Bytes length of encrypted_card
+* @param pin The ID owner's secret pin code
+* @return Returns the user's CardDetails if there is pin match.
+*/
+
 MODULE_API unsigned char*
 idpass_lite_verify_card_with_pin(void* self,
                                  int* outlen,
@@ -722,6 +795,18 @@ idpass_lite_verify_card_with_pin(void* self,
     LOGI("idpass_api_verify_card_with_pin: fail");
     return nullptr;
 }
+
+/**
+* Encrypt data with user's QR code ID.
+*
+* @param self
+* @param outlen Bytes length of encrypted data
+* @param encrypted_card User's QR code ID.
+* @param encrypted_card_len Bytes length of encrypted_card
+* @param data The input data to be encrypted
+* @param data_len Bytes length of data
+* @return The encrypted data
+*/
 
 MODULE_API unsigned char*
 idpass_lite_encrypt_with_card(void* self,
@@ -799,6 +884,18 @@ idpass_lite_encrypt_with_card(void* self,
     return nonce_plus_ciphertext;
 }
 
+/**
+* Asymmetric decryption of a ciphertext using a provided secret key
+*
+* @param self
+* @param outlen The bytes length of decrypted text
+* @param ciphertext The input encrypted text
+* @param ciphertext_len bytes length of ciphertext
+* @param skpk The secret key for decryption
+* @param skpk_len The bytes length of skpk
+* @return The decrypted text
+*/
+
 MODULE_API
 unsigned char* idpass_lite_decrypt_with_card(void* self,
                                              int* outlen,
@@ -845,6 +942,15 @@ unsigned char* idpass_lite_decrypt_with_card(void* self,
     return plaintext;
 }
 
+/**
+* Generates an AEAD symmetric encryption key.
+*
+* @param self
+* @param key The generated encryption key
+* @param key_len The length of generated encryption key
+* @return Returns 0 on success
+*/
+
 MODULE_API
 int idpass_lite_generate_encryption_key(unsigned char* key, int key_len)
 {
@@ -855,6 +961,15 @@ int idpass_lite_generate_encryption_key(unsigned char* key, int key_len)
     crypto_aead_chacha20poly1305_keygen(key);
     return 0;
 }
+
+/**
+* Generates an ED25519 key
+*
+* @param self
+* @param key The generated ED25519 key
+* @param key_len The length of generated key
+* @return Returns 0 on success
+*/
 
 MODULE_API
 int idpass_lite_generate_secret_signature_key(unsigned char* sig_skpk,
@@ -868,6 +983,17 @@ int idpass_lite_generate_secret_signature_key(unsigned char* sig_skpk,
     crypto_sign_keypair(sig_pk, sig_skpk);
     return 0;
 }
+
+/**
+* Symmetric decryption of the fullcard QR code ID.
+*
+* @param self
+* @param ecard_buf The fullcard bytes
+* @param ecard_buf_len Length bytes of ecard_buf
+* @param key The AEAD symmetric decryption key
+* @param key_len Length bytes of key
+* @return Returns 0 on success and decrypted content stored in ecard_buf
+*/
 
 MODULE_API
 int idpass_lite_card_decrypt(void* self,
@@ -911,6 +1037,19 @@ int idpass_lite_card_decrypt(void* self,
     return 0;
 }
 
+/**
+* Verify the signature of msg using pubkey.
+*
+* @param self
+* @param msg The message
+* @param msg_len Length of message
+* @param signature Signature of message
+* @param signature_len The length of bytes of signature
+* @pubkey Public key that generated the signature
+* @pubkey_len Length of bytes of pubkey
+* @return Returns 0 if pubkey verifies signature of msg
+*/
+
 MODULE_API
 int idpass_lite_verify_with_card(void* self,
                                  unsigned char* msg,
@@ -931,6 +1070,18 @@ int idpass_lite_verify_with_card(void* self,
     int status = crypto_sign_verify_detached(signature, msg, msg_len, pubkey);
     return status;
 }
+
+/**
+* Signs data with user's QR code ID.
+*
+* @param self
+* @param outlen Bytes length of returned signature
+* @param encrypted_card User's QR code ID
+* @param encrypted_card_len Bytes length of encrypted_card
+* @param data The input data to be signed
+* @param data_len Bytes length of data
+* @return Returns the signature
+*/
 
 MODULE_API unsigned char*
 idpass_lite_sign_with_card(void* self,
@@ -979,6 +1130,16 @@ idpass_lite_sign_with_card(void* self,
     return signature;
 }
 
+/**
+* Returns the QR code bitmap of data.
+*
+* @param self
+* @param data The input data
+* @param data_len Bytes lngth of data
+* @param *qrsize The square side dimension of QR code
+* @return The bitmap representation of data
+*/
+
 // Returns the QR Code encoding in bits with square dimension len
 MODULE_API unsigned char* idpass_lite_qrpixel(void* self,
                                               const unsigned char* data,
@@ -1003,6 +1164,17 @@ MODULE_API unsigned char* idpass_lite_qrpixel(void* self,
 
     return pixel;
 }
+
+/**
+* Returns the QR code bitmap of data.
+*
+* @param self
+* @param *outlen The bytes length of returned data
+* @param data The input data
+* @param data_len Bytes lngth of data
+* @param *qrsize The square side dimension of QR code
+* @return The bitmap representation of data
+*/
 
 MODULE_API unsigned char* idpass_lite_qrpixel2(void* self,
                                                int* outlen,
@@ -1030,6 +1202,18 @@ MODULE_API unsigned char* idpass_lite_qrpixel2(void* self,
 
     return pixel;
 }
+
+/**
+* A generic function to adjust settings of the calling context.
+* It consist of a sub-command prefix by IOCTL_* followed by
+* command-specific parameters.
+*
+* @param self Calling context
+* @param outlen The count of bytes returned
+* @param iobuf The input/output command buffer
+* @param iobuf_len The bytes length of iobuf parameter
+* @return void* Command-specific returned data buffer
+*/
 
 MODULE_API
 void* idpass_lite_ioctl(void* self,
@@ -1118,12 +1302,32 @@ void* idpass_lite_ioctl(void* self,
     return nullptr;
 }
 
+/**
+* Computes full facial dimension of a face.
+*
+* @param self
+* @param photo The face photo
+* @param photo_len Bytes length of photo
+* @param facearray The float[128] array with 4 bytes per float
+* @return Returns count of detected faces in photo
+*/
+
 MODULE_API int
 idpass_lite_face128d(void* self, char* photo, int photo_len, float* faceArray)
 {
     Context* context = (Context*)self;
     return dlib_api::computeface128d(photo, photo_len, faceArray);
 }
+
+/**
+* Computes full facial dimension of a face.
+*
+* @param self
+* @param photo The face photo
+* @param photo_len Bytes length in photo
+* @param buf The facial dimension float[128] as bytes
+* @return Returns the count of faces detected in photo
+*/
 
 MODULE_API int idpass_lite_face128dbuf(void* self,
                                        char* photo,
@@ -1141,6 +1345,16 @@ MODULE_API int idpass_lite_face128dbuf(void* self,
     return face_count;
 }
 
+/**
+* Computes half facial dimension of a face.
+*
+* @param self
+* @param photo The face photo.
+* @param photo_len Bytes length of photo
+* @param facearray The float[64] with 2 bytes per float
+* @return Returns the count of detected faces in photo
+*/
+
 MODULE_API
 int idpass_lite_face64d(void* self,
                         char* photo,
@@ -1153,6 +1367,16 @@ int idpass_lite_face64d(void* self,
     bin16::f4_to_f2(fdim, 64, facearray);
     return facecount;
 }
+
+/**
+* Computes half facial dimension of a face.
+*
+* @param self
+* @param photo The face photo.
+* @param photo_len Bytes length of photo
+* @param facearray The float[64] with 2 bytes per float in byte array format
+* @return Returns the count of detected faces in photo
+*/
 
 MODULE_API int idpass_lite_face64dbuf(void* self,
                                       char* photo,
@@ -1215,6 +1439,18 @@ int idpass_lite_compare_face_photo(void* self,
     return 0; // success or no error
 }
 
+/**
+* Substracts two faces face1 and face2 and stores result inot fdiff
+*
+* @param self
+* @param face1 The first face input
+* @param face1_len Length of face1
+* @param face2 The second face input
+* @param face2_len Length of face2
+* @param fdiff Where to store the computation result
+* @return Returns 0 on success subtraction
+*/
+
 MODULE_API
 int idpass_lite_compare_face_template(unsigned char* face1,
                                       int face1_len,
@@ -1254,6 +1490,16 @@ int idpass_lite_compare_face_template(unsigned char* face1,
     return 0;
 }
 
+/**
+* Generate a self-signed certificate with the provided secretkey.
+*
+* @param self
+* @param skpk The certificates private key
+* @param skpk_len The bytes length of skpk
+* @param outlen The bytes length of returned self-signed certificate
+* @return Returns a self-sign certificate with the provided private key
+*/
+
 MODULE_API
 unsigned char* idpass_lite_generate_root_certificate(unsigned char* skpk,
                                                      int skpk_len,
@@ -1285,6 +1531,19 @@ unsigned char* idpass_lite_generate_root_certificate(unsigned char* skpk,
 
     return buf;
 }
+
+/**
+* Generate an intermediate certificate with the provided secretkey of signer
+* and public key of the intermediate certificate.
+*
+* @param self
+* @param parent_skpk The private key of the signer
+* @param parent_skpk_len The length bytes of parent_skpk
+* @param child_pubkey The public key of to-be-signed certificate
+* @param child_pubkey_len The bytes length of child_pubkey
+* @param outlen The bytes length of returned signed intermediate certificate
+* @return Returns a signed intermediate certificate
+*/
 
 MODULE_API
 unsigned char*
@@ -1328,6 +1587,16 @@ idpass_lite_generate_child_certificate(const unsigned char* parent_skpk,
     return buf;
 }
 
+
+/**
+* Addes the public key into revocation list.
+*
+* @param self
+* @param pubkey The public key to be revocated
+* @param pubkey_len Length bytes of pubkey
+* @return Returns 0 on success
+*/
+
 MODULE_API
 int idpass_lite_add_revoked_key(unsigned char* pubkey, int pubkey_len)
 {
@@ -1345,6 +1614,16 @@ int idpass_lite_add_revoked_key(unsigned char* pubkey, int pubkey_len)
     return 0;
 }
 
+/**
+* Saves the QR code data into a bitmap file.
+*
+* @param self
+* @param data The QR code content data
+* @param data_len Bytes length of data
+* @param bitmapfile The output filename
+* @return Returns 0 on success file save
+*/
+
 // Saves the QR Code encoding to a bitmap file
 MODULE_API int idpass_lite_saveToBitmap(void* self,
                                         unsigned char* data,
@@ -1355,6 +1634,14 @@ MODULE_API int idpass_lite_saveToBitmap(void* self,
 
     return qrcode_saveToBitmap(data, data_len, bitmapfile, context->qrcode_ecc);
 }
+
+/**
+* Experimential test of length-prefixed returned blob
+*
+* @param self Calling context
+* @param typ Generic type parameter
+* @return Returns a 4 bytes length-prefix byte array
+*/
 
 MODULE_API
 unsigned char* idpass_lite_uio(void* self, int typ) 
