@@ -1055,6 +1055,63 @@ TEST_F(TestCases, face_template_test)
     ASSERT_TRUE(status == 0);                                     
 }
 
+TEST_F(TestCases, test_card_encrypt_decrypt)
+{
+    const char* msg = "attack at dawn!";
+
+    std::vector<unsigned char> _ident(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(_ident.data(), _ident.size());
+
+    int card_len = 0;
+    unsigned char* card = idpass_lite_create_card_with_face(ctx, 
+        &card_len, _ident.data(), _ident.size());
+
+    ASSERT_TRUE(card != nullptr);
+
+    ///////////// get user's unique ed25519 key ////////////
+    idpass::IDPassCards idpassCards;
+    ASSERT_TRUE(idpassCards.ParseFromArray(card, card_len));
+    idpass::SignedIDPassCard signedidpasscard; // watch for this extra envelope!!
+
+    int decrypted_card_len = idpassCards.encryptedcard().size();
+    std::vector<unsigned char> decrypted_card(
+        idpassCards.encryptedcard().begin(), idpassCards.encryptedcard().end());
+
+    /////////////////////////////////////////////////////////////////////
+    // the input encrypted buffer is also the output for decrypted buffer
+    // but must pass and use the decrypted_card_len pointer, as the encrypted
+    // len includes the nonce, but the decrypted has no more nonce.
+    int status = idpass_lite_card_decrypt(
+        ctx, decrypted_card.data(), &decrypted_card_len, m_enc, 32);
+
+    ASSERT_EQ(status, 0);
+    ASSERT_TRUE(signedidpasscard.ParseFromArray(decrypted_card.data(), decrypted_card_len));
+    idpass::IDPassCard idpassCard = signedidpasscard.card();
+    unsigned char card_skpk[64];
+    std::memcpy(card_skpk, idpassCard.encryptionkey().data(), 64);
+    //////////////////////////////////////////////////////////////
+
+    int encrypted_len = 0;
+    unsigned char* encrypted
+        = idpass_lite_encrypt_with_card(ctx,
+                                        &encrypted_len,
+                                        card,
+                                        card_len,
+                                        (unsigned char*)(msg),
+                                        strlen(msg));
+
+    ASSERT_TRUE(encrypted != nullptr && encrypted_len > 0);
+
+    int decrypted_len;
+    unsigned char* decrypted = idpass_lite_decrypt_with_card(
+        ctx, &decrypted_len, encrypted, encrypted_len, 
+        (unsigned char*)card_skpk, 
+        64);
+
+    ASSERT_TRUE(decrypted != nullptr && decrypted_len > 1);
+    ASSERT_TRUE(std::memcmp(msg, decrypted, strlen(msg)) == 0);
+}
+
 TEST_F(TestCases, uio_test)
 {
     unsigned char* buf = idpass_lite_uio(ctx, 0);
@@ -1079,6 +1136,7 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "*uio_test*";
             //::testing::GTEST_FLAG(filter) = "*createcard_manny_verify_as_brad*";
             //::testing::GTEST_FLAG(filter) = "*threading_multiple_instance_test*";
+            //::testing::GTEST_FLAG(filter) = "*test_card_encrypt_decrypt*";
             return RUN_ALL_TESTS();
         }
     }
