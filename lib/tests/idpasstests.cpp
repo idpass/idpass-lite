@@ -772,16 +772,15 @@ TEST_F(TestCases, cansign_and_verify_with_pin)
 
     const char* data = "this is a test message";
 
-    int signature_len;
-    unsigned char* signature = idpass_lite_sign_with_card(
+    unsigned char signature[64];
+    ASSERT_TRUE(0 == idpass_lite_sign_with_card(
         ctx,
-        &signature_len,
+        signature,
+        64,
 		ecard,
 		ecard_len,
         (unsigned char*)data,
-        std::strlen(data));
-
-    ASSERT_TRUE(signature != nullptr);
+        std::strlen(data)));
 
     int card_len;
     unsigned char* card = idpass_lite_verify_card_with_pin(
@@ -1055,6 +1054,58 @@ TEST_F(TestCases, face_template_test)
     ASSERT_TRUE(status == 0);                                     
 }
 
+TEST_F(TestCases, idpass_lite_verify_with_card_test)
+{
+    std::vector<unsigned char> _ident(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(_ident.data(), _ident.size());
+
+    const char* msg = "attack at dawn!";
+    int msg_len = strlen(msg);
+    unsigned char signature[64];
+    int signature_len = 64;
+    unsigned char pubkey[32];
+    int pubkey_len = 32;
+
+    int card_len = 0;
+    unsigned char* card = idpass_lite_create_card_with_face(ctx, 
+        &card_len, _ident.data(), _ident.size());
+
+    ASSERT_TRUE(card != nullptr);
+
+    ///////////// get user's unique ed25519 key ////////////
+    idpass::IDPassCards idpassCards;
+    ASSERT_TRUE(idpassCards.ParseFromArray(card, card_len));
+    idpass::SignedIDPassCard signedidpasscard; // watch for this extra envelope!!
+
+    int decrypted_card_len = idpassCards.encryptedcard().size();
+    std::vector<unsigned char> decrypted_card(
+        idpassCards.encryptedcard().begin(), idpassCards.encryptedcard().end());
+
+    /////////////////////////////////////////////////////////////////////
+    // the input encrypted buffer is also the output for decrypted buffer
+    // but must pass and use the decrypted_card_len pointer, as the encrypted
+    // len includes the nonce, but the decrypted has no more nonce.
+    int status = idpass_lite_card_decrypt(
+        ctx, decrypted_card.data(), &decrypted_card_len, m_enc, 32);
+
+    ASSERT_EQ(status, 0);
+    ASSERT_TRUE(signedidpasscard.ParseFromArray(decrypted_card.data(), decrypted_card_len));
+    idpass::IDPassCard idpassCard = signedidpasscard.card();
+    unsigned char card_skpk[64];
+    std::memcpy(card_skpk, idpassCard.encryptionkey().data(), 64);
+    std::memcpy(pubkey, card_skpk + 32, 32);
+    //////////////////////////////////////////////////////////////
+    ASSERT_TRUE(
+        0
+        == idpass_lite_sign_with_card(
+            ctx, signature, 64, card, card_len, (unsigned char*)msg, msg_len));
+
+    status = idpass_lite_verify_with_card(
+        ctx, (unsigned char*)msg, msg_len, signature, signature_len, pubkey, pubkey_len);
+
+    ASSERT_EQ(status, 0);
+}
+
 TEST_F(TestCases, test_card_encrypt_decrypt)
 {
     const char* msg = "attack at dawn!";
@@ -1137,6 +1188,9 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "*createcard_manny_verify_as_brad*";
             //::testing::GTEST_FLAG(filter) = "*threading_multiple_instance_test*";
             //::testing::GTEST_FLAG(filter) = "*test_card_encrypt_decrypt*";
+            //::testing::GTEST_FLAG(filter) = "*idpass_lite_verify_with_card_test*";
+            //::testing::GTEST_FLAG(filter) = "*cansign_and_verify_with_pin*";
+            //::testing::GTEST_FLAG(filter) = "*face_template_test*";
             return RUN_ALL_TESTS();
         }
     }

@@ -213,13 +213,14 @@ unsigned char* idpass_lite_verify_card_with_pin(void* self,
 * @return Returns the signature
 */
 
-MODULE_API
-unsigned char* idpass_lite_sign_with_card(void* self,
-                                          int* outlen,
-                                          unsigned char* encrypted_card,
-                                          int encrypted_card_len,
-                                          unsigned char* data,
-                                          int data_len);
+MODULE_API 
+int idpass_lite_sign_with_card(void* self,
+                               unsigned char* sig,
+                               int sig_len,
+                               unsigned char* encrypted_card,
+                               int encrypted_card_len,
+                               unsigned char* data,
+                               int data_len);
 /**
 * Encrypt data with user's QR code ID.
 *

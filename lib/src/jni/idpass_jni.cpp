@@ -352,18 +352,23 @@ jbyteArray sign_with_card(JNIEnv *env,
     jbyte *bufData = env->GetByteArrayElements(data, 0);
     jsize bufData_len = env->GetArrayLength(data);
     ////////////////////////
-    int sig_len = 0;
-    unsigned char *sig = idpass_lite_sign_with_card(
-        ctx,
-        &sig_len,
+    unsigned char sig[64];
+    int sig_len = 64;
+    if (0 != idpass_lite_sign_with_card(
+        ctx, sig, 64,
         reinterpret_cast<unsigned char *>(eSignedIDPassCard),
         eSignedIDPassCard_len,
         reinterpret_cast<unsigned char *>(bufData),
-        bufData_len);
+        bufData_len)) 
+    {
+        env->ReleaseByteArrayElements(e_signed_card, eSignedIDPassCard, 0);
+        env->ReleaseByteArrayElements(data, bufData, 0);
+        return env->NewByteArray(0);
+    }
 
     jbyteArray ret = env->NewByteArray(sig_len);
     env->SetByteArrayRegion(ret, 0, sig_len, (const jbyte *)sig);
-    idpass_lite_freemem(ctx, sig);
+    //idpass_lite_freemem(ctx, sig);
     ////////////////////////
     env->ReleaseByteArrayElements(e_signed_card, eSignedIDPassCard, 0);
     env->ReleaseByteArrayElements(data, bufData, 0);

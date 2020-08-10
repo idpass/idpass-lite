@@ -116,6 +116,8 @@ struct Context {
 
     unsigned char* NewByteArray(int n)
     {
+        if (n <= 0)
+            return nullptr;
         std::lock_guard<std::mutex> guard(mtx);
         m.emplace_back(n);
         return m.back().data();
@@ -123,6 +125,8 @@ struct Context {
 
     bool ReleaseByteArray(void* addr)
     {
+        if (addr == nullptr)
+            return false;
         std::lock_guard<std::mutex> guard(mtx);
         std::vector<std::vector<unsigned char>>::iterator mit;
         for (mit = m.begin(); mit != m.end();) {
@@ -239,6 +243,8 @@ Context* newContext()
 
 void releaseContext(Context* addr)
 {
+    if (addr == nullptr)
+        return;
     std::lock_guard<std::mutex> guard(mtx);
     std::vector<Context*>::iterator mit;
     for (mit = context.begin(); mit != context.end();) {
@@ -254,6 +260,8 @@ void releaseContext(Context* addr)
 
 unsigned char* NewByteArray(int n)
 {
+    if (n <= 0)
+        return nullptr;
     std::lock_guard<std::mutex> guard(m_mtx);
     m_m.emplace_back(n);
     return m_m.back().data();
@@ -261,6 +269,8 @@ unsigned char* NewByteArray(int n)
 
 bool ReleaseByteArray(void* addr)
 {
+    if (addr == nullptr)
+        return false;
     std::lock_guard<std::mutex> guard(m_mtx);
     std::vector<std::vector<unsigned char>>::iterator mit;
     for (mit = m_m.begin(); mit != m_m.end();) {
@@ -299,7 +309,7 @@ int idpass_lite_verify_certificate(void* self,
 {
     Context* context = (Context*)self;
 
-    if (fullcard == nullptr || fullcard_len == 0) {
+    if (fullcard == nullptr || fullcard_len <= 0 || self == nullptr) {
         return -1;
     }
 
@@ -335,11 +345,11 @@ int idpass_lite_add_certificates(void* self,
                                  unsigned char* certs_buf,
                                  int certs_buf_len)
 {
-    Context* context = (Context*)self;
-
-    if (certs_buf == nullptr || certs_buf_len == 0) {
-        return 1;
+    if (self == nullptr || certs_buf == nullptr || 
+        certs_buf_len <= 0) {
+        return 1; 
     }
+    Context* context = (Context*)self;
 
     if (context->m_rootCerts.size() == 0) {
         return 1; // cannot add intermed certs 
@@ -387,7 +397,7 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
                        unsigned char* rootcerts_buf,
                        int rootcerts_buf_len)
 {
-    if (!cryptokeys_buf || cryptokeys_buf_len == 0
+    if (!cryptokeys_buf || cryptokeys_buf_len <= 0
         ) {
         LOGI("invalid params");
         return nullptr;
@@ -456,6 +466,8 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
 MODULE_API
 void idpass_lite_freemem(void* self, void* buf)
 {
+    if (self == nullptr || buf == nullptr)
+        return;
     Context* context = (Context*)self;
     if (!context->ReleaseByteArray(buf)) {
         if (context == buf) {
@@ -481,7 +493,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
                                                  int ident_buf_len)
 {
     if (self == nullptr || outlen == nullptr || ident_buf == nullptr
-        || ident_buf_len == 0) {
+        || ident_buf_len <= 0) {
         return nullptr;
     }
 
@@ -706,6 +718,12 @@ idpass_lite_verify_card_with_face(void* self,
                                   char* photo,
                                   int photo_len)
 {
+    if (self == nullptr || outlen == nullptr ||
+        encrypted_card == nullptr || encrypted_card_len <= 0 
+        || photo == nullptr || photo_len <= 0) 
+    {
+        return nullptr; 
+    }
     Context* context = (Context*)self;
     *outlen = 0;
 
@@ -761,6 +779,11 @@ idpass_lite_verify_card_with_pin(void* self,
                                  int encrypted_card_len,
                                  const char* pin)
 {
+    if (self == nullptr || outlen == nullptr ||
+        encrypted_card == nullptr || encrypted_card_len <= 0 
+        || pin == nullptr) {
+        return nullptr; 
+    }
     Context* context = (Context*)self;
     *outlen = 0;
 
@@ -816,6 +839,12 @@ idpass_lite_encrypt_with_card(void* self,
                               unsigned char* data,
                               int data_len)
 {
+    if (self == nullptr || outlen == nullptr ||
+        encrypted_card == nullptr || encrypted_card_len <= 0 || 
+        data == nullptr || data_len <= 0) 
+    {
+        return nullptr; 
+    }
     Context* context = (Context*)self;
     *outlen = 0;
 
@@ -904,6 +933,10 @@ unsigned char* idpass_lite_decrypt_with_card(void* self,
                                              unsigned char* card_skpk,
                                              int skpk_len)
 {
+    if (self == nullptr || outlen == nullptr || encrypted == nullptr 
+        || encrypted_len <= 0 || card_skpk == nullptr || skpk_len != 64) {
+        return nullptr; 
+    }
     Context* context = (Context*)self;
     int len = encrypted_len - crypto_box_NONCEBYTES - crypto_box_MACBYTES;
     *outlen = 0;
@@ -954,7 +987,7 @@ unsigned char* idpass_lite_decrypt_with_card(void* self,
 MODULE_API
 int idpass_lite_generate_encryption_key(unsigned char* key, int key_len)
 {
-    if (key_len != crypto_aead_chacha20poly1305_IETF_KEYBYTES) {
+    if (key_len != crypto_aead_chacha20poly1305_IETF_KEYBYTES || key == nullptr) {
         return 1;
     }
 
@@ -975,7 +1008,7 @@ MODULE_API
 int idpass_lite_generate_secret_signature_key(unsigned char* sig_skpk,
                                               int sig_skpk_len)
 {
-    if (sig_skpk_len != crypto_sign_SECRETKEYBYTES) {
+    if (sig_skpk_len != crypto_sign_SECRETKEYBYTES || sig_skpk == nullptr) {
         return 1;
     }
 
@@ -1005,7 +1038,9 @@ int idpass_lite_card_decrypt(void* self,
     Context* context = (Context*)self;
 
     if (key_len != crypto_aead_chacha20poly1305_IETF_KEYBYTES
-        || key == nullptr) {
+        || key == nullptr || self == nullptr || 
+        ecard_buf == nullptr || ecard_buf_len == nullptr || *ecard_buf_len <= 0) 
+    {
         return 1;
     }
 
@@ -1063,7 +1098,7 @@ int idpass_lite_verify_with_card(void* self,
 
     if (pubkey_len != crypto_sign_PUBLICKEYBYTES || pubkey == nullptr
         || signature_len != crypto_sign_BYTES || signature == nullptr
-        || msg == nullptr || msg_len <= 0) {
+        || msg == nullptr || msg_len <= 0 || self == nullptr) {
         return 1;
     }
 
@@ -1083,18 +1118,23 @@ int idpass_lite_verify_with_card(void* self,
 * @return Returns the signature
 */
 
-MODULE_API unsigned char*
+MODULE_API int 
 idpass_lite_sign_with_card(void* self,
-                           int* outlen,
+                           unsigned char* sig,
+                           int sig_len,
                            unsigned char* encrypted_card,
                            int encrypted_card_len,
                            unsigned char* data,
                            int data_len)
 {
-    Context* context = (Context*)self;
-    *outlen = 0;
+    if (sig == nullptr || sig_len != crypto_sign_BYTES || 
+        encrypted_card == nullptr || encrypted_card_len <= 0 ||
+        data == nullptr || data_len <= 0 || self == nullptr) 
+    {
+        return 1; 
+    }
 
-    unsigned char* signature = nullptr;
+    Context* context = (Context*)self;
 
     idpass::IDPassCards cards;
     idpass::IDPassCard card;
@@ -1104,30 +1144,25 @@ idpass_lite_sign_with_card(void* self,
                              context->m_cryptoKeys,
                              card,
                              cards)) {
-        return nullptr;
+        return 2;
     }
 
     if (!context->verify_chain(cards)) {
-        return nullptr;
+        return 3;
     }
 
-    signature = context->NewByteArray(crypto_sign_BYTES);
-    unsigned long long smlen;
-
     // use ed25519 to sign
-    if (crypto_sign_detached(signature,
-                             &smlen,
+    if (crypto_sign_detached(sig,
+                             nullptr,
                              data,
                              data_len,
                              (const unsigned char*)card.encryptionkey().data())
         != 0) {
         LOGI("crypto_sign: error");
-        context->ReleaseByteArray(signature);
-        return nullptr;
+        return 4;
     }
 
-    *outlen = smlen;
-    return signature;
+    return 0;
 }
 
 /**
@@ -1146,6 +1181,11 @@ MODULE_API unsigned char* idpass_lite_qrpixel(void* self,
                                               int data_len,
                                               int* qrsize)
 {
+    if (self == nullptr || data == nullptr
+        || data_len <= 0 | qrsize == nullptr) 
+    {
+        return nullptr; 
+    }
     Context* context = (Context*)self;
     int buf_len = 0;
 
@@ -1182,6 +1222,12 @@ MODULE_API unsigned char* idpass_lite_qrpixel2(void* self,
                                                int data_len,
                                                int* qrsize)
 {
+    if (self == nullptr || outlen == nullptr 
+        || data == nullptr || data_len <= 0
+        || qrsize == nullptr) 
+    {
+        return nullptr; 
+    }
     Context* context = (Context*)self;
     int buf_len = 0;
     *outlen = 0;
@@ -1222,12 +1268,11 @@ void* idpass_lite_ioctl(void* self,
                         int iobuf_len)
 
 {
-    Context* context = (Context*)self;
-    std::lock_guard<std::mutex> guard(context->ctxMutex);
-
-    if (!iobuf || iobuf_len <= 0) {
+    if (!iobuf || iobuf_len <= 0 || self == nullptr) {
         return nullptr;
     }
+    Context* context = (Context*)self;
+    std::lock_guard<std::mutex> guard(context->ctxMutex);
 
     if (outlen) {
         *outlen = 0;
@@ -1315,6 +1360,12 @@ void* idpass_lite_ioctl(void* self,
 MODULE_API int
 idpass_lite_face128d(void* self, char* photo, int photo_len, float* faceArray)
 {
+
+    if (self == nullptr || photo == nullptr || photo_len <= 0
+        || faceArray == nullptr) 
+    {
+        return 0;
+    } 
     Context* context = (Context*)self;
     return dlib_api::computeface128d(photo, photo_len, faceArray);
 }
@@ -1334,6 +1385,11 @@ MODULE_API int idpass_lite_face128dbuf(void* self,
                                        int photo_len,
                                        unsigned char* buf)
 {
+    if (self == nullptr || photo == nullptr || photo_len <= 0
+        || buf == nullptr) 
+    {
+        return 0;
+    } 
     Context* context = (Context*)self;
     float f4[128];
     int face_count = dlib_api::computeface128d(photo, photo_len, f4);
@@ -1361,6 +1417,11 @@ int idpass_lite_face64d(void* self,
                         int photo_len,
                         float* facearray)
 {
+    if (self == nullptr || photo == nullptr || photo_len <= 0
+        || facearray == nullptr) 
+    {
+        return 0;
+    } 
     Context* context = (Context*)self;
     float fdim[128];
     int facecount = dlib_api::computeface128d(photo, photo_len, fdim);
@@ -1383,6 +1444,11 @@ MODULE_API int idpass_lite_face64dbuf(void* self,
                                       int photo_len,
                                       unsigned char* buf)
 {
+    if (self == nullptr || photo == nullptr || photo_len <= 0
+        || buf == nullptr) 
+    {
+        return 0;
+    } 
     Context* context = (Context*)self;
     float f4[128];
     int face_count = dlib_api::computeface128d(photo, photo_len, f4);
@@ -1404,8 +1470,8 @@ int idpass_lite_compare_face_photo(void* self,
 {
     Context* context = (Context*)self;
 
-    if (face1 == nullptr || face2 == nullptr || face1_len == 0
-        || face2_len == 0) {
+    if (face1 == nullptr || face2 == nullptr || face1_len <= 0
+        || face2_len <= 0 || self == nullptr || fdiff == nullptr) {
         return 3; // invalid params
     }
 
@@ -1458,6 +1524,12 @@ int idpass_lite_compare_face_template(unsigned char* face1,
                                       int face2_len,
                                       float* fdiff)
 {
+    if (face1 == nullptr || face1_len <= 0 || face2 == nullptr || 
+        face2_len <= 0 || fdiff == nullptr) 
+    {
+        return 1;
+    }
+
     float face1Array[128];
     float face2Array[128];
     int len = 0;
@@ -1630,6 +1702,11 @@ MODULE_API int idpass_lite_saveToBitmap(void* self,
                                         int data_len,
                                         const char* bitmapfile)
 {
+    if (self == nullptr || data == nullptr || data_len <= 0
+        || bitmapfile == nullptr) 
+    {
+        return 1; 
+    }
     Context* context = (Context*)self;
 
     return qrcode_saveToBitmap(data, data_len, bitmapfile, context->qrcode_ecc);
