@@ -55,8 +55,10 @@ build_debug() {
     echo "****************************"
     echo "Gathering code coverage data"
     echo "****************************"
-    lcov -c --directory build/debug/lib/src/CMakeFiles/idpasslite.dir --output-file build/cov.info
-    lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_idpass.info
+    lcov -c --directory build/debug/lib/src/CMakeFiles/idpasslite.dir/ \
+            --directory build/debug/lib/tests/CMakeFiles/idpasstests.dir/ --output-file build/cov.info
+    lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_filter1.info
+    lcov --remove build/cov_filter1.info "*googletest*" -o build/cov_idpass.info
     echo
     echo "*******************************"
     echo "Generating code coverage report"
