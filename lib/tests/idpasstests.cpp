@@ -120,6 +120,10 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
+    api::KV* privextra = m_ident.add_privextra();
+    privextra->set_key("color");
+    privextra->set_value("blue");
+
     std::vector<unsigned char> buf(m_ident.ByteSizeLong());
     m_ident.SerializeToArray(buf.data(), buf.size());
     
@@ -673,6 +677,7 @@ TEST_F(TestCases, check_qrcode_md5sum)
     fclose(fp);
 
     savetobitmap(qrsize, pixel, "qrcode.bmp");
+    idpass_lite_saveToBitmap(ctx, card, card_len, "qr_code.bmp");
 }
 
 TEST_F(TestCases, createcard_manny_verify_as_brad)
@@ -1284,6 +1289,85 @@ TEST_F(TestCases, certificate_revoke_test)
 
 }
 
+TEST_F(TestCases, compare_face_photo_test)
+{
+    std::string file1 = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile1(file1, std::ios::binary);
+    std::vector<char> photo1(std::istreambuf_iterator<char>{photofile1}, {});
+
+    std::string file2 = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile2(file2, std::ios::binary);
+    std::vector<char> photo2(std::istreambuf_iterator<char>{photofile2}, {});
+
+    std::string file3 = std::string(datapath) + "manny2.bmp";
+    std::ifstream photofile3(file3, std::ios::binary);
+    std::vector<char> photo3(std::istreambuf_iterator<char>{photofile3}, {});
+
+    std::string file4 = std::string(datapath) + "manny4.jpg";
+    std::ifstream photofile4(file4, std::ios::binary);
+    std::vector<char> photo4(std::istreambuf_iterator<char>{photofile4}, {});
+
+    std::string file5 = std::string(datapath) + "manny5.jpg";
+    std::ifstream photofile5(file5, std::ios::binary);
+    std::vector<char> photo5(std::istreambuf_iterator<char>{photofile5}, {});
+
+    float fdif;
+    int status = idpass_lite_compare_face_photo(ctx, 
+        photo1.data(), photo1.size(), 
+        photo2.data(), photo2.size(),
+        &fdif);
+
+    ASSERT_EQ(fdif, 0.0); // because exactly same photo
+
+    float threshold;
+    unsigned char ioctlcmd[5];
+    ioctlcmd[0] = IOCTL_GET_FACEDIFF;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memcpy(&threshold, &ioctlcmd[1], 4);
+
+    idpass_lite_compare_face_photo(ctx, 
+        photo1.data(), photo1.size(), 
+        photo4.data(), photo4.size(),
+        &fdif);
+
+    ASSERT_TRUE(fdif < threshold);
+
+    idpass_lite_compare_face_photo(ctx, 
+        photo2.data(), photo2.size(), 
+        photo5.data(), photo5.size(),
+        &fdif);
+
+    ASSERT_TRUE(fdif < threshold);
+
+    idpass_lite_compare_face_photo(ctx, 
+        photo4.data(), photo4.size(), 
+        photo5.data(), photo5.size(),
+        &fdif);
+
+    ASSERT_TRUE(fdif < threshold);
+
+    idpass_lite_compare_face_photo(ctx, 
+        photo1.data(), photo1.size(), 
+        photo5.data(), photo5.size(),
+        &fdif);
+
+    ASSERT_TRUE(fdif < threshold);
+
+    idpass_lite_compare_face_photo(ctx, 
+        photo2.data(), photo2.size(), 
+        photo4.data(), photo4.size(),
+        &fdif);
+
+    ASSERT_TRUE(fdif < threshold);
+
+    idpass_lite_compare_face_photo(ctx, 
+        photo2.data(), photo2.size(), 
+        photo5.data(), photo5.size(),
+        &fdif);
+
+    ASSERT_TRUE(fdif < threshold);
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -1305,6 +1389,8 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "*face_compute_test*";
             //::testing::GTEST_FLAG(filter) = "*qrcode_test*";
             //::testing::GTEST_FLAG(filter) = "*certificate_revoke_test*";
+            //::testing::GTEST_FLAG(filter) = "*compare_face_photo_test*";
+            //::testing::GTEST_FLAG(filter) = "*check_qrcode_md5sum*";
             return RUN_ALL_TESTS();
         }
     }

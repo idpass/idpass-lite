@@ -78,6 +78,7 @@ add_library(idpasslite SHARED
     qrcode.cpp
     bin16.cpp
     dxtracker.h
+    CCertificate.h
     )
 
 target_compile_definitions (idpasslite PRIVATE _IDPASS_JNI_)

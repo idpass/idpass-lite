@@ -91,6 +91,8 @@ public:
         api::Certificate ccc;
         ccc.ParseFromArray(buf, buf_len);
 
+        idpass_lite_freemem(nullptr, buf);
+
         cer.value.set_signature(ccc.signature().data(), ccc.signature().size());
         cer.value.set_issuerkey(ccc.issuerkey().data(), ccc.issuerkey().size());
 
@@ -106,6 +108,7 @@ public:
         unsigned char* buf
             = idpass_lite_generate_root_certificate(privkey, 64, &buf_len);
         value.ParseFromArray(buf, buf_len);
+        idpass_lite_freemem(nullptr, buf);
     }
 
     CCertificate(unsigned char* skpk, int skpk_len)

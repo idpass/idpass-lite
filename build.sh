@@ -63,6 +63,7 @@ build_debug() {
     echo "*******************************"
     echo "Generating code coverage report"
     echo "*******************************"
+    rm -rf build/html/ build/html.tar
     genhtml build/cov_idpass.info -o build/html/
     tar cvpf build/html.tar build/html
 

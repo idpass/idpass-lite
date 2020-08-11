@@ -466,12 +466,17 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
 MODULE_API
 void idpass_lite_freemem(void* self, void* buf)
 {
-    if (self == nullptr || buf == nullptr)
+    if (buf == nullptr)
         return;
-    Context* context = (Context*)self;
-    if (!context->ReleaseByteArray(buf)) {
-        if (context == buf) {
-            M::releaseContext(context);
+
+    if (self == nullptr) {
+        M::ReleaseByteArray(buf); 
+    } else {
+        Context* context = (Context*)self;
+        if (!context->ReleaseByteArray(buf)) {
+            if (context == buf) {
+                M::releaseContext(context);
+            }
         }
     }
 }
