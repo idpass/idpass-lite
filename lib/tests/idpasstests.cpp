@@ -105,6 +105,7 @@ protected:
         delete[] m_sig;
         delete[] m_ver;
         delete m_rootCert1;
+        idpass_lite_freemem(ctx, ctx);
     }
 };
 
@@ -663,15 +664,23 @@ TEST_F(TestCases, check_qrcode_md5sum)
 
     ASSERT_TRUE(pixel != nullptr);
 
-    FILE *fp = fopen("build/qrcode.dat", "wb");
-    int nwritten = 0;
-    nwritten = fwrite(card , 1, card_len, fp);
-    while (nwritten < card_len) {
-        nwritten += fwrite(card , 1, card_len + nwritten, fp);
-    }
-    fclose(fp);
+#ifdef _WIN32
+        FILE *fp = fopen("c:/Users/63927/Documents/qrcode.dat", "wb");
+#else
+        FILE *fp = fopen("build/qrcode.dat", "wb");
+#endif
+        int nwritten = 0;
+        nwritten = fwrite(card , 1, card_len, fp);
+        while (nwritten < card_len) {
+            nwritten += fwrite(card , 1, card_len + nwritten, fp);
+        }
+        fclose(fp);
 
-    savetobitmap(qrsize, pixel, "build/qrcode.bmp");
+#ifdef _WIN32
+        savetobitmap(qrsize, pixel, "c:/Users/63927/Documents/qrcode.bmp");
+#else
+        savetobitmap(qrsize, pixel, "build/qrcode.bmp");
+#endif
 }
 
 TEST_F(TestCases, createcard_manny_verify_as_brad)
@@ -1166,6 +1175,123 @@ TEST_F(TestCases, uio_test)
     ASSERT_TRUE(0 == ident.givenname().compare("John"));
 }
 
+TEST_F(TestCases, idpass_ioctl_test)
+{
+    // IOCTL_SET_FACEDIFF,IOCTL_GET_FACEDIFF
+    float fdiff = 0.43;
+    unsigned char ioctlcmd[5];
+    ioctlcmd[0] = IOCTL_SET_FACEDIFF;
+    std::memcpy(&ioctlcmd[1], &fdiff, 4);
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_GET_FACEDIFF;
+    float fval;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memcpy(&fval, &ioctlcmd[1], 4);
+    ASSERT_EQ(fdiff, fval);
+
+    // IOCTL_SET_FDIM, IOCTL_GET_FDIM
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_SET_FDIM;
+    ioctlcmd[1] = 0x00;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_GET_FDIM;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    ASSERT_EQ(ioctlcmd[1], 0x00);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_SET_FDIM;
+    ioctlcmd[1] = 0x01;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_GET_FDIM;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    ASSERT_EQ(ioctlcmd[1], 0x01);
+
+    // IOCTL_SET_ECC
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_SET_ECC;
+    ioctlcmd[1] = ECC_LOW;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_SET_ECC;
+    ioctlcmd[1] = ECC_MEDIUM;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_SET_ECC;
+    ioctlcmd[1] = ECC_QUARTILE;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+    std::memset(ioctlcmd, 0x00, 5);
+    ioctlcmd[0] = IOCTL_SET_ECC;
+    ioctlcmd[1] = ECC_HIGH;
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+}
+
+TEST_F(TestCases, face_compute_test)
+{
+    std::string filename = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile(filename, std::ios::binary);
+    std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
+    float facearray64[64];
+    ASSERT_EQ(1, idpass_lite_face64d(ctx, photo.data(), photo.size(), facearray64));
+    float facearray128[128];
+    ASSERT_EQ(1, idpass_lite_face128d(ctx, photo.data(), photo.size(), facearray128));
+}
+
+TEST_F(TestCases, qrcode_test)
+{
+    int qrsize = 0;
+    int buf_len = 0;
+
+    std::vector<unsigned char> _ident(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(_ident.data(), _ident.size());
+
+    int len;
+    unsigned char* cards
+        = idpass_lite_create_card_with_face(ctx, &len, _ident.data(), _ident.size());
+
+    ASSERT_TRUE(cards != nullptr);
+    unsigned char* buf = idpass_lite_qrpixel2(ctx, &buf_len, cards, len, &qrsize);
+    ASSERT_TRUE(buf != nullptr);
+    idpass_lite_freemem(ctx, buf);
+}
+
+TEST_F(TestCases, certificate_revoke_test)
+{
+    std::string filename = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile(filename, std::ios::binary);
+    std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
+
+    std::vector<unsigned char> ident_buf(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
+
+    int n;
+
+    CCertificate child0;
+    CCertificate child1(m_sig, 64);
+    m_rootCert1->Sign(child0);
+    child0.Sign(child1);
+
+    api::Certificates intermediateCertificates;
+    api::Certificate* c1 = intermediateCertificates.add_cert();
+    c1->CopyFrom(child0.getValue());
+    api::Certificate* c2 = intermediateCertificates.add_cert();
+    c2->CopyFrom(child1.getValue());
+
+    std::vector<unsigned char> intermedcerts_buf(intermediateCertificates.ByteSizeLong());
+
+    intermediateCertificates.SerializeToArray(intermedcerts_buf.data(),
+                                              intermedcerts_buf.size());
+
+    idpass_lite_add_revoked_key((unsigned char*)child0.value.pubkey().data(), 32);
+
+    n = idpass_lite_add_certificates(
+        ctx, intermedcerts_buf.data(), intermedcerts_buf.size());
+
+    ASSERT_TRUE(n != 0); // cannot add chain since child0 is in revoked list
+
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -1183,6 +1309,10 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "*idpass_lite_verify_with_card_test*";
             //::testing::GTEST_FLAG(filter) = "*cansign_and_verify_with_pin*";
             //::testing::GTEST_FLAG(filter) = "*face_template_test*";
+            //::testing::GTEST_FLAG(filter) = "*idpass_ioctl_test*";
+            //::testing::GTEST_FLAG(filter) = "*face_compute_test*";
+            //::testing::GTEST_FLAG(filter) = "*qrcode_test*";
+            //::testing::GTEST_FLAG(filter) = "*certificate_revoke_test*";
             return RUN_ALL_TESTS();
         }
     }

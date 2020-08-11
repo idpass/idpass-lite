@@ -216,72 +216,6 @@ bool isRevoked(const char* filename, const char* key, int key_len)
     return false;
 }
 
-bool sign_object(idpass::IDPassCard& object,
-                 unsigned char* key,
-                 unsigned char* sig)
-{
-    int buf_len = object.ByteSizeLong();
-    unsigned char* buf = new unsigned char[buf_len];
-
-    if (!object.SerializeToArray(buf, buf_len)) {
-        LOGI("serialize error1");
-        delete[] buf;
-        return false;
-    }
-
-    if (crypto_sign_detached(sig, nullptr, buf, buf_len, key) != 0) {
-        LOGI("crypto_sign error");
-        delete[] buf;
-        return false;
-    }
-
-    return true;
-}
-
-bool sign_object(idpass::PublicSignedIDPassCard& object,
-                 unsigned char* key,
-                 unsigned char* sig)
-{
-    int buf_len = object.ByteSizeLong();
-    unsigned char* buf = new unsigned char[buf_len];
-
-    if (!object.SerializeToArray(buf, buf_len)) {
-        LOGI("serialize error1");
-        delete[] buf;
-        return false;
-    }
-
-    if (crypto_sign_detached(sig, nullptr, buf, buf_len, key) != 0) {
-        LOGI("crypto_sign error");
-        delete[] buf;
-        return false;
-    }
-
-    return true;
-}
-
-bool sign_object(idpass::CardDetails& object,
-                 const unsigned char* key,
-                 unsigned char* sig)
-{
-    int buf_len = object.ByteSizeLong();
-    unsigned char* buf = new unsigned char[buf_len];
-
-    if (!object.SerializeToArray(buf, buf_len)) {
-        LOGI("serialize error1");
-        delete[] buf;
-        return false;
-    }
-
-    if (crypto_sign_detached(sig, nullptr, buf, buf_len, key) != 0) {
-        LOGI("crypto_sign error");
-        delete[] buf;
-        return false;
-    }
-
-    return true;
-}
-
 bool sign_object(std::vector<unsigned char>& blob,
                  const char* key,
                  unsigned char* sig)
@@ -407,21 +341,6 @@ bool is_valid_ed25519_key(const unsigned char* key)
     return true;
 }
 
-bool is_valid(api::Certificates& rootcerts)
-{
-    for (auto& c : rootcerts.cert()) {
-        if (c.privkey().size() == 64) { // root CA
-            if (!is_valid_ed25519_key(reinterpret_cast<const unsigned char*>(
-                    c.privkey().data()))) {
-                return false;
-            }
-        } else { // intermed CA
-        }
-    }
-
-    return true;
-}
-
 bool is_valid(api::KeySet& ckeys)
 {
     if (ckeys.encryptionkey().size() != crypto_aead_chacha20poly1305_IETF_KEYBYTES
@@ -456,37 +375,5 @@ bool is_valid(api::KeySet& ckeys)
 }
 
 } // helper
-
-extern "C" void helper_hexdump(const void* data, int size, char* title)
-{
-    char ascii[17];
-    size_t i, j;
-    printf("\n[%s]\n", title);
-    ascii[16] = '\0';
-    for (i = 0; i < size; ++i) {
-        printf("%02X ", ((unsigned char*)data)[i]);
-        if (((unsigned char*)data)[i] >= ' '
-            && ((unsigned char*)data)[i] <= '~') {
-            ascii[i % 16] = ((unsigned char*)data)[i];
-        } else {
-            ascii[i % 16] = '.';
-        }
-        if ((i + 1) % 8 == 0 || i + 1 == size) {
-            printf(" ");
-            if ((i + 1) % 16 == 0) {
-                printf("|  %s \n", ascii);
-            } else if (i + 1 == size) {
-                ascii[(i + 1) % 16] = '\0';
-                if ((i + 1) % 16 <= 8) {
-                    printf(" ");
-                }
-                for (j = (i + 1) % 16; j < 16; ++j) {
-                    printf("   ");
-                }
-                printf("|  %s \n", ascii);
-            }
-        }
-    }
-}
 
 #endif // __cplusplus
