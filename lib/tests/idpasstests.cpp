@@ -667,7 +667,7 @@ TEST_F(TestCases, check_qrcode_md5sum)
 #ifdef _WIN32
         FILE *fp = fopen("c:/Users/63927/Documents/qrcode.dat", "wb");
 #else
-        FILE *fp = fopen("build/qrcode.dat", "wb");
+        FILE *fp = fopen("qrcode.dat", "wb");
 #endif
         int nwritten = 0;
         nwritten = fwrite(card , 1, card_len, fp);
@@ -679,7 +679,7 @@ TEST_F(TestCases, check_qrcode_md5sum)
 #ifdef _WIN32
         savetobitmap(qrsize, pixel, "c:/Users/63927/Documents/qrcode.bmp");
 #else
-        savetobitmap(qrsize, pixel, "build/qrcode.bmp");
+        savetobitmap(qrsize, pixel, "qrcode.bmp");
 #endif
 }
 
