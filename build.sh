@@ -65,7 +65,7 @@ build_debug() {
     echo "*******************************"
     rm -rf build/html/ build/html.tar
     genhtml build/cov_idpass.info -o build/html/
-    tar cvpf build/html.tar build/html
+    tar zcvpf build/html.tar.gzip build/html
 
     rm -rf build/test_results/demangle/
     rm -rf build/test_results/nomangle/

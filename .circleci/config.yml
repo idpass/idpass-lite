@@ -17,7 +17,7 @@ jobs:
           path: /home/circleci/project/build/release/lib/src/libidpasslite.so
           destination: libidpasslite.so
       - store_artifacts:
-          path: /home/circleci/project/build/html.tar
-          destination: html.tar
+          path: /home/circleci/project/build/html.tar.gzip
+          destination: html.tar.gzip
       - store_test_results:
           path: /home/circleci/project/build/reports.xml
