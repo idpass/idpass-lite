@@ -38,7 +38,7 @@ build_debug() {
     mkdir -p build/debug && cd build/debug
     cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
-    cd -
+    cd - >/dev/null
 	
     echo "**************************************"
     echo "Executing test cases for code coverage"
@@ -63,26 +63,29 @@ build_debug() {
     echo "*******************************"
     echo "Generating code coverage report"
     echo "*******************************"
-    rm -rf build/html/ build/html.tar
+    rm -rf build/html/ build/html.tar.gzip
     genhtml build/cov_idpass.info -o build/html/
     tar zcvpf build/html.tar.gzip build/html
 
-    rm -rf build/test_results/demangle/
-    rm -rf build/test_results/nomangle/
-    mkdir -p build/test_results/demangle/
-    mkdir -p build/test_results/nomangle/
-
-    python /home/circleci/project/scripts/lcov_cobertura.py \
-        build/cov_idpass.info \
-        --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
-        --output build/test_results/demangle/results.xml \
-        --demangle
-
+    # Commenting out these Cobertura coverage report
+    # XML format
+    # https://github.com/eriwen/lcov-to-cobertura-xml
+    #
+    #rm -rf build/test_results/demangle/
+    #rm -rf build/test_results/nomangle/
+    #mkdir -p build/test_results/demangle/
+    #mkdir -p build/test_results/nomangle/
+    #
+    #python /home/circleci/project/scripts/lcov_cobertura.py \
+    #    build/cov_idpass.info \
+    #    --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
+    #    --output build/test_results/demangle/results.xml \
+    #    --demangle
+    #
     #python3 /home/circleci/project/scripts/lcov_cobertura.py \
     #    build/cov_idpass.info \
     #    --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
     #    --output build/test_results/nomangle/results.xml
-
 }
 
 build_release() {
@@ -94,7 +97,7 @@ build_release() {
     mkdir -p build/release && cd build/release
     cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
-    cd -
+    cd - >/dev/null
 
     echo "********************************"
     echo "Executing final test for release"
@@ -165,7 +168,7 @@ build_android() {
             echo "=========================================="
 
             local builddir=build/android.$abi
-            rm -rf $builddir
+            #rm -rf $builddir
             mkdir -p $builddir && cd $builddir
 
             cmake \
@@ -185,7 +188,7 @@ build_android() {
             echo "***********************************"
             echo "--- Done building Android $abi ---"
             echo "***********************************"
-            cd -
+            cd - >/dev/null
             sleep 3
         done
     else
@@ -195,7 +198,7 @@ build_android() {
         sleep 3
         abi=$1    
         local builddir=build/android.$abi
-        rm -rf $builddir
+        #rm -rf $builddir
         mkdir -p $builddir && cd $builddir
 
         cmake \
@@ -215,7 +218,7 @@ build_android() {
         echo "***********************************"
         echo "--- Done building Android $abi ---"
         echo "***********************************"
-        cd -
+        cd - >/dev/null
         ;;
 
         *)
