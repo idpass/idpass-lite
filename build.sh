@@ -2,6 +2,8 @@
 #
 
 export GTEST_OUTPUT="xml:$(pwd)/build/reports.xml"
+export IDPASSLITE=$project/build/debug/lib/src/libidpasslite.so
+export CLASSPATH=$project/build/debug/lib/tests/jni/
 API_LEVEL=23
 
 iscontainer() {
@@ -49,14 +51,18 @@ build_debug() {
     fi
 
     ls -lh build/debug/lib/src/libidpasslite.so
-    #md5sum build/release/lib/src/libidpasslite.so > build/release/lib/src/libidpasslite.so.md5sum
+    javac $project/build/debug/lib/tests/jni/org/idpass/lite/IDPassReader.java
+    # test JNI methods link to libidpasslite.so
+    java org.idpass.lite.IDPassReader || return 1
 
     echo
     echo "****************************"
     echo "Gathering code coverage data"
     echo "****************************"
     lcov -c --directory build/debug/lib/src/CMakeFiles/idpasslite.dir/ \
-            --directory build/debug/lib/tests/CMakeFiles/idpasstests.dir/ --output-file build/cov.info
+            --directory build/debug/lib/tests/CMakeFiles/idpasstests.dir/ \
+            --directory build/debug/lib/src/CMakeFiles/idpasslite.dir/jni/ \
+            --output-file build/cov.info
     lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_filter1.info
     lcov --remove build/cov_filter1.info "*googletest*" -o build/cov_idpass.info
     echo

@@ -15,6 +15,7 @@
  */
 
 #include "idpass.h"
+#include "bin16.h"
 #include "CCertificate.h"
 #include "proto/api/api.pb.h"
 #include "proto/idpasslite/idpasslite.pb.h"
@@ -1382,6 +1383,32 @@ TEST_F(TestCases, compare_face_photo_test)
         &fdif);
 
     ASSERT_TRUE(fdif < threshold);
+}
+
+TEST_F(TestCases, bin16_tests)
+{
+    float ff[128]; // full float
+
+    for (int i = 0; i < 128; i++) {
+        ff[i] = -10.0 + static_cast<float>(rand()) / 
+            (static_cast<float>(RAND_MAX / (10.0 - (-10.0))));
+    }
+
+    unsigned char fbuf[128 * 4];
+    bin16::f4_to_f4b(ff, 128, fbuf);
+
+    float hf1[128]; // half float
+    bin16::f4b_to_f2(fbuf, 128 * 4, hf1);
+
+    unsigned char f2buf[128 * 2];
+    bin16::f4b_to_f2b(fbuf, 128 * 4, f2buf);
+
+    float hf2[128];
+    bin16::f2b_to_f2(f2buf, 128 * 2, hf2);
+
+    for (int i = 0; i < 128; i++) {
+        ASSERT_EQ(hf1[i], hf2[i]);
+    }
 }
 
 int main(int argc, char* argv[])

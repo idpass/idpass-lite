@@ -50,6 +50,11 @@ add_custom_target(testdata
     COMMENT "Copying test data ..."
     )
 
+add_custom_target(testjnilink
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/jni/ ${CMAKE_CURRENT_BINARY_DIR}/jni/
+    COMMENT "Copying JNI link test code ..."
+    )
+
 link_directories(
     ${DEPENDENCIES_LIB}
     ${IDPASSAPI_LIB}
@@ -59,6 +64,7 @@ add_executable(idpasstests
     ${PROTOGEN}/idpasslite.pb.cc
     ${PROTOGEN2}/api.pb.cc
     idpasstests.cpp
+    ${IDPASSAPI_INCLUDE}/bin16.cpp
     )
 
 include_directories(
@@ -75,7 +81,7 @@ endif()
 set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
 target_link_libraries(idpasstests ${idpasstests_DEPENDS})
 
-add_dependencies(idpasstests testdata)
+add_dependencies(idpasstests testdata testjnilink)
 #install(TARGETS idpasstests DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 add_test (NAME idpasstests COMMAND idpasstests)
