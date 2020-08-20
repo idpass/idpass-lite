@@ -62,6 +62,7 @@ public class IDPassReader {
     private static native void add_revoked_key(byte[] pubkey);
     private native boolean add_certificates(long ctx, byte[] intermedcerts);
     private native int verify_card_certificate(long ctx, byte[] blob);
+    private native boolean verify_card_signature(long ctx, byte[] blob);
     //=========================================================
 
     public static void main(String args[])

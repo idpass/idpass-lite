@@ -40,11 +40,9 @@ message KeySet {
 }
 
 message Certificate {
-  bytes privkey = 1;
-  bytes pubkey = 2;
-  bytes issuerkey = 3;
-  bytes signature = 4;
-  string desc = 5;
+  bytes pubkey = 1;
+  bytes issuerkey = 2;
+  bytes signature = 3;
 }
 
 message Certificates { repeated Certificate cert = 1; }

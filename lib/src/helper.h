@@ -60,7 +60,7 @@ std::vector<float> get128f(unsigned char* facearray, int facearray_len);
 double vectorDistance(float* first, float* last, float* first2);
 
 std::vector<char> readfile(const char* filename);
-bool isRevoked(const char* filename, const char* key, int key_len);
+bool isRevoked(const char* filename, unsigned char* key, int key_len);
 bool sign_object(idpass::IDPassCard& object,
                  unsigned char* key,
                  unsigned char* sig);
@@ -79,7 +79,7 @@ int encrypt_object(idpass::SignedIDPassCard& object,
 // PublicSignedIDPassCard
 bool serialize(idpass::PublicSignedIDPassCard& object,
                std::vector<unsigned char>&);
-bool serialize(idpass::SignedIDPassCard& object, std::vector<unsigned char>&);
+//bool serialize(idpass::SignedIDPassCard& object, std::vector<unsigned char>&);
 
 bool is_valid_ed25519_key(const unsigned char* key);
 

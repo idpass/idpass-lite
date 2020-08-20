@@ -121,6 +121,11 @@ int idpass_lite_verify_certificate(void* self,
                                    unsigned char* fullcard,
                                    int fullcard_len);
 
+MODULE_API
+int idpass_lite_verify_card_signature(void* self,
+                                      unsigned char* fullcard,
+                                      int fullcard_len);
+
 /**
 * A generic function to adjust settings of the calling context.
 * It consist of a sub-command prefix by IOCTL_* followed by 
@@ -396,7 +401,8 @@ int idpass_lite_generate_encryption_key(unsigned char* key, int key_len);
 */
 
 MODULE_API
-int idpass_lite_generate_secret_signature_key(unsigned char* key, int key_len);
+int idpass_lite_generate_secret_signature_keypair(unsigned char* pk, int pklen, 
+    unsigned char* sk, int sklen);
 
 /**
 * Generate a self-signed certificate with the provided secretkey.

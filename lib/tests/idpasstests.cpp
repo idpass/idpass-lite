@@ -81,9 +81,8 @@ protected:
 
         api::KeySet cryptoKeys;
 
-        idpass_lite_generate_secret_signature_key(m_sig, 64);
+        idpass_lite_generate_secret_signature_keypair(m_ver, 32, m_sig, 64);
         idpass_lite_generate_encryption_key(m_enc, 32);
-        std::memcpy(m_ver, m_sig + 32, 32);
 
         cryptoKeys.set_encryptionkey(m_enc, 32);
         cryptoKeys.set_signaturekey(m_sig, 64);
@@ -91,11 +90,11 @@ protected:
         verkey->set_typ(api::byteArray_Typ_ED25519PUBKEY);
         verkey->set_val(m_ver, 32);
 
-        std::vector<unsigned char> buf1;
+        std::vector<unsigned char> keysetbuf;
 
-        buf1.resize(cryptoKeys.ByteSizeLong());
-        cryptoKeys.SerializeToArray(buf1.data(),
-                                    buf1.size());
+        keysetbuf.resize(cryptoKeys.ByteSizeLong());
+        cryptoKeys.SerializeToArray(keysetbuf.data(),
+                                    keysetbuf.size());
 
         CCertificate rootCert2;
         CCertificate rootCert3;
@@ -104,14 +103,15 @@ protected:
         api::Certificate* cert1 = rootCertificates.add_cert();
         api::Certificate* cert2 = rootCertificates.add_cert();
         api::Certificate* cert3 = rootCertificates.add_cert();
-        cert1->CopyFrom(m_rootCert1->getValue(true));
-        cert2->CopyFrom(rootCert2.getValue(true));
-        cert3->CopyFrom(rootCert3.getValue(true));
-        std::vector<unsigned char> buf2(rootCertificates.ByteSizeLong());
-        rootCertificates.SerializeToArray(buf2.data(), buf2.size());
+        cert1->CopyFrom(m_rootCert1->getValue());
+        cert2->CopyFrom(rootCert2.getValue());
+        cert3->CopyFrom(rootCert3.getValue());
+        std::vector<unsigned char> rootcertsbuf(rootCertificates.ByteSizeLong());
+        rootCertificates.SerializeToArray(rootcertsbuf.data(), rootcertsbuf.size());
 
         ctx = idpass_lite_init(
-            buf1.data(), buf1.size(), buf2.data(), buf2.size());
+            keysetbuf.data(), keysetbuf.size(), 
+            rootcertsbuf.data(), rootcertsbuf.size());
 
         ASSERT_TRUE(ctx != nullptr);
     }
@@ -125,6 +125,89 @@ protected:
         idpass_lite_freemem(ctx, ctx);
     }
 };
+
+TEST_F(TestCases, card_integrity_test)
+{
+    std::string inputfile = std::string(datapath) + "manny1.bmp";
+    std::ifstream f1(inputfile, std::ios::binary);
+    std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
+
+    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
+                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+
+    idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
+
+    api::KV* privextra = m_ident.add_privextra();
+    privextra->set_key("color");
+    privextra->set_value("blue");
+
+    std::vector<unsigned char> buf(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(buf.data(), buf.size());
+    
+    int cards_len;
+    unsigned char* cards
+        = idpass_lite_create_card_with_face(ctx, &cards_len, buf.data(), buf.size());
+
+    ASSERT_TRUE(cards != nullptr); 
+
+    int details_len = 0;
+    unsigned char* details = idpass_lite_verify_card_with_face(ctx,
+                                                               &details_len,
+                                                               cards,
+                                                               cards_len,
+                                                               photo.data(),
+                                                               photo.size());
+
+    int cert_count = idpass_lite_verify_certificate(ctx, cards, cards_len);
+    // The idpass_lite_verify_certificate function returns either
+    // < 0, 0 or > 0 integer.
+    //
+    // The 0 means the QR code ID card has no attached certificates
+    // but nevertheless the card's signature is verified against 
+    // the context's ed25519 private key
+    // Any error conditions either in certificate validation
+    // or QR code ID card signature verification shall return
+    // negative number. In summary:
+    // 
+    // 0    means the card has no attached certificate and 
+    //      the signature is verified against caller context
+    // 2    means the card has 2 attached certificates and the signature
+    //      is verified against the caller context(or leaf cert)
+    // < 0  means an error either in certificate validation or 
+    //      in signature verification
+    ASSERT_EQ(cert_count, 0); 
+
+    CCertificate child0;
+    CCertificate child1(m_sig, 64);
+    m_rootCert1->Sign(child0);
+    child0.Sign(child1);
+
+    api::Certificates intermediateCertificates;
+    api::Certificate* c1 = intermediateCertificates.add_cert();
+    c1->CopyFrom(child0.getValue());
+    api::Certificate* c2 = intermediateCertificates.add_cert();
+    c2->CopyFrom(child1.getValue());
+
+    std::vector<unsigned char> intermedcerts_buf(intermediateCertificates.ByteSizeLong());
+
+    intermediateCertificates.SerializeToArray(intermedcerts_buf.data(),
+                                              intermedcerts_buf.size());
+
+    int n = idpass_lite_add_certificates(
+        ctx, intermedcerts_buf.data(), intermedcerts_buf.size());
+
+    int card2_len;
+    unsigned char* card2
+        = idpass_lite_create_card_with_face(ctx, &card2_len, buf.data(), buf.size());
+
+    cert_count = idpass_lite_verify_certificate(ctx, card2, card2_len);
+    // The 2 means there are 2 validated intermediate certificactes
+    // and card's signature is verified against the context's 
+    // ed25519 private key
+    ASSERT_EQ(cert_count, 2);
+
+    ASSERT_EQ(0, idpass_lite_verify_card_signature(ctx, card2, card2_len));
+}
 
 TEST_F(TestCases, create_card_with_certificates_content_tampering)
 {
@@ -243,8 +326,8 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_certificates)
         chain.push_back(c);
     }
 
-    ASSERT_TRUE(std::memcmp(chain[0].pubkey().data(), child0.value.pubkey().data(), 32) == 0);
-    ASSERT_TRUE(std::memcmp(chain[1].pubkey().data(), child1.value.pubkey().data(), 32) == 0);
+    ASSERT_TRUE(std::memcmp(chain[0].pubkey().data(), child0.m_pk.data(), 32) == 0);
+    ASSERT_TRUE(std::memcmp(chain[1].pubkey().data(), child1.m_pk.data(), 32) == 0);
 
     /*
     Present the user's ID and if the face match, will return
@@ -268,8 +351,8 @@ TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
     m_rootCert1->Sign(cert1);
 
     api::Certificates intermedcerts;
-    intermedcerts.add_cert()->CopyFrom(cert0.value);
-    intermedcerts.add_cert()->CopyFrom(cert1.value);
+    intermedcerts.add_cert()->CopyFrom(cert0.getValue());
+    intermedcerts.add_cert()->CopyFrom(cert1.getValue());
 
     std::vector<unsigned char> buf(intermedcerts.ByteSizeLong());
     intermedcerts.SerializeToArray(buf.data(), buf.size());
@@ -279,9 +362,8 @@ TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
     unsigned char sig[64];
     unsigned char ver[32];
 
-    idpass_lite_generate_secret_signature_key(sig, 64);
+    idpass_lite_generate_secret_signature_keypair(ver, 32, sig, 64);
     idpass_lite_generate_encryption_key(enc, 32);
-    std::memcpy(ver, sig + 32, 32);
 
     keyset.set_encryptionkey(enc, 32);
     keyset.set_signaturekey(sig, 64);
@@ -338,8 +420,8 @@ TEST_F(TestCases, idpass_lite_verify_certificate)
     m_rootCert1->Sign(cert1);
 
     api::Certificates intermedcerts;
-    intermedcerts.add_cert()->CopyFrom(cert0.value);
-    intermedcerts.add_cert()->CopyFrom(cert1.value);
+    intermedcerts.add_cert()->CopyFrom(cert0.getValue());
+    intermedcerts.add_cert()->CopyFrom(cert1.getValue());
 
     std::vector<unsigned char> buf(intermedcerts.ByteSizeLong());
     intermedcerts.SerializeToArray(buf.data(), buf.size());
@@ -362,8 +444,8 @@ TEST_F(TestCases, idpass_lite_verify_certificate)
     std::vector<idpass::Certificate> cardcerts(fullcard.certificates().begin(),
                                                fullcard.certificates().end());
 
-    ASSERT_TRUE(std::memcmp(cardcerts[0].pubkey().data(), cert0.value.pubkey().data(), 32) == 0);
-    ASSERT_TRUE(std::memcmp(cardcerts[1].pubkey().data(), cert1.value.pubkey().data(), 32) == 0);
+    ASSERT_TRUE(std::memcmp(cardcerts[0].pubkey().data(), cert0.m_pk.data(), 32) == 0);
+    ASSERT_TRUE(std::memcmp(cardcerts[1].pubkey().data(), cert1.m_pk.data(), 32) == 0);
 }
 
 TEST_F(TestCases, idpass_lite_init_test)
@@ -372,9 +454,8 @@ TEST_F(TestCases, idpass_lite_init_test)
     unsigned char sig[64];
     unsigned char ver[32];
 
-    idpass_lite_generate_secret_signature_key(sig, 64);
+    idpass_lite_generate_secret_signature_keypair(ver, 32, sig, 64);
     idpass_lite_generate_encryption_key(enc, 32);
-    std::memcpy(ver, sig + 32, 32);
 
     void* context = nullptr;
 
@@ -410,7 +491,7 @@ TEST_F(TestCases, idpass_lite_init_test)
     CCertificate rootCA;
 
     api::Certificate* pcer = rootCerts.add_cert();
-    pcer->CopyFrom(rootCA.getValue(true));
+    pcer->CopyFrom(rootCA.getValue());
     rootcerts_buf.resize(rootCerts.ByteSizeLong());
     rootCerts.SerializeToArray(rootcerts_buf.data(), rootcerts_buf.size());
 
@@ -469,12 +550,13 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
 TEST_F(TestCases, generate_secretsignature_key)
 {
     unsigned char sig[crypto_sign_SECRETKEYBYTES]; // 64
+    unsigned char pk[crypto_sign_PUBLICKEYBYTES]; // 32
     unsigned char sig2[63];
     int status;
 
-    status = idpass_lite_generate_secret_signature_key(sig, sizeof sig);
+    status = idpass_lite_generate_secret_signature_keypair(pk, 32, sig, sizeof sig);
     ASSERT_TRUE(status == 0);
-    status = idpass_lite_generate_secret_signature_key(sig2, sizeof sig2);
+    status = idpass_lite_generate_secret_signature_keypair(pk, 32, sig2, sizeof sig2);
     ASSERT_TRUE(status != 0);
 }
 
@@ -497,7 +579,7 @@ TEST_F(TestCases, chain_of_trust_test)
         api::Certificates chaincerts;
         for (auto& c : chain) {
             api::Certificate* pCer = chaincerts.add_cert();
-            pCer->CopyFrom(c.value);
+            pCer->CopyFrom(c.getValue());
         }
         std::vector<unsigned char> buf(chaincerts.ByteSizeLong());
         chaincerts.SerializeToArray(buf.data(), buf.size());
@@ -506,7 +588,8 @@ TEST_F(TestCases, chain_of_trust_test)
     };
 
     unsigned char secret_sig_key[64];
-    idpass_lite_generate_secret_signature_key(secret_sig_key, 64);
+    unsigned char pk[32];
+    idpass_lite_generate_secret_signature_keypair(pk, 32, secret_sig_key, 64);
 
     CCertificate cert2_rootca;
     CCertificate cert7_cert2(secret_sig_key, 64);
@@ -595,7 +678,7 @@ TEST_F(TestCases, create_card_with_certificates)
     idpass::Certificate certi;
     for (auto& c : cards.certificates()) {
         if (0 == std::memcmp(c.pubkey().data(), 
-            certifi.value.pubkey().data(), 32)) 
+            certifi.m_pk.data(), 32)) 
         {
             found = true; 
         }
@@ -881,8 +964,7 @@ TEST_F(TestCases, threading_multiple_instance_test)
         unsigned char verif_pk[crypto_sign_PUBLICKEYBYTES];
 
         idpass_lite_generate_encryption_key(enc, 32);
-        idpass_lite_generate_secret_signature_key(sig_skpk, 64);
-        std::memcpy(verif_pk, sig_skpk + 32, crypto_sign_PUBLICKEYBYTES);
+        idpass_lite_generate_secret_signature_keypair(verif_pk, 32, sig_skpk, 64);
 
         api::KeySet ks;
         ks.set_encryptionkey(enc, 32);
@@ -897,8 +979,8 @@ TEST_F(TestCases, threading_multiple_instance_test)
         api::Certificates rootCertificates;
         api::Certificate* content1 = rootCertificates.add_cert();
         api::Certificate* content2 = rootCertificates.add_cert();
-        content1->CopyFrom(rootCert1.value);
-        content2->CopyFrom(rootCert1.value);
+        content1->CopyFrom(rootCert1.getValue());
+        content2->CopyFrom(rootCert1.getValue());
 
         CCertificate intermedCert1;
         CCertificate intermedCert2;
@@ -1297,7 +1379,7 @@ TEST_F(TestCases, certificate_revoke_test)
     intermediateCertificates.SerializeToArray(intermedcerts_buf.data(),
                                               intermedcerts_buf.size());
 
-    idpass_lite_add_revoked_key((unsigned char*)child0.value.pubkey().data(), 32);
+    idpass_lite_add_revoked_key((unsigned char*)child0.m_pk.data(), 32);
 
     n = idpass_lite_add_certificates(
         ctx, intermedcerts_buf.data(), intermedcerts_buf.size());
@@ -1434,6 +1516,10 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "*certificate_revoke_test*";
             //::testing::GTEST_FLAG(filter) = "*compare_face_photo_test*";
             //::testing::GTEST_FLAG(filter) = "*check_qrcode_md5sum*";
+            //::testing::GTEST_FLAG(filter) = "*create_card_with_certificates_content_tampering*";
+            //::testing::GTEST_FLAG(filter) = "*idpass_lite_create_card_with_face_certificates*";
+            //::testing::GTEST_FLAG(filter) = "*idpass_lite_verify_certificate*";
+            //::testing::GTEST_FLAG(filter) = "*card_integrity_test*";
             return RUN_ALL_TESTS();
         }
     }

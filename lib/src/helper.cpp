@@ -105,7 +105,29 @@ bool decryptCard(unsigned char* full_card_buf,
         return false;
     }
 
-    ////////////////////
+    idpass::PublicSignedIDPassCard pubCard = fullCard.publiccard();
+    std::vector<unsigned char> pubcardbuf(pubCard.ByteSizeLong());
+    pubCard.SerializeToArray(pubcardbuf.data(), pubcardbuf.size());
+
+    std::vector<unsigned char> card_blob;
+
+    std::copy(fullCard.encryptedcard().begin(),
+              fullCard.encryptedcard().end(),
+              std::back_inserter(card_blob)); 
+
+    std::copy(pubcardbuf.begin(),
+              pubcardbuf.end(),
+              std::back_inserter(card_blob)); 
+
+    if (crypto_sign_verify_detached(
+        (const unsigned char*)fullCard.signature().data(), 
+        card_blob.data(), 
+        card_blob.size(), 
+        (const unsigned char*)fullCard.signerpublickey().data()) != 0) 
+    {
+        return false;
+    } 
+
     const unsigned char* ecardbuf = reinterpret_cast<const unsigned char*>(
         fullCard.encryptedcard().data());
     int ecardbuf_len = fullCard.encryptedcard().size();
@@ -138,7 +160,7 @@ bool decryptCard(unsigned char* full_card_buf,
     if (fullCard.has_publiccard()) {
         publicRegion = fullCard.publiccard();
     }
-    ////////////////////
+
     int privateRegionBuf_len
         = ecardbuf_len - crypto_aead_chacha20poly1305_IETF_NPUBBYTES;
     unsigned char* privateRegionBuf = new unsigned char[privateRegionBuf_len];
@@ -167,39 +189,14 @@ bool decryptCard(unsigned char* full_card_buf,
     bool flag = privateRegion.ParseFromArray(privateRegionBuf, decrypted_len);
 
     if (flag) {
-        /////////////////////////////////////
-        std::vector<unsigned char> blob_publicRegion;
-        std::vector<unsigned char> priv_pub_blob;
-        unsigned char priv_pub_blob_signature[crypto_sign_BYTES];
-
-        helper::serialize(publicRegion, blob_publicRegion);
-
-        std::copy(privateRegionBuf,
-                  privateRegionBuf + /*privateRegionBuf_len*/ decrypted_len,
-                  std::back_inserter(priv_pub_blob));
-
-        if (publicRegion.ByteSizeLong() > 0) {
-            std::copy(blob_publicRegion.data(),
-                      blob_publicRegion.data() + blob_publicRegion.size(),
-                      std::back_inserter(priv_pub_blob));
-        }
-        /////////////////////////////////////
-
-        if (crypto_sign_verify_detached(
-                signature, priv_pub_blob.data(), priv_pub_blob.size(), pubkey)
-            != 0) {
-            LOGI("crypto_sign error");
-            flag = false;
-        } else {
-            card = privateRegion.card();
-        }
+        card = privateRegion.card();
     }
 
     delete[] privateRegionBuf;
     return flag;
 }
 
-bool isRevoked(const char* filename, const char* key, int key_len)
+bool isRevoked(const char* filename, unsigned char* key, int key_len)
 {
     struct stat st;
     if (stat(filename, &st) == 0) {
@@ -311,7 +308,7 @@ bool serialize(idpass::PublicSignedIDPassCard& object,
 
     return true;
 }
-
+#if 0
 bool serialize(idpass::SignedIDPassCard& object,
                std::vector<unsigned char>& buf)
 {
@@ -325,7 +322,7 @@ bool serialize(idpass::SignedIDPassCard& object,
 
     return true;
 }
-
+#endif
 bool is_valid_ed25519_key(const unsigned char* key)
 {
     const char* msg = "attack at dawn!";

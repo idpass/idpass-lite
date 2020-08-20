@@ -26,33 +26,43 @@
 class CCertificate
 {
 public:
-    api::Certificate value;
+    //api::Certificate value;
+
+    std::vector<unsigned char> m_pk;
+    std::vector<unsigned char> m_sk;
+    std::vector<unsigned char> m_signature;
+    std::vector<unsigned char> m_issuerkey;
 
 public:
+    void clear()
+    {
+        m_sk.clear();
+        m_signature.clear();
+        m_issuerkey.clear();
+        m_pk.clear();
+    }
+
     void setPublicKey(unsigned char* key, int len) 
     {
         if (key == nullptr || len != 32) {
             throw std::logic_error("cert pubkey init error");
         }
 
-        value.Clear();
-        value.set_pubkey(key, len);
-    }
+        clear();
 
-    bool hasPrivateKey()
-    {
-        return value.privkey().size() > 0;
+        m_pk.resize(32);
+        std::memcpy(m_pk.data(), key, len);
     }
 
     CCertificate* getIssuer(std::vector<CCertificate>& chain,
                             std::vector<CCertificate>& rootcerts)
     {
-        const char* pubkey = this->value.issuerkey().data();
+        unsigned char* pubkey = this->m_issuerkey.data();
 
         // first search into certchain list
         std::vector<CCertificate>::iterator it = std::find_if(
             chain.begin(), chain.end(), [&pubkey](const CCertificate& c) {
-                if (std::memcmp(c.value.pubkey().data(), pubkey, 32) == 0)
+                if (std::memcmp(c.m_pk.data(), pubkey, 32) == 0)
                     return true;
                 return false;
             });
@@ -66,7 +76,7 @@ public:
             rootcerts.begin(),
             rootcerts.end(),
             [&pubkey](const CCertificate& c) {
-                if (std::memcmp(c.value.pubkey().data(), pubkey, 32) == 0)
+                if (std::memcmp(c.m_pk.data(), pubkey, 32) == 0)
                     return true;
                 return false;
             });
@@ -78,53 +88,88 @@ public:
         return nullptr;
     }
 
-    api::Certificate getValue(bool flag = false)
+    api::Certificate getValue()
     {
-        api::Certificate c;//
-        c.CopyFrom(value);
-        if (!flag) {
-            c.clear_privkey();
-        }
+        api::Certificate c;
+
+        c.set_pubkey(m_pk.data(), m_pk.size());
+        c.set_signature(m_signature.data(), m_signature.size());
+        c.set_issuerkey(m_issuerkey.data(), m_issuerkey.size());
+
         return c;
     }
 
     bool Sign(CCertificate& cer)
     {
-        if (value.privkey().size() != 64) {
-            /* a certificate a without private key cannot sign another
-             * certificate */
+        if (m_sk.size() != 64)
             return false;
-        }
 
         int buf_len = 0;
         unsigned char* buf = idpass_lite_generate_child_certificate(
-            reinterpret_cast<const unsigned char*>(value.privkey().data()),
+            m_sk.data(),
             64,
-            reinterpret_cast<const unsigned char*>(cer.value.pubkey().data()),
+            cer.m_pk.data(),
             32,
             &buf_len);
 
-        api::Certificate ccc;
-        ccc.ParseFromArray(buf, buf_len);
+        api::Certificate retval;
+
+        if (!buf || !retval.ParseFromArray(buf, buf_len)) {
+            idpass_lite_freemem(nullptr, buf);
+            return false;        
+        }
 
         idpass_lite_freemem(nullptr, buf);
 
-        cer.value.set_signature(ccc.signature().data(), ccc.signature().size());
-        cer.value.set_issuerkey(ccc.issuerkey().data(), ccc.issuerkey().size());
+        cer.m_signature.resize(retval.signature().size());
+        std::memcpy(cer.m_signature.data(),
+                    retval.signature().data(),
+                    retval.signature().size());
+
+        cer.m_issuerkey.resize(retval.issuerkey().size());
+        std::memcpy(cer.m_issuerkey.data(), 
+            retval.issuerkey().data(), retval.issuerkey().size());
 
         return true;
     }
 
     CCertificate()
     {
-        unsigned char privkey[64];
-        idpass_lite_generate_secret_signature_key(privkey, 64);
+        m_pk.resize(32);
+        m_sk.resize(64);
+
+        if (0
+            != idpass_lite_generate_secret_signature_keypair(
+                m_pk.data(), 32, m_sk.data(), 64)) {
+            throw std::logic_error("cert init error");
+        }
 
         int buf_len = 0;
         unsigned char* buf
-            = idpass_lite_generate_root_certificate(privkey, 64, &buf_len);
-        value.ParseFromArray(buf, buf_len);
+            = idpass_lite_generate_root_certificate(m_sk.data(), 64, &buf_len);
+
+        api::Certificate retval;
+        bool flag = retval.ParseFromArray(buf, buf_len);
         idpass_lite_freemem(nullptr, buf);
+
+        if (!flag) {
+            throw std::logic_error("cert init error");
+        }
+
+        m_signature.resize(retval.signature().size());
+        std::memcpy(m_signature.data(),
+                    retval.signature().data(),
+                    retval.signature().size());
+
+        m_issuerkey.resize(retval.issuerkey().size());
+        std::memcpy(m_issuerkey.data(),
+                    retval.issuerkey().data(),
+                    retval.issuerkey().size());
+    }
+
+    void sign_with_master(unsigned char* sk, int sklen)
+    {
+
     }
 
     CCertificate(unsigned char* skpk, int skpk_len)
@@ -132,6 +177,7 @@ public:
         if (skpk == nullptr || skpk_len != 64) {
             throw std::logic_error("cert init error");
         }
+
         if (skpk_len == 64) {
             unsigned char privkey[64];
             std::memcpy(privkey, skpk, skpk_len);
@@ -139,7 +185,22 @@ public:
             int len = 0;
             unsigned char* buffer
                 = idpass_lite_generate_root_certificate(privkey, 64, &len);
-            value.ParseFromArray(buffer, len);
+
+            api::Certificate retval;
+
+            if (!buffer || !retval.ParseFromArray(buffer, len)) {
+                throw std::logic_error("cert init error");
+            }
+
+            m_pk.resize(retval.pubkey().size());
+            std::memcpy(m_pk.data(), retval.pubkey().data(), m_pk.size());
+
+            m_issuerkey.resize(retval.issuerkey().size());
+            std::memcpy(m_issuerkey.data(), retval.issuerkey().data(), m_issuerkey.size());
+
+            m_signature.resize(retval.signature().size());
+            std::memcpy(m_signature.data(), retval.signature().data(), m_signature.size());
+
         } else {
              
         }
@@ -147,89 +208,83 @@ public:
 
     bool parseFrom(unsigned char* buf, int buf_len)
     {
+        api::Certificate value;
+
         if (!value.ParseFromArray(buf, buf_len)) {
             return false;
         }
+
+        clear();
+
+        m_pk.resize(value.pubkey().size());
+        m_signature.resize(value.signature().size());
+        m_issuerkey.resize(value.issuerkey().size());
+
+        std::memcpy(m_pk.data(), value.pubkey().data(), value.pubkey().size());
+        std::memcpy(m_signature.data(), value.signature().data(), value.signature().size());
+        std::memcpy(m_issuerkey.data(), value.issuerkey().data(), value.issuerkey().size());
 
         return true;
     }
 
     CCertificate(const idpass::Certificate& c)
     {
-        unsigned char pubkey[32];
-        std::memcpy(pubkey, c.pubkey().data(), 32);
+        if (crypto_sign_verify_detached(
+                reinterpret_cast<const unsigned char*>(c.signature().data()),
+                reinterpret_cast<const unsigned char*>(c.pubkey().data()),
+                crypto_sign_PUBLICKEYBYTES,
+                reinterpret_cast<const unsigned char*>(c.issuerkey().data()))
+            != 0) {
+            throw std::logic_error("certificate anomaly error");
+        }
+
+        m_pk.resize(c.pubkey().size());
+        std::memcpy(m_pk.data(), c.pubkey().data(), c.pubkey().size());
+
+        m_signature.resize(c.signature().size());
+        std::memcpy(m_signature.data(), c.signature().data(), c.signature().size());
+
+        m_issuerkey.resize(c.issuerkey().size());
+        std::memcpy(m_issuerkey.data(), c.issuerkey().data(), c.issuerkey().size());
 
         int siglen = c.signature().size();
         int issuerkeylen = c.issuerkey().size();
         const char* sigbuf = c.signature().data();
 
-        if (crypto_sign_verify_detached(
-                reinterpret_cast<const unsigned char*>(c.signature().data()),
-                pubkey,
-                crypto_sign_PUBLICKEYBYTES,
-                reinterpret_cast<const unsigned char*>(c.issuerkey().data()))
-            != 0) {
-            throw std::logic_error("certificate anomaly error");
-        }
-
         api::Certificate tmp;
-        tmp.clear_privkey();
-        tmp.set_pubkey(pubkey, 32);
+        tmp.set_pubkey(m_pk.data(), 32);
         tmp.set_signature(c.signature().data(), 64);
         tmp.set_issuerkey(c.issuerkey().data(), 32);
-
-        value.CopyFrom(tmp);
-        //value = tmp;
     }
 
     CCertificate(const api::Certificate& c)
     {
-        unsigned char pubkey[32];
-
-        if (c.privkey().size() == 64) {
-            crypto_sign_ed25519_sk_to_pk(
-                pubkey,
-                reinterpret_cast<const unsigned char*>(c.privkey().data()));
-            if (std::memcmp(pubkey, c.pubkey().data(), 32) != 0) {
-                throw std::logic_error("certificate anomaly error");
-            }
-        } else {
-            std::memcpy(pubkey, c.pubkey().data(), 32);
-        }
-
         if (crypto_sign_verify_detached(
                 reinterpret_cast<const unsigned char*>(c.signature().data()),
-                pubkey,
+                reinterpret_cast<const unsigned char*>(c.pubkey().data()),
                 crypto_sign_PUBLICKEYBYTES,
                 reinterpret_cast<const unsigned char*>(c.issuerkey().data()))
             != 0) {
             throw std::logic_error("certificate anomaly error");
         }
 
-        value.CopyFrom(c);
+        m_pk.resize(c.pubkey().size());
+        std::memcpy(m_pk.data(), c.pubkey().data(), c.pubkey().size());
+
+        m_signature.resize(c.signature().size());
+        std::memcpy(m_signature.data(), c.signature().data(), c.signature().size());
+
+        m_issuerkey.resize(c.issuerkey().size());
+        std::memcpy(m_issuerkey.data(), c.issuerkey().data(), c.issuerkey().size());
     }
 
     bool hasValidSignature()
     {
-        unsigned char pubkey[32];
-
-        if (value.privkey().size() == 64) {
-            crypto_sign_ed25519_sk_to_pk(
-                pubkey,
-                reinterpret_cast<const unsigned char*>(value.privkey().data()));
-            if (std::memcmp(pubkey, value.pubkey().data(), 32) != 0) {
-                return false;
-            }
-        } else {
-            std::memcpy(pubkey, value.pubkey().data(), 32);
-        }
-
-        if (crypto_sign_verify_detached(reinterpret_cast<const unsigned char*>(
-                                            value.signature().data()),
-                                        pubkey,
-                                        crypto_sign_PUBLICKEYBYTES,
-                                        reinterpret_cast<const unsigned char*>(
-                                            value.issuerkey().data()))
+        if (crypto_sign_verify_detached(
+            m_signature.data(),
+                m_pk.data(),
+                crypto_sign_PUBLICKEYBYTES,
+                m_issuerkey.data())
             != 0) {
             return false;
         }
@@ -239,7 +294,7 @@ public:
 
     bool isSelfSigned()
     {
-        return std::memcmp(value.pubkey().data(), value.issuerkey().data(), 32)
+        return std::memcmp(m_pk.data(), m_issuerkey.data(), 32)
                == 0;
     }
 };

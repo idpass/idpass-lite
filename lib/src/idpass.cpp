@@ -189,8 +189,8 @@ struct Context {
             return std::find_if(m_rootCerts.begin(),
                                 m_rootCerts.end(),
                                 [&c](const CCertificate& m) -> bool {
-                                    return std::memcmp(m.value.pubkey().data(),
-                                                       c->value.pubkey().data(),
+                                    return std::memcmp(m.m_pk.data(),
+                                                       c->m_pk.data(),
                                                        32)
                                            == 0;
                                 })
@@ -202,19 +202,19 @@ struct Context {
         }
 
         CCertificate* pCert = &chain.back();
-        const char* startkey = pCert->value.pubkey().data();
+        unsigned char* startkey = pCert->m_pk.data();
 
         while (pCert != nullptr) {
             if (pCert->hasValidSignature()) {
                 if (helper::isRevoked(
-                        REVOKED_KEYS, pCert->value.pubkey().data(), 32)) {
+                        REVOKED_KEYS, pCert->m_pk.data(), 32)) {
                     return false;
                 }
                 if (!pCert->isSelfSigned()) {
                     pCert = pCert->getIssuer(chain, m_rootCerts);
                     if (pCert == nullptr
                         || std::memcmp(
-                               pCert->value.pubkey().data(), startkey, 32)
+                               pCert->m_pk.data(), startkey, 32)
                                == 0) {
                         return false;
                     }
@@ -308,15 +308,33 @@ extern "C" {
 /**
 * Verifies the fullcard's attached certificate against the root
 * certificate configured in the context. Returns 0 if the
-* card has no attached certificates. Returns greater than 0 if
-* the attached certificates is validated against a root certificate.
-* Returns -1 if the attached certificates fails to validate.
+* card has no attached certificates, otherwise it returns 
+* the count of validated certificates. 
+* Returns < 0 if the attached certificates fails to validate, or
+* the card signature does not verify.
 *
 * @param self Calling context
 * @param certs_buf The fullcard bytes content
 * @param certs_buf_len The bytes length of certs_buf
 @ @return int Either -1, 0, or > 0
 */
+
+// The idpass_lite_verify_certificate function returns either
+// < 0, 0 or > 0 integer.
+//
+// The 0 means the QR code ID card has no attached certificates
+// but nevertheless the card's signature is verified against
+// the context's ed25519 private key
+// Any error conditions either in certificate validation
+// or QR code ID card signature verification shall return
+// negative number. In summary:
+//
+// 0    means the card has no attached certificate and
+//      the signature is verified against caller context
+// 2    means the card has 2 attached certificates and the signature
+//      is verified against the caller context(or leaf cert)
+// < 0  means an error either in certificate validation or
+//      in signature verification
 
 MODULE_API
 int idpass_lite_verify_certificate(void* self,
@@ -331,18 +349,92 @@ int idpass_lite_verify_certificate(void* self,
 
     idpass::IDPassCards cards;
     if (!cards.ParseFromArray(fullcard, fullcard_len)) {
-        return -1;
+        return -2;
     }
 
     int count = cards.certificates_size();
     if (count > 0) {
         if (!context->verify_chain(cards)) {
-            return -1;
+            return -3;
         }
     }
 
+    // check if leaf cert signature is valid against blob
+    idpass::PublicSignedIDPassCard pubCard = cards.publiccard();
+    std::vector<unsigned char> pubcardbuf(pubCard.ByteSizeLong());
+    pubCard.SerializeToArray(pubcardbuf.data(), pubcardbuf.size());
+
+    std::vector<unsigned char> card_blob;
+
+    std::copy(cards.encryptedcard().begin(),
+              cards.encryptedcard().end(),
+              std::back_inserter(card_blob));
+
+    std::copy(pubcardbuf.begin(),
+              pubcardbuf.end(),
+              std::back_inserter(card_blob));
+
+    if (crypto_sign_verify_detached(
+            (const unsigned char*)cards.signature().data(),
+            card_blob.data(),
+            card_blob.size(),
+            (const unsigned char*)cards.signerpublickey().data())
+    != 0) 
+    {
+        return -5;
+    } 
+
     return count;
 }
+
+MODULE_API
+int idpass_lite_verify_card_signature(void* self,
+                                      unsigned char* fullcard,
+                                      int fullcard_len)
+{
+    if (self == nullptr || fullcard == nullptr
+        ||fullcard_len <= 0 ) {
+        return 1;
+    }
+    Context* context = (Context*)self;
+
+    idpass::IDPassCards fullCard;
+
+    if (!fullCard.ParseFromArray(fullcard, fullcard_len)) {
+        return 2;
+    }
+
+    idpass::PublicSignedIDPassCard pubCard = fullCard.publiccard();
+    std::vector<unsigned char> pubcardbuf(pubCard.ByteSizeLong());
+    pubCard.SerializeToArray(pubcardbuf.data(), pubcardbuf.size());
+
+    std::vector<unsigned char> card_blob;
+
+    std::copy(fullCard.encryptedcard().begin(),
+              fullCard.encryptedcard().end(),
+              std::back_inserter(card_blob));
+
+    std::copy(pubcardbuf.begin(),
+              pubcardbuf.end(),
+              std::back_inserter(card_blob));
+
+    if (crypto_sign_verify_detached(
+            (const unsigned char*)fullCard.signature().data(),
+            card_blob.data(),
+            card_blob.size(),
+            (const unsigned char*)fullCard.signerpublickey().data())
+    != 0) 
+    {
+        return 3;
+    } 
+
+    if (!context->verify_chain(fullCard)) {
+        return 1;
+    }
+
+    return 0;
+}
+
 
 /**
 * Adds intermediate certificates into the calling context.
@@ -451,9 +543,9 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
             if (!cer.isSelfSigned()) {
                 return nullptr;
             }
-            if (!cer.hasPrivateKey()) {
+            /*if (!cer.hasPrivateKey()) {
                 return nullptr;
-            }
+            }*/
             context->m_rootCerts.push_back(cer);
         }
     } catch (std::exception& e) {
@@ -542,7 +634,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     int n = context->m_intermedCerts.size();
     if (n > 0) {
         CCertificate cc = context->m_intermedCerts.back();
-        std::memcpy(card_signerPublicKey, cc.value.pubkey().data(), 32);
+        std::memcpy(card_signerPublicKey, cc.m_pk.data(), 32);
     } else {
         crypto_sign_ed25519_sk_to_pk(
             card_signerPublicKey,
@@ -659,28 +751,28 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     ////////////////////////////////////////////////////////////
     // concatinate privateRegion and publicRegion (in this order)
     // into a blob and then signed this blob
-    std::vector<unsigned char> blob_privateRegion;
+    //std::vector<unsigned char> blob_privateRegion;
     std::vector<unsigned char> blob_publicRegion;
-    std::vector<unsigned char> priv_pub_blob;
-    unsigned char priv_pub_blob_signature[crypto_sign_BYTES];
+    std::vector<unsigned char> card_blob;
+    unsigned char card_blob_sig[crypto_sign_BYTES];
 
-    helper::serialize(privateRegion, blob_privateRegion);
+    //helper::serialize(privateRegion, blob_privateRegion);
     helper::serialize(publicRegion, blob_publicRegion);
-    std::copy(blob_privateRegion.data(),
-              blob_privateRegion.data() + blob_privateRegion.size(),
-              std::back_inserter(priv_pub_blob));
-    std::copy(blob_publicRegion.data(),
-              blob_publicRegion.data() + blob_publicRegion.size(),
-              std::back_inserter(priv_pub_blob));
-    // context->m_cryptoKeys.sigkey().data() ---> const char*
-    helper::sign_object(priv_pub_blob,
+    std::copy(privateRegionEncrypted.begin(),
+              privateRegionEncrypted.end(),
+              std::back_inserter(card_blob));
+    std::copy(blob_publicRegion.begin(),
+              blob_publicRegion.end(),
+              std::back_inserter(card_blob));
+
+    helper::sign_object(card_blob,
                         context->m_cryptoKeys.signaturekey().data(),
-                        priv_pub_blob_signature);
+                        card_blob_sig);
 
     ///////////////////////////////
     // assemble final output object
     idpass::IDPassCards idpassCards;
-    idpassCards.set_signature(priv_pub_blob_signature, crypto_sign_BYTES);
+    idpassCards.set_signature(card_blob_sig, crypto_sign_BYTES);
     idpassCards.set_signerpublickey(card_signerPublicKey,
                                     sizeof card_signerPublicKey);
     idpassCards.set_encryptedcard(privateRegionEncrypted.data(),
@@ -695,9 +787,9 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     if (n > 0) {
         for (auto& cer : context->m_intermedCerts) {
             idpass::Certificate* c = idpassCards.add_certificates();
-            c->set_pubkey(cer.value.pubkey().data(), 32);
-            c->set_signature(cer.value.signature().data(), 64);
-            c->set_issuerkey(cer.value.issuerkey().data(), 32);
+            c->set_pubkey(cer.m_pk.data(), 32);
+            c->set_signature(cer.m_signature.data(), 64);
+            c->set_issuerkey(cer.m_issuerkey.data(), 32);
             // TODO add check like before?
         }
     }
@@ -1026,16 +1118,15 @@ int idpass_lite_generate_encryption_key(unsigned char* key, int key_len)
 */
 
 MODULE_API
-int idpass_lite_generate_secret_signature_key(unsigned char* sig_skpk,
-                                              int sig_skpk_len)
+int idpass_lite_generate_secret_signature_keypair(unsigned char* pk, 
+    int pklen, unsigned char* sk, int sklen)
 {
-    if (sig_skpk_len != crypto_sign_SECRETKEYBYTES || sig_skpk == nullptr) {
+    if (sklen != crypto_sign_SECRETKEYBYTES || sk == nullptr 
+        || pklen != crypto_sign_PUBLICKEYBYTES || pk == nullptr) {
         return 1;
     }
 
-    unsigned char sig_pk[crypto_sign_PUBLICKEYBYTES];
-    crypto_sign_keypair(sig_pk, sig_skpk);
-    return 0;
+    return crypto_sign_keypair(pk, sk);
 }
 
 /**
@@ -1613,7 +1704,7 @@ unsigned char* idpass_lite_generate_root_certificate(unsigned char* skpk,
     }
 
     api::Certificate rootCERT;
-    rootCERT.set_privkey(skpk, skpk_len);
+    //rootCERT.set_privkey(skpk, skpk_len);
     rootCERT.set_pubkey(pubkey, crypto_sign_PUBLICKEYBYTES);
     rootCERT.set_signature(signature, crypto_sign_BYTES);
     rootCERT.set_issuerkey(pubkey, crypto_sign_PUBLICKEYBYTES);

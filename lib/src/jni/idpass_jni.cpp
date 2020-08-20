@@ -77,7 +77,8 @@ jbyteArray generate_encryption_key(JNIEnv *env, jclass clazz)
 jbyteArray generate_secret_signature_key(JNIEnv *env, jclass clazz)
 {
     unsigned char buf[SECRET_SIGNATURE_KEY_LEN];
-    idpass_lite_generate_secret_signature_key(buf, sizeof buf);
+    unsigned char buf2[32];
+    idpass_lite_generate_secret_signature_keypair(buf2, 32, buf, 64);
     jbyteArray key = env->NewByteArray(SECRET_SIGNATURE_KEY_LEN);
     env->SetByteArrayRegion(
         key, 0, SECRET_SIGNATURE_KEY_LEN, (const jbyte *)buf);
@@ -695,6 +696,29 @@ jbyteArray uio(JNIEnv *env, jobject thiz, jlong context, jint typ)
     return ecard; 
 }
 
+jboolean verify_card_signature(JNIEnv *env,
+                               jobject thiz,
+                               jlong context,
+                               jbyteArray fullcard)
+{
+    void *ctx = reinterpret_cast<void *>(context);
+    if (!ctx) {
+        return JNI_FALSE;
+    }
+
+    jbyte *fullcard_buf = env->GetByteArrayElements(fullcard, 0);
+    jsize fullcard_buf_len = env->GetArrayLength(fullcard);
+
+    if (0
+        != idpass_lite_verify_card_signature(
+            ctx, (unsigned char*)fullcard_buf, fullcard_buf_len)) {
+        return JNI_FALSE;
+    }
+
+    env->ReleaseByteArrayElements(fullcard, fullcard_buf, 0);
+    return JNI_TRUE;
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl", (char *)"(J[B)[B", (void *)ioctl},
 
@@ -759,10 +783,14 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"add_revoked_key", (char *)"([B)V", (void *)add_revoked_key},
 
     {(char *)"add_certificates", (char *)"(J[B)Z", (void *)add_certificates},
+
     {(char *)"verify_card_certificate",
      (char *)"(J[B)I",
      (void *)verify_card_certificate},
 
+    {(char *)"verify_card_signature",
+     (char *)"(J[B)Z",
+     (void *)verify_card_signature},
 };
 
 int IDPASS_JNI_TLEN = sizeof IDPASS_JNI / sizeof IDPASS_JNI[0];
