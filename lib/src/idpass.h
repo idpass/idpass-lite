@@ -157,16 +157,16 @@ void idpass_lite_freemem(void* self, void* buf);
 /**
 * The main initilizationfunction of the library. 
 *
-* @param cryptokeys_buf The cryptographic key settings for the context.
-* @param cryptokeys_buf_len Length of bytes of cryptokeys_buf
+* @param keyset_buf The cryptographic key settings for the context.
+* @param keyset_buf_len Length of bytes of keyset_buf
 * @param rootcerts_buf The root certificates for the context.
 * @param rootcerts_buf_len The length of bytes of rootcerts_buf
 * @return void* Returns the library context. 
 */
 
 MODULE_API
-void* idpass_lite_init(unsigned char* cryptokeys_buf,
-                       int cryptokeys_buf_len,
+void* idpass_lite_init(unsigned char* keyset_buf,
+                       int keyset_buf_len,
                        unsigned char* rootcerts_buf,
                        int rootcerts_buf_len);
 

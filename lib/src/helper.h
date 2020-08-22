@@ -27,6 +27,7 @@
 #include <map>
 #include <sstream>
 #include <vector>
+#include <array>
 
 namespace helper
 {
@@ -42,7 +43,7 @@ float euclidean_diff(float face1[], float face2[], int n);
 
 bool decryptCard(unsigned char* full_card_buf,
                  int full_card_buf_len,
-                 api::KeySet& cryptoKeys,
+                 api::KeySet& keyset,
                  idpass::IDPassCard& card,
                  idpass::IDPassCards& fullCard);
 
@@ -60,7 +61,7 @@ std::vector<float> get128f(unsigned char* facearray, int facearray_len);
 double vectorDistance(float* first, float* last, float* first2);
 
 std::vector<char> readfile(const char* filename);
-bool isRevoked(const char* filename, unsigned char* key, int key_len);
+bool isRevoked(std::list<std::array<unsigned char, 32>>& rkey, unsigned char* key, int key_len);
 bool sign_object(idpass::IDPassCard& object,
                  unsigned char* key,
                  unsigned char* sig);

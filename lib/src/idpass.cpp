@@ -41,6 +41,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -65,6 +66,7 @@ extern int IDPASS_JNI_TLEN;
 char dxtracker[] = DXTRACKER;
 
 std::mutex g_mutex;
+std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> g_revokedKeys;
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -112,13 +114,7 @@ struct Context {
     std::mutex mtx;
     std::vector<std::vector<unsigned char>> m;
 
-    std::array<unsigned char, crypto_aead_chacha20poly1305_IETF_KEYBYTES>
-        encryptionKey; // 32
-    std::array<unsigned char, crypto_sign_SECRETKEYBYTES> signatureKey; // 64
-    std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>>
-        verificationKeys; // 32n
-
-    api::KeySet m_cryptoKeys;
+    api::KeySet m_keyset;
 
     std::vector<CCertificate> m_rootCerts;
     std::vector<CCertificate> m_intermedCerts;
@@ -206,8 +202,7 @@ struct Context {
 
         while (pCert != nullptr) {
             if (pCert->hasValidSignature()) {
-                if (helper::isRevoked(
-                        REVOKED_KEYS, pCert->m_pk.data(), 32)) {
+                if (helper::isRevoked(g_revokedKeys, pCert->m_pk.data(), 32)) {
                     return false;
                 }
                 if (!pCert->isSelfSigned()) {
@@ -228,8 +223,11 @@ struct Context {
                 return false;
             }
         }
-
-        return true;
+        // Choosing the more secure option such that
+        // no certificate claim is asserted if either the 
+        // card or the reader has no attached or 
+        // configured certificate(s).
+        return false;
     }
 
     Context()
@@ -245,7 +243,6 @@ namespace M
 {
 std::mutex mtx;
 std::vector<Context*> context;
-
 std::mutex m_mtx;
 std::vector<std::vector<unsigned char>> m_m;
 
@@ -383,6 +380,32 @@ int idpass_lite_verify_certificate(void* self,
     {
         return -5;
     } 
+    /*
+
+    bool found = false;
+    for (auto& pub : context->m_keyset.verificationkeys()) {
+        if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
+            if (std::memcmp(pub.val().data(), cards.signerpublickey().data(), 32) == 0) {
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        return -6;
+    }
+    */
+
+    // If the card was issued with no attached certificate chain
+    // then count is 0. And the card signature is still verified
+    // against the reader's keyset. The interpretation of this
+    // is relegated to Java. I find that the return values of:
+    // <0, 0, >0 is the most compact return value to convey
+    // the information.
+    // 
+    // The idpass_lite_verify_certificate is to be merged
+    // into idpass_lite_verify_card_signature soon.
 
     return count;
 }
@@ -428,10 +451,42 @@ int idpass_lite_verify_card_signature(void* self,
         return 3;
     } 
 
+    // The card signature verifies alright, but we still need to
+    // check if the card's signer public key is in our context
+    // verification list, ie Context::m_keyset::verificationKeys
+    bool found = false;
+    for (auto& pub : context->m_keyset.verificationkeys()) {
+        if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
+            if (std::memcmp(pub.val().data(), fullCard.signerpublickey().data(), 32) == 0) {
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        return 4;
+    }
+    
+
+#if 0
+    // Temporarily comment out to clearly sort out the Java API.
+    // My plan is to combine the verify_card_certificate and
+    // verify_card_signature into the singular JNI function
+    // verify_card_signature with additional 
+    // boolean skipCertificateVerification parameter.
+    // Rationale is that the verify_card_signature is the superset
+    // wherein the verify_card_certificate is a subset. The
+    // verify_card_certificate implies the claim of its leaf
+    // cert about the card signature, without
+    // which, the entire chain is meaningless even if the chain validates
+    // to a root anchor. Hence, verify_card_signature is the root
+    // essence and the additional boolean flag is used to further
+    // check the card's certificate chain.
     if (!context->verify_chain(fullCard)) {
         return 1;
     }
-
+#endif
     return 0;
 }
 
@@ -492,20 +547,20 @@ int idpass_lite_add_certificates(void* self,
 /**
 * The main initilizationfunction of the library.
 *
-* @param cryptokeys_buf The cryptographic key settings for the context.
-* @param cryptokeys_buf_len Length of bytes of cryptokeys_buf
+* @param keyset_buf The cryptographic key settings for the context.
+* @param keyset_buf_len Length of bytes of keyset_buf
 * @param rootcerts_buf The root certificates for the context.
 * @param rootcerts_buf_len The length of bytes of rootcerts_buf
 * @return void* Returns the library context.
 */
 
 MODULE_API
-void* idpass_lite_init(unsigned char* cryptokeys_buf,
-                       int cryptokeys_buf_len,
+void* idpass_lite_init(unsigned char* keyset_buf,
+                       int keyset_buf_len,
                        unsigned char* rootcerts_buf,
                        int rootcerts_buf_len)
 {
-    if (!cryptokeys_buf || cryptokeys_buf_len <= 0
+    if (!keyset_buf || keyset_buf_len <= 0
         ) {
         LOGI("invalid params");
         return nullptr;
@@ -514,7 +569,7 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
     api::KeySet cryptoKeys;
     api::Certificates rootCerts;
 
-    if (!cryptoKeys.ParseFromArray(cryptokeys_buf, cryptokeys_buf_len)
+    if (!cryptoKeys.ParseFromArray(keyset_buf, keyset_buf_len)
         ) {
         LOGI("invalid params deserialization");
         return nullptr;
@@ -552,7 +607,7 @@ void* idpass_lite_init(unsigned char* cryptokeys_buf,
         return nullptr;
     }
 
-    context->m_cryptoKeys = cryptoKeys;
+    context->m_keyset = cryptoKeys;
 
     context->facediff_half = DEFAULT_FACEDIFF_HALF;
     context->facediff_full = DEFAULT_FACEDIFF_FULL;
@@ -639,7 +694,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
         crypto_sign_ed25519_sk_to_pk(
             card_signerPublicKey,
             reinterpret_cast<const unsigned char*>(
-                context->m_cryptoKeys.signaturekey().data()));
+                context->m_keyset.signaturekey().data()));
     }
 
     //////////////////////////
@@ -745,7 +800,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
 
     privateRegionEncrypted_len
         = helper::encrypt_object(privateRegion,
-                                 context->m_cryptoKeys.encryptionkey().data(),
+                                 context->m_keyset.encryptionkey().data(),
                                  privateRegionEncrypted);
 
     ////////////////////////////////////////////////////////////
@@ -766,7 +821,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
               std::back_inserter(card_blob));
 
     helper::sign_object(card_blob,
-                        context->m_cryptoKeys.signaturekey().data(),
+                        context->m_keyset.signaturekey().data(),
                         card_blob_sig);
 
     ///////////////////////////////
@@ -845,7 +900,7 @@ idpass_lite_verify_card_with_face(void* self,
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
-                             context->m_cryptoKeys,
+                             context->m_keyset,
                              card,
                              cards)) {
         return nullptr;
@@ -905,7 +960,7 @@ idpass_lite_verify_card_with_pin(void* self,
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
-                             context->m_cryptoKeys,
+                             context->m_keyset,
                              card,
                              cards)) {
         return nullptr;
@@ -969,7 +1024,7 @@ idpass_lite_encrypt_with_card(void* self,
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
-                             context->m_cryptoKeys,
+                             context->m_keyset,
                              card,
                              cards)) {
         return nullptr;
@@ -1253,7 +1308,7 @@ idpass_lite_sign_with_card(void* self,
 
     if (!helper::decryptCard(encrypted_card,
                              encrypted_card_len,
-                             context->m_cryptoKeys,
+                             context->m_keyset,
                              card,
                              cards)) {
         return 2;
@@ -1789,11 +1844,10 @@ int idpass_lite_add_revoked_key(unsigned char* pubkey, int pubkey_len)
     }
 
     std::lock_guard<std::mutex> guard(g_mutex);
-    struct stat st;
-    std::ofstream outfile(REVOKED_KEYS,
-                          std::ios::out | std::ios::binary | std::ios::app);
-    outfile.write(reinterpret_cast<const char*>(pubkey), pubkey_len);
-    outfile.close();
+
+    std::array<unsigned char, 32> revoked_key;
+    std::copy(pubkey, pubkey + pubkey_len, std::begin(revoked_key));
+    g_revokedKeys.push_back(revoked_key);
 
     return 0;
 }

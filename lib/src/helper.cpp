@@ -31,6 +31,7 @@
 #include <fstream>
 #include <ios>
 #include <list>
+#include <array>
 #include <map>
 #include <sstream>
 #include <vector>
@@ -97,7 +98,7 @@ double computeFaceDiff(char* photo,
 
 bool decryptCard(unsigned char* full_card_buf,
                  int full_card_buf_len,
-                 api::KeySet& cryptoKeys,
+                 api::KeySet& keyset,
                  idpass::IDPassCard& card,
                  idpass::IDPassCards& fullCard)
 {
@@ -143,7 +144,7 @@ bool decryptCard(unsigned char* full_card_buf,
               std::begin(signerPublicKey));
 
     bool found = false;
-    for (auto& pub : cryptoKeys.verificationkeys()) {
+    for (auto& pub : keyset.verificationkeys()) {
         if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
             if (std::memcmp(pub.val().data(), pubkey, 32) == 0) {
                 found = true;
@@ -178,7 +179,7 @@ bool decryptCard(unsigned char* full_card_buf,
             NULL,
             0,
             nonce,
-            reinterpret_cast<const unsigned char*>(cryptoKeys.encryptionkey().data()))
+            reinterpret_cast<const unsigned char*>(keyset.encryptionkey().data()))
         != 0) {
         LOGI("decrypt error");
         delete[] privateRegionBuf;
@@ -196,37 +197,20 @@ bool decryptCard(unsigned char* full_card_buf,
     return flag;
 }
 
-bool isRevoked(const char* filename, unsigned char* key, int key_len)
+bool isRevoked(std::list<std::array<unsigned char,32>>& rkeys, unsigned char* key, int key_len)
 {
-    struct stat st;
-    if (stat(filename, &st) == 0) {
-        if (st.st_size % 32 != 0) {
-            throw std::runtime_error("revoked.keys malformed");
-            return false;
-        }
-        std::list<std::array<char, crypto_sign_PUBLICKEYBYTES>> revokedkeys;
-        std::array<char, crypto_sign_PUBLICKEYBYTES> rkey;
-        FILE* file = NULL;
-        size_t nread = 0;
-        file = fopen(filename, "rb");
-        if (file != NULL) {
-            while ((nread = fread(rkey.data(), 1, rkey.size(), file)) > 0) {
-                revokedkeys.push_back(rkey);
-            }
-            fclose(file);
-        } else {
-            throw std::runtime_error("revoked.keys open error");
-        }
+    std::array<char, crypto_sign_PUBLICKEYBYTES> rkey;
+    std::copy(key, key + key_len, std::begin(rkey));
 
-        std::copy(key, key + 32, std::begin(rkey));
+    std::list<std::array<unsigned char, 32>>::iterator it =
 
-        if (std::find(revokedkeys.begin(), revokedkeys.end(), rkey)
-            != revokedkeys.end()) {
-            return true;
-        }
-    }
+    std::find_if(rkeys.begin(),
+                 rkeys.end(),
+                 [&rkey](const std::array<unsigned char, 32>& x) {
+                     return std::memcmp(x.data(), rkey.data(), 32) == 0;
+                 });
 
-    return false;
+    return it != rkeys.end();
 }
 
 bool sign_object(std::vector<unsigned char>& blob,
