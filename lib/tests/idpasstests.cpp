@@ -175,7 +175,7 @@ TEST_F(TestCases, card_integrity_test)
     //      is verified against the caller context(or leaf cert)
     // < 0  means an error either in certificate validation or 
     //      in signature verification
-    ASSERT_EQ(cert_count, 0); 
+    ASSERT_TRUE(cert_count != 0); 
 
     CCertificate child0;
     CCertificate child1(m_sig, 64);

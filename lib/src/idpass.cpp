@@ -354,6 +354,8 @@ int idpass_lite_verify_certificate(void* self,
         if (!context->verify_chain(cards)) {
             return -3;
         }
+    } else {
+        return -6;
     }
 
     // check if leaf cert signature is valid against blob
