@@ -1088,23 +1088,23 @@ idpass_lite_encrypt_with_card(void* self,
 *
 * @param self
 * @param outlen The bytes length of decrypted text
-* @param ciphertext The input encrypted text
-* @param ciphertext_len bytes length of ciphertext
-* @param skpk The secret key for decryption
-* @param skpk_len The bytes length of skpk
+* @param fullcard The QR code ID content
+* @param fullcard_len bytes length of fullcard
+* @param encrypted The encrypted data
+* @param encrypted_len The bytes length of encrypted
 * @return The decrypted text
 */
 
 MODULE_API
 unsigned char* idpass_lite_decrypt_with_card(void* self,
                                              int* outlen,
+                                             unsigned char* fullcard,
+                                             int fullcard_len,
                                              unsigned char* encrypted,
-                                             int encrypted_len,
-                                             unsigned char* card_skpk,
-                                             int skpk_len)
+                                             int encrypted_len)
 {
-    if (self == nullptr || outlen == nullptr || encrypted == nullptr 
-        || encrypted_len <= 0 || card_skpk == nullptr || skpk_len != 64) {
+    if (self == nullptr || outlen == nullptr || fullcard == nullptr 
+        || fullcard_len <= 0 || encrypted == nullptr || encrypted_len <= 0) {
         return nullptr; 
     }
     Context* context = (Context*)self;
@@ -1113,6 +1113,24 @@ unsigned char* idpass_lite_decrypt_with_card(void* self,
     if (len <= 0) {
         return nullptr;
     }
+
+    idpass::IDPassCards cards;
+    idpass::IDPassCard card;
+
+    if (!helper::decryptCard(fullcard,
+                             fullcard_len,
+                             context->m_keyset,
+                             card,
+                             cards)) {
+        return nullptr;
+    }
+
+    if (!context->verify_chain(cards)) {
+        return nullptr;
+    }
+    unsigned char card_skpk[crypto_sign_SECRETKEYBYTES];
+    std::memcpy(
+        card_skpk, card.encryptionkey().data(), card.encryptionkey().size());
 
     unsigned char* plaintext = context->NewByteArray(len);
     unsigned char nonce[crypto_box_NONCEBYTES];

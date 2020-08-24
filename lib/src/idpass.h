@@ -360,24 +360,24 @@ int idpass_lite_face64dbuf(void* self,
                            unsigned char* buf);
 
 /**
-* Asymmetric decryption of a ciphertext using a provided secret key
-*
-* @param self
-* @param outlen The bytes length of decrypted text
-* @param ciphertext The input encrypted text
-* @param ciphertext_len bytes length of ciphertext
-* @param skpk The secret key for decryption
-* @param skpk_len The bytes length of skpk
-* @return The decrypted text
-*/
+ * Asymmetric decryption of a ciphertext using a provided secret key
+ *
+ * @param self
+ * @param outlen The bytes length of decrypted text
+ * @param fullcard The QR code ID content
+ * @param fullcard_len bytes length of fullcard
+ * @param encrypted The encrypted data
+ * @param encrypted_len The bytes length of encrypted
+ * @return The decrypted text
+ */
 
 MODULE_API
 unsigned char* idpass_lite_decrypt_with_card(void* self,
                                              int* outlen,
-                                             unsigned char* ciphertext,
-                                             int ciphertext_len,
-                                             unsigned char* skpk,
-                                             int skpk_len);
+                                             unsigned char* fullcard,
+                                             int fullcard_len,
+                                             unsigned char* encrypted,
+                                             int encrypted_len);
 
 /**
 * Generates an AEAD symmetric encryption key.

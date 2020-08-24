@@ -1252,9 +1252,9 @@ TEST_F(TestCases, test_card_encrypt_decrypt)
 
     int decrypted_len;
     unsigned char* decrypted = idpass_lite_decrypt_with_card(
-        ctx, &decrypted_len, encrypted, encrypted_len, 
-        (unsigned char*)card_skpk, 
-        64);
+        ctx, &decrypted_len, card, card_len, 
+        (unsigned char*)encrypted, 
+        encrypted_len);
 
     ASSERT_TRUE(decrypted != nullptr && decrypted_len > 1);
     ASSERT_TRUE(std::memcmp(msg, decrypted, strlen(msg)) == 0);

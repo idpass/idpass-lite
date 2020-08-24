@@ -500,8 +500,8 @@ compute_face_64d(JNIEnv *env, jobject thiz, jlong context, jbyteArray photo)
 jbyteArray decrypt_with_card(JNIEnv *env,
                              jobject thiz,
                              jlong context,
-                             jbyteArray ciphertext,
-                             jbyteArray skpk)
+                             jbyteArray fullcard,
+                             jbyteArray encrypted)
 {
     void *ctx = reinterpret_cast<void *>(context);
     if (!ctx) {
@@ -509,23 +509,23 @@ jbyteArray decrypt_with_card(JNIEnv *env,
         return env->NewByteArray(0);
     }
 
-    jbyte *ciphertext_buf = env->GetByteArrayElements(ciphertext, 0);
-    jsize ciphertext_buf_len = env->GetArrayLength(ciphertext);
-    jbyte *skpk_buf = env->GetByteArrayElements(skpk, 0);
-    jsize skpk_buf_len = env->GetArrayLength(skpk);
+    jbyte *fullcard_buf = env->GetByteArrayElements(fullcard, 0);
+    jsize fullcard_buf_len = env->GetArrayLength(fullcard);
+    jbyte *encrypted_buf = env->GetByteArrayElements(encrypted, 0);
+    jsize encrypted_buf_len = env->GetArrayLength(encrypted);
 
     int decrypted_len = 0;
     unsigned char *decrypted = idpass_lite_decrypt_with_card(
         ctx,
         &decrypted_len,
-        reinterpret_cast<unsigned char *>(ciphertext_buf),
-        ciphertext_buf_len,
-        reinterpret_cast<unsigned char *>(skpk_buf),
-        skpk_buf_len);
+        reinterpret_cast<unsigned char *>(fullcard_buf),
+        fullcard_buf_len,
+        reinterpret_cast<unsigned char *>(encrypted_buf),
+        encrypted_buf_len);
 
     if (!decrypted) {
-        env->ReleaseByteArrayElements(ciphertext, ciphertext_buf, 0);
-        env->ReleaseByteArrayElements(skpk, skpk_buf, 0);
+        env->ReleaseByteArrayElements(fullcard, fullcard_buf, 0);
+        env->ReleaseByteArrayElements(encrypted, encrypted_buf, 0);
         return env->NewByteArray(0);
     }
 
@@ -534,8 +534,8 @@ jbyteArray decrypt_with_card(JNIEnv *env,
         plaintext, 0, decrypted_len, (const jbyte *)decrypted);
     idpass_lite_freemem(ctx, decrypted);
 
-    env->ReleaseByteArrayElements(ciphertext, ciphertext_buf, 0);
-    env->ReleaseByteArrayElements(skpk, skpk_buf, 0);
+    env->ReleaseByteArrayElements(fullcard, fullcard_buf, 0);
+    env->ReleaseByteArrayElements(encrypted, encrypted_buf, 0);
 
     return plaintext;
 }
