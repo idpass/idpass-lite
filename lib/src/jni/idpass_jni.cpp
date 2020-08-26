@@ -64,26 +64,36 @@ jlong idpass_init(JNIEnv *env,
     }
 }
 
-jbyteArray generate_encryption_key(JNIEnv *env, jclass clazz)
+jboolean generate_encryption_key(JNIEnv *env, jclass clazz, jbyteArray enc)
 {
-    unsigned char buf[ENCRYPTION_KEY_LEN];
-    idpass_lite_generate_encryption_key(buf, sizeof buf);
-    jbyteArray key = env->NewByteArray(ENCRYPTION_KEY_LEN);
-    env->SetByteArrayRegion(key, 0, ENCRYPTION_KEY_LEN, (const jbyte *)buf);
+    jbyte* enc_buf = env->GetByteArrayElements(enc, 0);
+    jsize enc_buf_len = env->GetArrayLength(enc);
 
-    return key;
+    unsigned char buf[ENCRYPTION_KEY_LEN];
+    int status = idpass_lite_generate_encryption_key(
+        reinterpret_cast<unsigned char*>(enc_buf), enc_buf_len);
+
+    env->ReleaseByteArrayElements(enc, enc_buf, 0);
+    return status == 0 ? JNI_TRUE : JNI_FALSE;
 }
 
-jbyteArray generate_secret_signature_key(JNIEnv *env, jclass clazz)
+jboolean generate_secret_signature_keypair(JNIEnv *env, jclass clazz,
+    jbyteArray pk, jbyteArray sk)
 {
-    unsigned char buf[SECRET_SIGNATURE_KEY_LEN];
-    unsigned char buf2[32];
-    idpass_lite_generate_secret_signature_keypair(buf2, 32, buf, 64);
-    jbyteArray key = env->NewByteArray(SECRET_SIGNATURE_KEY_LEN);
-    env->SetByteArrayRegion(
-        key, 0, SECRET_SIGNATURE_KEY_LEN, (const jbyte *)buf);
+    jbyte* pk_buf = env->GetByteArrayElements(pk, 0);
+    jsize pk_buf_len = env->GetArrayLength(pk);
 
-    return key;
+    jbyte* sk_buf = env->GetByteArrayElements(sk, 0);
+    jsize sk_buf_len = env->GetArrayLength(sk);
+
+    int status = idpass_lite_generate_secret_signature_keypair(
+        reinterpret_cast<unsigned char*>(pk_buf), pk_buf_len,
+        reinterpret_cast<unsigned char*>(sk_buf), sk_buf_len);
+
+    env->ReleaseByteArrayElements(pk, pk_buf, 0);
+    env->ReleaseByteArrayElements(sk, sk_buf, 0);
+
+    return status == 0 ? JNI_TRUE : JNI_FALSE;
 }
 
 jfloat compare_face_template(JNIEnv *env,
@@ -751,12 +761,12 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"compute_face_64d", (char *)"(J[B)[B", (void *)compute_face_64d},
 
     {(char *)"generate_encryption_key",
-     (char *)"()[B",
+     (char *)"([B)Z",
      (void *)generate_encryption_key},
 
-    {(char *)"generate_secret_signature_key",
-     (char *)"()[B",
-     (void *)generate_secret_signature_key},
+    {(char *)"generate_secret_signature_keypair",
+     (char *)"([B[B)Z",
+     (void *)generate_secret_signature_keypair},
 
     {(char *)"card_decrypt", (char *)"(J[B[B)[B", (void *)card_decrypt},
 
