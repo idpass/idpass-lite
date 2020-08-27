@@ -53,8 +53,8 @@ public class IDPassReader {
     private native BitSet generate_qrcode_pixels(long ctx, byte[] data);
     private native byte[] compute_face_128d(long ctx, byte[] photo);
     private native byte[] compute_face_64d(long ctx, byte[] photo);
-    private static native byte[] generate_encryption_key(); // 32
-    private static native byte[] generate_secret_signature_key(); // 64
+    private static native boolean generate_encryption_key(byte[] enc); // 32
+    private static native boolean generate_secret_signature_keypair(byte[] pk, byte[] sk); // 64
     private native byte[] card_decrypt(long ctx, byte[] ecard, byte[] key);
     private native float compare_face_template(byte[] face1, byte[] face2);
     private static native byte[] generate_root_certificate(byte[] secretKey);
