@@ -206,7 +206,7 @@ TEST_F(TestCases, card_integrity_test)
     // ed25519 private key
     ASSERT_EQ(cert_count, 2);
 
-    ASSERT_EQ(0, idpass_lite_verify_card_signature(ctx, card2, card2_len));
+    ASSERT_EQ(0, idpass_lite_verify_card_signature(ctx, card2, card2_len, 1));
 }
 
 TEST_F(TestCases, create_card_with_certificates_content_tampering)

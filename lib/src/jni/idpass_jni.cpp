@@ -709,7 +709,7 @@ jbyteArray uio(JNIEnv *env, jobject thiz, jlong context, jint typ)
 jboolean verify_card_signature(JNIEnv *env,
                                jobject thiz,
                                jlong context,
-                               jbyteArray fullcard)
+                               jbyteArray fullcard /*, jboolean skipcertcheck */)
 {
     void *ctx = reinterpret_cast<void *>(context);
     if (!ctx) {
@@ -721,7 +721,7 @@ jboolean verify_card_signature(JNIEnv *env,
 
     if (0
         != idpass_lite_verify_card_signature(
-            ctx, (unsigned char*)fullcard_buf, fullcard_buf_len)) {
+            ctx, (unsigned char*)fullcard_buf, fullcard_buf_len, 1)) {
         return JNI_FALSE;
     }
 

@@ -124,7 +124,7 @@ int idpass_lite_verify_certificate(void* self,
 MODULE_API
 int idpass_lite_verify_card_signature(void* self,
                                       unsigned char* fullcard,
-                                      int fullcard_len);
+                                      int fullcard_len, int skipcheckcert);
 
 /**
 * A generic function to adjust settings of the calling context.

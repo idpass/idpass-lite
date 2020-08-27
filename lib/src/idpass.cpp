@@ -415,7 +415,7 @@ int idpass_lite_verify_certificate(void* self,
 MODULE_API
 int idpass_lite_verify_card_signature(void* self,
                                       unsigned char* fullcard,
-                                      int fullcard_len)
+                                      int fullcard_len, int skipcheckcert)
 {
     if (self == nullptr || fullcard == nullptr
         ||fullcard_len <= 0 ) {
@@ -453,25 +453,31 @@ int idpass_lite_verify_card_signature(void* self,
         return 3;
     } 
 
-    // The card signature verifies alright, but we still need to
-    // check if the card's signer public key is in our context
-    // verification list, ie Context::m_keyset::verificationKeys
-    bool found = false;
-    for (auto& pub : context->m_keyset.verificationkeys()) {
-        if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
-            if (std::memcmp(pub.val().data(), fullCard.signerpublickey().data(), 32) == 0) {
-                found = true;
-                break;
+    if (skipcheckcert == 1) {
+        // The card signature verifies alright, but we still need to
+        // check if the card's signer public key is in our context
+        // verification list, ie Context::m_keyset::verificationKeys
+        bool found = false;
+        for (auto& pub : context->m_keyset.verificationkeys()) {
+            if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
+                if (std::memcmp(
+                        pub.val().data(), fullCard.signerpublickey().data(), 32)
+                    == 0) {
+                    found = true;
+                    break;
+                }
             }
         }
-    }
 
-    if (!found) {
-        return 4;
+        if (!found) {
+            return 4;
+        }
+
+        return 0;
     }
     
 
-#if 0
+#if 1
     // Temporarily comment out to clearly sort out the Java API.
     // My plan is to combine the verify_card_certificate and
     // verify_card_signature into the singular JNI function
