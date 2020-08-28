@@ -1,6 +1,10 @@
 cmake_minimum_required (VERSION 3.10.1)
 project(idpassmosip)
 
+if (DEFINED ALWAYS)
+    add_definitions(-DALWAYS)
+endif()
+
 add_library(covcfg INTERFACE)
 
 if (COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

@@ -204,7 +204,7 @@ int load2matrix(const char* img,
 
 int computeface128d(const char* photo, int photo_len, float* f128d)
 {
-    if (photo_len == 0 || photo == nullptr || f128d == nullptr) {
+    if (photo_len <= 0 || photo == nullptr || f128d == nullptr) {
         return 0;
     }
 

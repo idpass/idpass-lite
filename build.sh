@@ -38,7 +38,7 @@ build_debug() {
     sleep 3
     #rm -rf build/debug
     mkdir -p build/debug && cd build/debug
-    cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
+    cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 ../..
     cmake --build .
     cd - >/dev/null
 	

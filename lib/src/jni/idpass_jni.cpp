@@ -729,6 +729,24 @@ jboolean verify_card_signature(JNIEnv *env,
     return JNI_TRUE;
 }
 
+jboolean
+compute_hash(JNIEnv *env, jclass clazz, jbyteArray data, jbyteArray hash)
+{
+    jbyte *data_buf = env->GetByteArrayElements(data, 0);
+    jsize data_buf_len = env->GetArrayLength(data);
+    jbyte *hash_buf = env->GetByteArrayElements(hash, 0);
+    jsize hash_buf_len = env->GetArrayLength(hash);
+
+    int status = idpass_lite_compute_hash(
+        (unsigned char*)data_buf, data_buf_len, 
+        (unsigned char*)hash_buf, hash_buf_len);
+
+    env->ReleaseByteArrayElements(data, data_buf, 0);
+    env->ReleaseByteArrayElements(hash, hash_buf, 0);
+
+    return status == 0 ? JNI_TRUE : JNI_FALSE;
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl", (char *)"(J[B)[B", (void *)ioctl},
 
@@ -801,6 +819,10 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"verify_card_signature",
      (char *)"(J[B)Z",
      (void *)verify_card_signature},
+
+    /*{(char *)"compute_hash",
+     (char *)"([B[B)Z",
+     (void *)compute_hash},*/
 };
 
 int IDPASS_JNI_TLEN = sizeof IDPASS_JNI / sizeof IDPASS_JNI[0];

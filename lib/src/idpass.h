@@ -554,6 +554,9 @@ MODULE_API
 unsigned char* idpass_lite_uio(void* self,
                                int typ);
 
+MODULE_API
+int idpass_lite_compute_hash(unsigned char* data, int data_len, unsigned char* hash, int hash_len);
+
 #ifdef __cplusplus
 }
 #endif

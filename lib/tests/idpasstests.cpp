@@ -1493,6 +1493,92 @@ TEST_F(TestCases, bin16_tests)
     }
 }
 
+TEST_F(TestCases, sig_invariance_tests)
+{
+    unsigned char data[512];
+
+    unsigned char* sig;
+    unsigned char sig1[64];
+    unsigned char sig2[64];
+
+    unsigned char pk[32];
+    unsigned char sk[64];
+    crypto_sign_keypair(pk, sk);
+
+    randombytes_buf(data, 512); 
+
+    for (int i = 0; i < 1000; i++) {
+        sig = (i % 2 == 0) ? &sig1[0] : &sig2[0];
+        int status = crypto_sign_detached(sig, nullptr, data, 512, sk);
+        ASSERT_EQ(status, 0);
+        if (i > 0) {
+            ASSERT_EQ(std::memcmp(sig1, sig2, 64), 0);
+        }
+    }
+}
+
+// enable ALWAYS processor when compiling libidpasslite.so
+// for this test to makes sense
+// This test is to prove that similar identity details
+// should produce exactly the same QR code
+TEST_F(TestCases, card_invariance_test)
+{
+    api::KV* privextra = m_ident.add_privextra();
+    privextra->set_key("color");
+    privextra->set_value("blue");
+
+    std::vector<unsigned char> buf(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(buf.data(), buf.size());
+
+    unsigned char hash1[crypto_generichash_BYTES];
+    unsigned char hash2[crypto_generichash_BYTES];
+    unsigned char* hash;
+
+    int qrsidelen;
+    int qrbuf_len;
+    std::vector<unsigned char> qrbuf1;
+    std::vector<unsigned char> qrbuf2;
+    unsigned char* qrbuf;
+    
+    int cards_len;
+    unsigned char* cards;
+
+    for (int i = 0; i < 1000; i++) {
+        cards_len = 0;
+        cards = nullptr;
+
+        cards = idpass_lite_create_card_with_face(
+            ctx, &cards_len, buf.data(), buf.size());
+
+        ASSERT_TRUE(cards != nullptr && cards_len > 0);
+        hash = (i % 2 == 0) ? &hash1[0] : &hash2[0];
+        int status = idpass_lite_compute_hash(
+            cards, cards_len, hash, crypto_generichash_BYTES);
+        ASSERT_EQ(status, 0);
+
+        qrbuf_len = 0;
+        qrbuf = nullptr;
+        qrbuf = idpass_lite_qrpixel2(ctx, &qrbuf_len, cards, cards_len, &qrsidelen);
+
+        ASSERT_TRUE(qrbuf != nullptr && qrbuf_len > 0);
+
+        if (i % 2 == 0) {
+            qrbuf1.resize(qrbuf_len);
+            qrbuf1.clear();
+            std::memcpy(qrbuf1.data(), qrbuf, qrbuf_len);
+        } else {
+            qrbuf2.resize(qrbuf_len);
+            qrbuf2.clear();
+            std::memcpy(qrbuf2.data(), qrbuf, qrbuf_len);
+        }
+
+        if (i > 0) {
+            ASSERT_EQ(std::memcmp(hash1, hash2, crypto_generichash_BYTES), 0); 
+            ASSERT_EQ(std::memcmp(qrbuf1.data(), qrbuf2.data(), qrbuf_len), 0);
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -1503,23 +1589,31 @@ int main(int argc, char* argv[])
     if (stat(datapath, &statbuf) != -1) {
         if (S_ISDIR(statbuf.st_mode)) {
             ::testing::InitGoogleTest(&argc, argv);
-            //::testing::GTEST_FLAG(filter) = "*uio_test*";
-            //::testing::GTEST_FLAG(filter) = "*createcard_manny_verify_as_brad*";
-            //::testing::GTEST_FLAG(filter) = "*threading_multiple_instance_test*";
-            //::testing::GTEST_FLAG(filter) = "*test_card_encrypt_decrypt*";
-            //::testing::GTEST_FLAG(filter) = "*idpass_lite_verify_with_card_test*";
-            //::testing::GTEST_FLAG(filter) = "*cansign_and_verify_with_pin*";
-            //::testing::GTEST_FLAG(filter) = "*face_template_test*";
-            //::testing::GTEST_FLAG(filter) = "*idpass_ioctl_test*";
-            //::testing::GTEST_FLAG(filter) = "*face_compute_test*";
-            //::testing::GTEST_FLAG(filter) = "*qrcode_test*";
-            //::testing::GTEST_FLAG(filter) = "*certificate_revoke_test*";
-            //::testing::GTEST_FLAG(filter) = "*compare_face_photo_test*";
-            //::testing::GTEST_FLAG(filter) = "*check_qrcode_md5sum*";
-            //::testing::GTEST_FLAG(filter) = "*create_card_with_certificates_content_tampering*";
-            //::testing::GTEST_FLAG(filter) = "*idpass_lite_create_card_with_face_certificates*";
-            //::testing::GTEST_FLAG(filter) = "*idpass_lite_verify_certificate*";
-            //::testing::GTEST_FLAG(filter) = "*card_integrity_test*";
+            //::testing::GTEST_FLAG(filter) = "TestCases.uio_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.createcard_manny_verify_as_brad";
+            //::testing::GTEST_FLAG(filter) = "TestCases.threading_multiple_instance_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.test_card_encrypt_decrypt";
+            //::testing::GTEST_FLAG(filter) = "TestCases.idpass_lite_verify_with_card_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.cansign_and_verify_with_pin";
+            //::testing::GTEST_FLAG(filter) = "TestCases.face_template_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.idpass_ioctl_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.face_compute_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.qrcode_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.certificate_revoke_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.compare_face_photo_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.check_qrcode_md5sum";
+            //::testing::GTEST_FLAG(filter) = "TestCases.create_card_with_certificates_content_tampering";
+            //::testing::GTEST_FLAG(filter) = "TestCases.idpass_lite_create_card_with_face_certificates";
+            //::testing::GTEST_FLAG(filter) = "TestCases.idpass_lite_verify_certificate";
+            //::testing::GTEST_FLAG(filter) = "TestCases.card_integrity_test";
+            //::testing::GTEST_FLAG(filter) = "TestCases.sig_invariance_tests";
+            //::testing::GTEST_FLAG(filter) = "TestCases.card_invariance_test";
+
+#ifndef ALWAYS
+            // skip these particular test if ALWAYS preprocessor is off
+            testing::GTEST_FLAG(filter) = "-TestCases.card_invariance_test";
+#endif
+
             return RUN_ALL_TESTS();
         }
     }

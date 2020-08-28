@@ -675,7 +675,11 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
 
     Context* context = (Context*)self;
     *outlen = 0;
+#ifdef ALWAYS
+    unsigned long int epochSeconds = 12345;
+#else
     unsigned long int epochSeconds = std::time(nullptr);
+#endif
     float faceArray[128];
 
     api::Ident ident;
@@ -788,8 +792,20 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     // generate user's unique ed25519 key
     unsigned char user_ed25519PubKey[crypto_sign_PUBLICKEYBYTES];
     unsigned char user_ed25519PrivKey[crypto_sign_SECRETKEYBYTES];
+#ifdef ALWAYS
+    unsigned char sk_always[]
+        = {0x2d, 0x52, 0xf8, 0x6a, 0xaa, 0x4d, 0x62, 0xfc, 0xab, 0x4d, 0xb0,
+           0x0a, 0x21, 0x1a, 0x12, 0x60, 0xf8, 0x17, 0xc5, 0xf2, 0xba, 0xb7,
+           0x3e, 0xfe, 0xd6, 0x36, 0x07, 0xbc, 0x9d, 0xb3, 0x96, 0xee,
+           0x57, 0xc6, 0x33, 0x09, 0xfa, 0xc2, 0x1b, 0x60, 0x04, 0x76, 0x4e,
+           0xf6, 0xf7, 0xc6, 0x2f, 0x28, 0xcf, 0x63, 0x40, 0xbe, 0x13, 0x10,
+           0x6e, 0x80, 0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4}; // 64
+    
+    std::memcpy(user_ed25519PrivKey, sk_always, 64);
+    crypto_sign_ed25519_sk_to_pk(user_ed25519PubKey, user_ed25519PrivKey);
+#else
     crypto_sign_keypair(user_ed25519PubKey, user_ed25519PrivKey);
-
+#endif
     /////////////////
     // assemble ecard
     // IDPassCard: [access, details, encryptionKey]
@@ -1932,6 +1948,20 @@ unsigned char* idpass_lite_uio(void* self, int typ)
     std::memcpy(c_buf + sizeof len, _ident.data(), _ident.size());
 
     return c_buf;
+}
+
+MODULE_API
+int idpass_lite_compute_hash(unsigned char* data,
+                             int data_len,
+                             unsigned char* hash,
+                             int hash_len)
+{
+    if (data == nullptr || data_len <= 0 || hash == nullptr
+        || hash_len != crypto_generichash_BYTES) {
+        return 1;
+    }
+
+    return crypto_generichash(hash, hash_len, data, data_len, NULL, 0);
 }
 
 #ifdef __cplusplus

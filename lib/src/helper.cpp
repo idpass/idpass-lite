@@ -243,8 +243,14 @@ int encrypt_object(idpass::SignedIDPassCard& object,
     }
 
     unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES]; // 12
-    randombytes_buf(nonce, sizeof nonce);
+#ifdef ALWAYS
+    unsigned char always_nonce[] = {
+        0xf8, 0x0b, 0x95, 0x79, 0x69, 0xd1, 0xe8, 0x60, 0x6c, 0x33, 0x56, 0x00};
 
+    std::memcpy(nonce, always_nonce, 12);
+#else
+    randombytes_buf(nonce, sizeof nonce);
+#endif
     int lenn = buf_len + crypto_aead_chacha20poly1305_IETF_ABYTES; // +16
     std::vector<unsigned char> ciphertext(lenn);
     unsigned long long ciphertext_len = 0;
