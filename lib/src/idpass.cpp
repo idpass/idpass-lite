@@ -687,11 +687,13 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
         return nullptr;
     }
 
-    if (dlib_api::computeface128d(
-            ident.photo().data(), ident.photo().size(), faceArray)
-        != 1) {
-        LOGI("idpass_api_create_card_with_face: fail");
-        return nullptr;
+    if (ident.photo().size() > 0) {
+        if (dlib_api::computeface128d(
+                ident.photo().data(), ident.photo().size(), faceArray)
+            != 1) {
+            LOGI("idpass_api_create_card_with_face: fail");
+            return nullptr;
+        }
     }
 
     ////////////////////////////////////////////////////////
@@ -721,14 +723,16 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     idpass::CardAccess access;
     access.set_pin(ident.pin().data());
 
-    if (context->fdimension) {
-        unsigned char fdim_full[128 * 4];
-        bin16::f4_to_f4b(faceArray, 128, fdim_full);
-        access.set_face(fdim_full, sizeof fdim_full);
-    } else {
-        unsigned char fdim_half[64 * 2];
-        bin16::f4_to_f2b(faceArray, 64, fdim_half);
-        access.set_face(fdim_half, sizeof fdim_half);
+    if (ident.photo().size() > 0) {
+        if (context->fdimension) {
+            unsigned char fdim_full[128 * 4];
+            bin16::f4_to_f4b(faceArray, 128, fdim_full);
+            access.set_face(fdim_full, sizeof fdim_full);
+        } else {
+            unsigned char fdim_half[64 * 2];
+            bin16::f4_to_f2b(faceArray, 64, fdim_half);
+            access.set_face(fdim_half, sizeof fdim_half);
+        }
     }
 
     ///////////////////////////////////////
@@ -935,6 +939,10 @@ idpass_lite_verify_card_with_face(void* self,
     }
 
     idpass::CardAccess access = card.access();
+    int flen = access.face().size();
+    if (access.face().size() == 0) {
+        return nullptr;
+    }
     double face_diff = helper::computeFaceDiff(photo, photo_len, access.face());
     double threshold = access.face().length() == 128 * 4 ?
                            context->facediff_full :

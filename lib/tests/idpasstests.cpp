@@ -1579,6 +1579,47 @@ TEST_F(TestCases, card_invariance_test)
     }
 }
 
+TEST_F(TestCases, create_card_no_photo)
+{
+    api::Ident ident;
+
+    ident.set_surname("Pacquiao");
+    ident.set_givenname("Manny");
+    ident.set_placeofbirth("Kibawe, Bukidnon");
+    ident.set_pin("12345");
+    ident.mutable_dateofbirth()->set_year(1978);
+    ident.mutable_dateofbirth()->set_month(12);
+    ident.mutable_dateofbirth()->set_day(17);
+
+    std::vector<unsigned char> buf(ident.ByteSizeLong());
+    ident.SerializeToArray(buf.data(), buf.size());
+
+    int cards_len;
+    unsigned char* cards
+        = idpass_lite_create_card_with_face(ctx, &cards_len, buf.data(), buf.size());
+
+    ASSERT_TRUE(cards != nullptr); 
+
+    int details_len = 0;
+    unsigned char* details = idpass_lite_verify_card_with_pin(
+        ctx, &details_len, cards, cards_len, "12345"); // pin to open the card
+
+    ASSERT_TRUE(details != nullptr);
+
+    {
+        std::string inputfile = std::string(datapath) + "manny1.bmp";
+        std::ifstream f1(inputfile, std::ios::binary);
+        std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
+
+        int details_len = 0;
+        unsigned char* details = idpass_lite_verify_card_with_face(
+            ctx, &details_len, cards, cards_len, photo.data(), photo.size());
+
+        // cannot open card
+        ASSERT_TRUE(details == nullptr); // because issued ID has no facial biometry
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -1608,12 +1649,12 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "TestCases.card_integrity_test";
             //::testing::GTEST_FLAG(filter) = "TestCases.sig_invariance_tests";
             //::testing::GTEST_FLAG(filter) = "TestCases.card_invariance_test";
+            //::testing::GTEST_FLAG(filter) = "*create_card_no_photo*";
 
 #ifndef ALWAYS
             // skip these particular test if ALWAYS preprocessor is off
             testing::GTEST_FLAG(filter) = "-TestCases.card_invariance_test";
 #endif
-
             return RUN_ALL_TESTS();
         }
     }
