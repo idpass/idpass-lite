@@ -146,7 +146,8 @@ build_inside_container() {
         build_release
         ;;
         android)
-        build_android $2
+        shift
+        build_android $@
         ;;
         *)
         build_debug && build_release
@@ -200,40 +201,44 @@ build_android() {
             sleep 3
         done
     else
-        case "$1" in
-        x86|x86_64|armeabi-v7a|arm64-v8a)
-        echo "*** Building Android architectures $1 ***"
+        echo "*** Building selected Android architectures ***"
         sleep 3
-        abi=$1    
-        local builddir=build/android.$abi
-        #rm -rf $builddir
-        mkdir -p $builddir && cd $builddir
+        for abi in $@;do
+            case "$abi" in
+            x86|x86_64|armeabi-v7a|arm64-v8a)
+            echo
+            echo "*** Building Android architectures $abi ***"
+            sleep 3
+            local builddir=build/android.$abi
+            #rm -rf $builddir
+            mkdir -p $builddir && cd $builddir
 
-        cmake \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
-            -DANDROID_NDK=$ANDROID_NDK_HOME \
-            -DANDROID_TOOLCHAIN=clang \
-            -DCMAKE_ANDROID_ARCH_ABI=$abi \
-            -DANDROID_ABI=$abi \
-            -DANDROID_LINKER_FLAGS="-landroid -llog" \
-            -DANDROID_NATIVE_API_LEVEL=23 \
-            -DANDROID_STL=c++_static \
-            -DANDROID_CPP_FEATURES="rtti exceptions" ../..
+            cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+                -DANDROID_NDK=$ANDROID_NDK_HOME \
+                -DANDROID_TOOLCHAIN=clang \
+                -DCMAKE_ANDROID_ARCH_ABI=$abi \
+                -DANDROID_ABI=$abi \
+                -DANDROID_LINKER_FLAGS="-landroid -llog" \
+                -DANDROID_NATIVE_API_LEVEL=23 \
+                -DANDROID_STL=c++_static \
+                -DANDROID_CPP_FEATURES="rtti exceptions" ../..
 
-        cmake --build .
+            cmake --build .
 
-        echo "***********************************"
-        echo "--- Done building Android $abi ---"
-        echo "***********************************"
-        cd - >/dev/null
-        ;;
+            echo "***********************************"
+            echo "--- Done building Android $abi ---"
+            echo "***********************************"
+            cd - >/dev/null
+            ;;
 
-        *)
-        echo
-        echo "Unknown android arch $1"
-        echo "Choose: x86 | x86_64 | armeabi-v7a | arm64-v8a"
-        esac
+            *)
+            echo
+            echo "Skipping unknown android arch $abi"
+            echo
+            esac
+        done
     fi
 }
 
