@@ -40,6 +40,7 @@ build_debug() {
     mkdir -p build/debug && cd build/debug
     cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 ../..
     cmake --build .
+    [ $? -ne 0 ] && return 1
     cd - >/dev/null
 	
     echo "**************************************"
@@ -103,6 +104,7 @@ build_release() {
     mkdir -p build/release && cd build/release
     cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
     cmake --build .
+    [ $? -ne 0 ] && return 1
     cd - >/dev/null
 
     echo "********************************"

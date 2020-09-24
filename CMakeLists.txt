@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.10.1)
 project(idpassmosip)
 
-if (DEFINED ALWAYS)
+if (ALWAYS)
     add_definitions(-DALWAYS)
 endif()
 
