@@ -742,6 +742,11 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
 
     unsigned char acl = context->acl[0];
 
+    privDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
+    privDetails.set_uin(ident.uin().data());
+    privDetails.set_fullname(ident.fullname().data());
+    privDetails.set_gender(ident.gender());
+
     if (acl & ACL_SURNAME)
         pubDetails.set_surname(ident.surname().data());
     else

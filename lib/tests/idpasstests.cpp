@@ -1620,6 +1620,50 @@ TEST_F(TestCases, create_card_no_photo)
     }
 }
 
+TEST_F(TestCases, test_new_protobuf_fields)
+{
+    int buf_len = 0;
+    unsigned char* buf;
+
+    std::string fullname = m_ident.givenname() + " " + m_ident.surname();
+
+    m_ident.set_fullname(fullname);
+    m_ident.set_uin("314159");
+    m_ident.set_gender(2);
+    m_ident.mutable_postaladdress()->set_language_code("en");
+    m_ident.mutable_postaladdress()->set_organization("NEWLOGIC");
+
+    std::vector<unsigned char> ident_buf(m_ident.ByteSizeLong());
+    ident_buf.resize(m_ident.ByteSizeLong());
+    m_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
+
+    buf = idpass_lite_create_card_with_face(
+        ctx, &buf_len, ident_buf.data(), ident_buf.size());
+
+    ASSERT_TRUE(buf != nullptr);
+
+    idpass::IDPassCards cards;
+    ASSERT_TRUE(cards.ParseFromArray(buf, buf_len));
+
+    std::string filename = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile(filename, std::ios::binary);
+    std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
+
+    int details_len = 0;
+    unsigned char* details = idpass_lite_verify_card_with_face(
+        ctx, &details_len, buf, buf_len, photo.data(), photo.size());
+
+    ASSERT_TRUE(details != nullptr);
+
+    idpass::CardDetails cardDetails;
+    cardDetails.ParseFromArray(details, details_len);
+    ASSERT_STREQ(cardDetails.fullname().c_str(),fullname.c_str());
+    ASSERT_STREQ(cardDetails.postaladdress().organization().c_str(),"NEWLOGIC");
+    ASSERT_STREQ(cardDetails.postaladdress().language_code().c_str(),"en");
+    ASSERT_STREQ(cardDetails.uin().c_str(),"314159");
+    ASSERT_EQ(cardDetails.gender(),2);
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -1654,6 +1698,7 @@ int main(int argc, char* argv[])
 #ifndef ALWAYS
             // skip these particular test if ALWAYS preprocessor is off
             testing::GTEST_FLAG(filter) = "-TestCases.card_invariance_test";
+            //testing::GTEST_FLAG(filter) = "*test_new_protobuf_fields*";
 #endif
             return RUN_ALL_TESTS();
         }
