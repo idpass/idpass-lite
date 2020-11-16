@@ -742,35 +742,50 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
 
     unsigned char acl = context->acl[0];
 
-    privDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
-    privDetails.set_uin(ident.uin().data());
-    privDetails.set_fullname(ident.fullname().data());
-    privDetails.set_gender(ident.gender());
-
-    if (acl & ACL_SURNAME)
+    if (acl & DETAIL_SURNAME)
         pubDetails.set_surname(ident.surname().data());
     else
         privDetails.set_surname(ident.surname().data());
 
-    if (acl & ACL_GIVENNAME)
+    if (acl & DETAIL_GIVENNAME)
         pubDetails.set_givenname(ident.givenname().data());
     else
         privDetails.set_givenname(ident.givenname().data());
 
-    if (acl & ACL_PLACEOFBIRTH)
+    if (acl & DETAIL_PLACEOFBIRTH)
         pubDetails.set_placeofbirth(ident.placeofbirth().data());
     else
         privDetails.set_placeofbirth(ident.placeofbirth().data());
 
-    if (acl & ACL_CREATEDAT)
+    if (acl & DETAIL_CREATEDAT)
         pubDetails.set_createdat(epochSeconds);
     else
         privDetails.set_createdat(epochSeconds);
 
-    if (acl & ACL_DATEOFBIRTH)
+    if (acl & DETAIL_DATEOFBIRTH)
         pubDetails.mutable_dateofbirth()->CopyFrom(dob);
     else
         privDetails.mutable_dateofbirth()->CopyFrom(dob);
+
+    if (acl & DETAIL_UIN)
+        pubDetails.set_uin(ident.uin().data());
+    else
+        privDetails.set_uin(ident.uin().data());
+
+    if (acl & DETAIL_FULLNAME)
+        pubDetails.set_fullname(ident.fullname().data());
+    else
+        privDetails.set_fullname(ident.fullname().data());
+
+    if (acl & DETAIL_GENDER)
+        pubDetails.set_gender(ident.gender());
+    else
+        privDetails.set_gender(ident.gender());
+
+    if (acl & DETAIL_POSTALADDRESS)
+        pubDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
+    else
+        privDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
 
     idpass::Pair* kv = nullptr;
 

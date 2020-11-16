@@ -133,7 +133,7 @@ TEST_F(TestCases, card_integrity_test)
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
     unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+                                DETAIL_SURNAME  | DETAIL_PLACEOFBIRTH };
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -216,7 +216,7 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
     unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+                                DETAIL_SURNAME  | DETAIL_PLACEOFBIRTH };
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -379,7 +379,7 @@ TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
 
     // have surname visible in public region so we can do quick check below
     unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+                                DETAIL_SURNAME  | DETAIL_PLACEOFBIRTH };
     idpass_lite_ioctl(context, nullptr, ioctlcmd, sizeof ioctlcmd);
 
 
@@ -521,7 +521,7 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
     std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
     unsigned char ioctlcmd[]
-        = {IOCTL_SET_ACL, ACL_PLACEOFBIRTH | ACL_GIVENNAME};
+        = {IOCTL_SET_ACL, DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME};
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -657,7 +657,7 @@ TEST_F(TestCases, create_card_with_certificates)
     // thus, these fields will no longer be in the private region
     // this is to avoid redundancy 
     unsigned char ioctlcmd[] = { IOCTL_SET_ACL, 
-        ACL_PLACEOFBIRTH | ACL_GIVENNAME }; 
+        DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME }; 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
     int ecard_len;
@@ -1057,8 +1057,8 @@ TEST_F(TestCases, threading_single_instance_test)
 
         unsigned char ioctlcmd[]
             = {IOCTL_SET_ACL,
-               ACL_PLACEOFBIRTH
-                   | ACL_GIVENNAME}; // make givenname, placeofbirth visible
+               DETAIL_PLACEOFBIRTH
+                   | DETAIL_GIVENNAME}; // make givenname, placeofbirth visible
 
         idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 

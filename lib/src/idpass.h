@@ -57,11 +57,15 @@
 * merge the contents in the private region.
 */
 
-#define ACL_SURNAME 1
-#define ACL_GIVENNAME 2
-#define ACL_DATEOFBIRTH 4
-#define ACL_PLACEOFBIRTH 8
-#define ACL_CREATEDAT 16
+#define DETAIL_SURNAME 1
+#define DETAIL_GIVENNAME 2
+#define DETAIL_DATEOFBIRTH 4
+#define DETAIL_PLACEOFBIRTH 8
+#define DETAIL_CREATEDAT 16
+#define DETAIL_UIN 32
+#define DETAIL_FULLNAME 64
+#define DETAIL_GENDER 128
+#define DETAIL_POSTALADDRESS 256
 
 #define REVOKED_KEYS "revoked.keys"
 
