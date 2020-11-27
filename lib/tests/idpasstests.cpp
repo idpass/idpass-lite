@@ -1521,6 +1521,7 @@ TEST_F(TestCases, sig_invariance_tests)
 // for this test to makes sense
 // This test is to prove that similar identity details
 // should produce exactly the same QR code
+#if 0
 TEST_F(TestCases, card_invariance_test)
 {
     api::KV* privextra = m_ident.add_privextra();
@@ -1578,6 +1579,7 @@ TEST_F(TestCases, card_invariance_test)
         }
     }
 }
+#endif
 
 TEST_F(TestCases, create_card_no_photo)
 {
@@ -1695,11 +1697,8 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "TestCases.card_invariance_test";
             //::testing::GTEST_FLAG(filter) = "*create_card_no_photo*";
 
-#ifndef ALWAYS
-            // skip these particular test if ALWAYS preprocessor is off
-            testing::GTEST_FLAG(filter) = "-TestCases.card_invariance_test";
             //testing::GTEST_FLAG(filter) = "*test_new_protobuf_fields*";
-#endif
+
             return RUN_ALL_TESTS();
         }
     }
