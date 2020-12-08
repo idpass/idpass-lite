@@ -42,6 +42,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <bitset>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -109,6 +110,27 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     return JNI_VERSION_1_6;
 }
 
+/* The BitFlags class is used to hold the 64 bits visibility option bit flags */
+constexpr auto N = CHAR_BIT * sizeof(unsigned long long);
+
+class BitFlags
+{
+private:
+    std::bitset<N> bf;
+
+public:
+    void setBits(std::uint64_t flags)
+    {
+        bf = std::bitset<N>(flags);
+    }
+
+    bool getBit(std::uint64_t flag)
+    {
+        int bitpos = log2(flag);
+        return bf.test(bitpos);
+    }
+};
+
 struct Context {
     std::mutex ctxMutex;
     std::mutex mtx;
@@ -124,7 +146,7 @@ struct Context {
     bool fdimension; // 128/4 if true else 64/2
     int qrcode_ecc;
 
-    unsigned char acl[1];
+    BitFlags acl;
 
     unsigned char* NewByteArray(int n)
     {
@@ -621,9 +643,8 @@ void* idpass_lite_init(unsigned char* keyset_buf,
     context->facediff_full = DEFAULT_FACEDIFF_FULL;
     context->fdimension = false; // defaults to 64/2
     context->qrcode_ecc = ECC_MEDIUM;
-    std::memset(
-        context->acl, 0x00, sizeof context->acl); // default all fields priv
-
+    context->acl.setBits(0);
+    
     return static_cast<void*>(context);
 }
 
@@ -736,56 +757,53 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     idpass::CardDetails privDetails;
     idpass::CardDetails pubDetails;
 
-    unsigned char acl = context->acl[0];
-
-    if (acl & DETAIL_SURNAME)
+    if (context->acl.getBit(DETAIL_SURNAME))
         pubDetails.set_surname(ident.surname().data());
     else
         privDetails.set_surname(ident.surname().data());
 
-    if (acl & DETAIL_GIVENNAME)
+    if (context->acl.getBit(DETAIL_GIVENNAME))
         pubDetails.set_givenname(ident.givenname().data());
     else
         privDetails.set_givenname(ident.givenname().data());
 
-    if (acl & DETAIL_PLACEOFBIRTH)
+    if (context->acl.getBit(DETAIL_PLACEOFBIRTH))
         pubDetails.set_placeofbirth(ident.placeofbirth().data());
     else
         privDetails.set_placeofbirth(ident.placeofbirth().data());
 
-    if (acl & DETAIL_CREATEDAT)
+    if (context->acl.getBit(DETAIL_CREATEDAT))
         pubDetails.set_createdat(epochSeconds);
     else
         privDetails.set_createdat(epochSeconds);
 
-    if (acl & DETAIL_DATEOFBIRTH)
+    if (context->acl.getBit(DETAIL_DATEOFBIRTH))
         pubDetails.mutable_dateofbirth()->CopyFrom(dob);
     else
         privDetails.mutable_dateofbirth()->CopyFrom(dob);
 
-    if (acl & DETAIL_UIN)
+    if (context->acl.getBit(DETAIL_UIN))
         pubDetails.set_uin(ident.uin().data());
     else
         privDetails.set_uin(ident.uin().data());
 
-    if (acl & DETAIL_FULLNAME)
+    if (context->acl.getBit(DETAIL_FULLNAME))
         pubDetails.set_fullname(ident.fullname().data());
     else
         privDetails.set_fullname(ident.fullname().data());
 
-    if (acl & DETAIL_GENDER)
+    if (context->acl.getBit(DETAIL_GENDER ))
         pubDetails.set_gender(ident.gender());
     else
         privDetails.set_gender(ident.gender());
 
-    if (acl & DETAIL_POSTALADDRESS)
+    if (context->acl.getBit(DETAIL_POSTALADDRESS))
         pubDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
     else
         privDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
 
     idpass::Pair* kv = nullptr;
 
-    idpass::Dictionary pubExtras;
     if (ident.pubextra_size() > 0) {
         for (auto& p : ident.pubextra()) {
             kv = pubDetails.add_extra();
@@ -794,7 +812,6 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
         }
     }
 
-    idpass::Dictionary privExtras;
     if (ident.privextra_size() > 0) {
         for (auto& p : ident.privextra()) {
             kv = privDetails.add_extra();
@@ -1560,8 +1577,13 @@ void* idpass_lite_ioctl(void* self,
         // describe the next bytes. In this way, when the
         // number of configurable bits increases can be better
         // managed.
-        unsigned char acl = iobuf[1];
-        context->acl[0] = acl;
+        unsigned long long vflags; 
+        unsigned char vflagsbuf[8];
+        for (int i = 0; i < 8; i++) {
+            vflagsbuf[i] = iobuf[1 + i];
+        }
+        std::memcpy(&vflags, vflagsbuf, sizeof(unsigned long long));
+        context->acl.setBits(vflags);
     } break;
     }
 

@@ -22,6 +22,7 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -198,6 +199,10 @@ jbyteArray ioctl(JNIEnv *env, jobject thiz, jlong context, jbyteArray iobuf)
 
     jbyte *buf = env->GetByteArrayElements(iobuf, 0);
     jsize buf_len = env->GetArrayLength(iobuf);
+
+    if (buf[0] == IOCTL_SET_ACL) {
+        std::reverse(buf + 1, buf + 9);
+    }
 
     idpass_lite_ioctl(
         ctx, nullptr, reinterpret_cast<unsigned char *>(buf), buf_len);

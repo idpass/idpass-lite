@@ -133,15 +133,8 @@ bool decryptCard(unsigned char* full_card_buf,
         fullCard.encryptedcard().data());
     int ecardbuf_len = fullCard.encryptedcard().size();
 
-    const unsigned char* signature
-        = reinterpret_cast<const unsigned char*>(fullCard.signature().data());
     const unsigned char* pubkey = reinterpret_cast<const unsigned char*>(
         fullCard.signerpublickey().data());
-
-    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> signerPublicKey;
-    std::copy(pubkey,
-              pubkey + crypto_sign_PUBLICKEYBYTES,
-              std::begin(signerPublicKey));
 
     bool found = false;
     for (auto& pub : keyset.verificationkeys()) {

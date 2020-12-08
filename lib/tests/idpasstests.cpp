@@ -132,8 +132,10 @@ TEST_F(TestCases, card_integrity_test)
     std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
-    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                DETAIL_SURNAME  | DETAIL_PLACEOFBIRTH };
+    std::uint64_t vizflags = DETAIL_SURNAME | DETAIL_PLACEOFBIRTH;
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -215,8 +217,10 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
     std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
-    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                DETAIL_SURNAME  | DETAIL_PLACEOFBIRTH };
+    std::uint64_t vizFlags = DETAIL_SURNAME | DETAIL_PLACEOFBIRTH;
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizFlags, 8);
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -378,8 +382,10 @@ TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
         = idpass_lite_init(_keyset.data(), _keyset.size(), nullptr, 0);
 
     // have surname visible in public region so we can do quick check below
-    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                DETAIL_SURNAME  | DETAIL_PLACEOFBIRTH };
+    std::uint64_t vizflags = DETAIL_SURNAME | DETAIL_PLACEOFBIRTH; 
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
     idpass_lite_ioctl(context, nullptr, ioctlcmd, sizeof ioctlcmd);
 
 
@@ -520,8 +526,10 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
     std::ifstream photofile(filename, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
-    unsigned char ioctlcmd[]
-        = {IOCTL_SET_ACL, DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME};
+    std::uint64_t vizflags = DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME;
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -656,8 +664,10 @@ TEST_F(TestCases, create_card_with_certificates)
     // transfer givenname, placeofbirth to public region
     // thus, these fields will no longer be in the private region
     // this is to avoid redundancy 
-    unsigned char ioctlcmd[] = { IOCTL_SET_ACL, 
-        DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME }; 
+    std::uint64_t vizflags = DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME; 
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL; 
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
     int ecard_len;
@@ -1054,12 +1064,10 @@ TEST_F(TestCases, threading_single_instance_test)
         ASSERT_TRUE(f1.is_open());
 
         std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
-
-        unsigned char ioctlcmd[]
-            = {IOCTL_SET_ACL,
-               DETAIL_PLACEOFBIRTH
-                   | DETAIL_GIVENNAME}; // make givenname, placeofbirth visible
-
+        std::uint64_t vizflags = DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME;// make givenname, placeofbirth visible
+        unsigned char ioctlcmd[9];
+        ioctlcmd[0] = IOCTL_SET_ACL;
+        std::memcpy(&ioctlcmd[1], &vizflags, 8);
         idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
         std::vector<unsigned char> identbuf(m_ident.ByteSizeLong());
@@ -1627,17 +1635,32 @@ TEST_F(TestCases, test_new_protobuf_fields)
     int buf_len = 0;
     unsigned char* buf;
 
-    std::string fullname = m_ident.givenname() + " " + m_ident.surname();
+    api::Ident o_ident;
 
-    m_ident.set_fullname(fullname);
-    m_ident.set_uin("314159");
-    m_ident.set_gender(2);
-    m_ident.mutable_postaladdress()->set_language_code("en");
-    m_ident.mutable_postaladdress()->set_organization("NEWLOGIC");
+    std::string filename = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile(filename, std::ios::binary);
+    std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
-    std::vector<unsigned char> ident_buf(m_ident.ByteSizeLong());
-    ident_buf.resize(m_ident.ByteSizeLong());
-    m_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
+    o_ident.set_surname("Pacquiao");
+    o_ident.set_givenname("Manny");
+    o_ident.set_placeofbirth("Kibawe, Bukidnon");
+    o_ident.set_pin("12345");
+    //o_ident.mutable_dateofbirth()->set_year(1978);
+    //o_ident.mutable_dateofbirth()->set_month(12);
+    //o_ident.mutable_dateofbirth()->set_day(17);
+    o_ident.set_photo(photo.data(), photo.size());
+
+    std::string fullname = o_ident.givenname() + " " + o_ident.surname();
+
+    o_ident.set_fullname(fullname);
+    o_ident.set_uin("314159");
+    o_ident.set_gender(2);
+    o_ident.mutable_postaladdress()->set_language_code("en");
+    o_ident.mutable_postaladdress()->set_organization("NEWLOGIC");
+
+    std::vector<unsigned char> ident_buf(o_ident.ByteSizeLong());
+    ident_buf.resize(o_ident.ByteSizeLong());
+    o_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
 
     buf = idpass_lite_create_card_with_face(
         ctx, &buf_len, ident_buf.data(), ident_buf.size());
@@ -1646,10 +1669,6 @@ TEST_F(TestCases, test_new_protobuf_fields)
 
     idpass::IDPassCards cards;
     ASSERT_TRUE(cards.ParseFromArray(buf, buf_len));
-
-    std::string filename = std::string(datapath) + "manny1.bmp";
-    std::ifstream photofile(filename, std::ios::binary);
-    std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
     int details_len = 0;
     unsigned char* details = idpass_lite_verify_card_with_face(

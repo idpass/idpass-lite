@@ -138,15 +138,19 @@ int load2matrix(const char* img,
 
     InputStream input((unsigned char*)img, img_len);
 
-    if (buffer[0] == '\xff' && buffer[1] == '\xd8' && buffer[2] == '\xff') {
-        dlib::load_jpeg(image, img, img_len);
-    } else if (buffer[0] == 'B' && buffer[1] == 'M') {
-        dlib::load_bmp(image, input);
-    } else if (buffer[0] == 'D' && buffer[1] == 'N' && buffer[2] == 'G') {
-        dlib::load_dng(image, input);
-    } else {
-        LOGI("load2matrix: fail");
-        return 1;
+    try {
+        if (buffer[0] == '\xff' && buffer[1] == '\xd8' && buffer[2] == '\xff') {
+            dlib::load_jpeg(image, img, img_len);
+        } else if (buffer[0] == 'B' && buffer[1] == 'M') {
+            dlib::load_bmp(image, input);
+        } else if (buffer[0] == 'D' && buffer[1] == 'N' && buffer[2] == 'G') {
+            dlib::load_dng(image, input);
+        } else {
+            LOGI("load2matrix: fail");
+            return 1;
+        }
+    } catch (...) {
+        return 2; 
     }
 
     return 0;
@@ -183,7 +187,7 @@ int computeface128d(const char* photo, int photo_len, float* f128d)
         // cannot load to matrix as image format
         // is not supported
         LOGI("\ncomputeface128: cannot load to matrix as image format ***\n");
-        return 0;
+        return -1;
     }
 
     std::vector<dlib::matrix<dlib::rgb_pixel>> faces;
@@ -209,6 +213,7 @@ int computeface128d(const char* photo, int photo_len, float* f128d)
             std::string logmsg
                 = "computeface128d anomaly = " + std::to_string(i);
             LOGI("computeface128d anomaly");
+            return -2;
         }
     } else if (faces.size() == 0) {
         LOGI("computeface128: No faces found in image!");
