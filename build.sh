@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 
+project=$(pwd)
 export GTEST_OUTPUT="xml:$(pwd)/build/reports.xml"
 export IDPASSLITE=$project/build/debug/lib/src/libidpasslite.so
 export CLASSPATH=$project/build/debug/lib/tests/jni/
@@ -64,7 +65,7 @@ build_debug() {
             --directory build/debug/lib/tests/CMakeFiles/idpasstests.dir/ \
             --directory build/debug/lib/src/CMakeFiles/idpasslite.dir/jni/ \
             --output-file build/cov.info
-    lcov --extract build/cov.info "/home/circleci/project/lib/*" -o build/cov_filter1.info
+    lcov --extract build/cov.info "$project/lib/*" -o build/cov_filter1.info
     lcov --remove build/cov_filter1.info "*googletest*" -o build/cov_idpass.info
     echo
     echo "*******************************"
@@ -155,13 +156,13 @@ build_inside_container() {
     else
         ####################
         # get latest updates
-        docker pull newlogic42/circleci-android:latest
+        docker pull typelogic/circleci-android:latest
 
         docker run -it --user $(id -u):$(id -g) --rm \
             -v `pwd`:/home/circleci/project \
             -e API_LEVEL=23 \
             -w /home/circleci/project/ \
-            newlogic42/circleci-android:latest \
+            typelogic/circleci-android:latest \
             /home/circleci/project/build.sh $@
     fi
 }
