@@ -42,6 +42,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <bitset>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -109,6 +110,27 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     return JNI_VERSION_1_6;
 }
 
+/* The BitFlags class is used to hold the 64 bits visibility option bit flags */
+constexpr auto N = CHAR_BIT * sizeof(unsigned long long);
+
+class BitFlags
+{
+private:
+    std::bitset<N> bf;
+
+public:
+    void setBits(std::uint64_t flags)
+    {
+        bf = std::bitset<N>(flags);
+    }
+
+    bool getBit(std::uint64_t flag)
+    {
+        int bitpos = log2(flag);
+        return bf.test(bitpos);
+    }
+};
+
 struct Context {
     std::mutex ctxMutex;
     std::mutex mtx;
@@ -124,7 +146,7 @@ struct Context {
     bool fdimension; // 128/4 if true else 64/2
     int qrcode_ecc;
 
-    unsigned char acl[1];
+    BitFlags acl;
 
     unsigned char* NewByteArray(int n)
     {
@@ -621,9 +643,8 @@ void* idpass_lite_init(unsigned char* keyset_buf,
     context->facediff_full = DEFAULT_FACEDIFF_FULL;
     context->fdimension = false; // defaults to 64/2
     context->qrcode_ecc = ECC_MEDIUM;
-    std::memset(
-        context->acl, 0x00, sizeof context->acl); // default all fields priv
-
+    context->acl.setBits(0);
+    
     return static_cast<void*>(context);
 }
 
@@ -675,11 +696,7 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
 
     Context* context = (Context*)self;
     *outlen = 0;
-#ifdef ALWAYS
-    unsigned long int epochSeconds = 12345;
-#else
     unsigned long int epochSeconds = std::time(nullptr);
-#endif
     float faceArray[128];
 
     api::Ident ident;
@@ -740,36 +757,53 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     idpass::CardDetails privDetails;
     idpass::CardDetails pubDetails;
 
-    unsigned char acl = context->acl[0];
-
-    if (acl & ACL_SURNAME)
+    if (context->acl.getBit(DETAIL_SURNAME))
         pubDetails.set_surname(ident.surname().data());
     else
         privDetails.set_surname(ident.surname().data());
 
-    if (acl & ACL_GIVENNAME)
+    if (context->acl.getBit(DETAIL_GIVENNAME))
         pubDetails.set_givenname(ident.givenname().data());
     else
         privDetails.set_givenname(ident.givenname().data());
 
-    if (acl & ACL_PLACEOFBIRTH)
+    if (context->acl.getBit(DETAIL_PLACEOFBIRTH))
         pubDetails.set_placeofbirth(ident.placeofbirth().data());
     else
         privDetails.set_placeofbirth(ident.placeofbirth().data());
 
-    if (acl & ACL_CREATEDAT)
+    if (context->acl.getBit(DETAIL_CREATEDAT))
         pubDetails.set_createdat(epochSeconds);
     else
         privDetails.set_createdat(epochSeconds);
 
-    if (acl & ACL_DATEOFBIRTH)
+    if (context->acl.getBit(DETAIL_DATEOFBIRTH))
         pubDetails.mutable_dateofbirth()->CopyFrom(dob);
     else
         privDetails.mutable_dateofbirth()->CopyFrom(dob);
 
+    if (context->acl.getBit(DETAIL_UIN))
+        pubDetails.set_uin(ident.uin().data());
+    else
+        privDetails.set_uin(ident.uin().data());
+
+    if (context->acl.getBit(DETAIL_FULLNAME))
+        pubDetails.set_fullname(ident.fullname().data());
+    else
+        privDetails.set_fullname(ident.fullname().data());
+
+    if (context->acl.getBit(DETAIL_GENDER ))
+        pubDetails.set_gender(ident.gender());
+    else
+        privDetails.set_gender(ident.gender());
+
+    if (context->acl.getBit(DETAIL_POSTALADDRESS))
+        pubDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
+    else
+        privDetails.mutable_postaladdress()->CopyFrom(ident.postaladdress());
+
     idpass::Pair* kv = nullptr;
 
-    idpass::Dictionary pubExtras;
     if (ident.pubextra_size() > 0) {
         for (auto& p : ident.pubextra()) {
             kv = pubDetails.add_extra();
@@ -778,7 +812,6 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
         }
     }
 
-    idpass::Dictionary privExtras;
     if (ident.privextra_size() > 0) {
         for (auto& p : ident.privextra()) {
             kv = privDetails.add_extra();
@@ -796,20 +829,8 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     // generate user's unique ed25519 key
     unsigned char user_ed25519PubKey[crypto_sign_PUBLICKEYBYTES];
     unsigned char user_ed25519PrivKey[crypto_sign_SECRETKEYBYTES];
-#ifdef ALWAYS
-    unsigned char sk_always[]
-        = {0x2d, 0x52, 0xf8, 0x6a, 0xaa, 0x4d, 0x62, 0xfc, 0xab, 0x4d, 0xb0,
-           0x0a, 0x21, 0x1a, 0x12, 0x60, 0xf8, 0x17, 0xc5, 0xf2, 0xba, 0xb7,
-           0x3e, 0xfe, 0xd6, 0x36, 0x07, 0xbc, 0x9d, 0xb3, 0x96, 0xee,
-           0x57, 0xc6, 0x33, 0x09, 0xfa, 0xc2, 0x1b, 0x60, 0x04, 0x76, 0x4e,
-           0xf6, 0xf7, 0xc6, 0x2f, 0x28, 0xcf, 0x63, 0x40, 0xbe, 0x13, 0x10,
-           0x6e, 0x80, 0xed, 0x70, 0x41, 0x8f, 0xa1, 0xb9, 0x27, 0xb4}; // 64
-    
-    std::memcpy(user_ed25519PrivKey, sk_always, 64);
-    crypto_sign_ed25519_sk_to_pk(user_ed25519PubKey, user_ed25519PrivKey);
-#else
     crypto_sign_keypair(user_ed25519PubKey, user_ed25519PrivKey);
-#endif
+
     /////////////////
     // assemble ecard
     // IDPassCard: [access, details, encryptionKey]
@@ -1556,8 +1577,13 @@ void* idpass_lite_ioctl(void* self,
         // describe the next bytes. In this way, when the
         // number of configurable bits increases can be better
         // managed.
-        unsigned char acl = iobuf[1];
-        context->acl[0] = acl;
+        unsigned long long vflags; 
+        unsigned char vflagsbuf[8];
+        for (int i = 0; i < 8; i++) {
+            vflagsbuf[i] = iobuf[1 + i];
+        }
+        std::memcpy(&vflags, vflagsbuf, sizeof(unsigned long long));
+        context->acl.setBits(vflags);
     } break;
     }
 

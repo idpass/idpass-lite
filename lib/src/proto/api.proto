@@ -20,6 +20,8 @@ package api;
 option java_package = "org.api.proto";
 option java_multiple_files = true;
 
+import "idpasslite.proto";
+
 message KV {
   string key = 1;
   string value = 2;
@@ -73,6 +75,10 @@ message Ident {
   bytes photo = 7;
   repeated KV privExtra = 8;
   repeated KV pubExtra = 9;
+  string UIN = 10;
+  string fullName = 11;
+  int32 gender = 12; // Reserved: Female = 1 / Male = 2 / Diverse = 3 // The list can then be extended as needed
+  idpass.PostalAddress postalAddress = 13;
 }
 
 message Idents { repeated Ident ident = 1; }

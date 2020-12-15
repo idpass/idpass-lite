@@ -132,8 +132,10 @@ TEST_F(TestCases, card_integrity_test)
     std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
-    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+    std::uint64_t vizflags = DETAIL_SURNAME | DETAIL_PLACEOFBIRTH;
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -215,8 +217,10 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
     std::ifstream f1(inputfile, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
 
-    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+    std::uint64_t vizFlags = DETAIL_SURNAME | DETAIL_PLACEOFBIRTH;
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizFlags, 8);
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -378,8 +382,10 @@ TEST_F(TestCases, cannot_add_intermed_cert_without_rootcert)
         = idpass_lite_init(_keyset.data(), _keyset.size(), nullptr, 0);
 
     // have surname visible in public region so we can do quick check below
-    unsigned char ioctlcmd[] = {IOCTL_SET_ACL,
-                                ACL_SURNAME  | ACL_PLACEOFBIRTH };
+    std::uint64_t vizflags = DETAIL_SURNAME | DETAIL_PLACEOFBIRTH; 
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
     idpass_lite_ioctl(context, nullptr, ioctlcmd, sizeof ioctlcmd);
 
 
@@ -520,8 +526,10 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
     std::ifstream photofile(filename, std::ios::binary);
     std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
-    unsigned char ioctlcmd[]
-        = {IOCTL_SET_ACL, ACL_PLACEOFBIRTH | ACL_GIVENNAME};
+    std::uint64_t vizflags = DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME;
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL;
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
@@ -656,8 +664,10 @@ TEST_F(TestCases, create_card_with_certificates)
     // transfer givenname, placeofbirth to public region
     // thus, these fields will no longer be in the private region
     // this is to avoid redundancy 
-    unsigned char ioctlcmd[] = { IOCTL_SET_ACL, 
-        ACL_PLACEOFBIRTH | ACL_GIVENNAME }; 
+    std::uint64_t vizflags = DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME; 
+    unsigned char ioctlcmd[9];
+    ioctlcmd[0] = IOCTL_SET_ACL; 
+    std::memcpy(&ioctlcmd[1], &vizflags, 8);
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
     int ecard_len;
@@ -1054,12 +1064,10 @@ TEST_F(TestCases, threading_single_instance_test)
         ASSERT_TRUE(f1.is_open());
 
         std::vector<char> photo(std::istreambuf_iterator<char>{f1}, {});
-
-        unsigned char ioctlcmd[]
-            = {IOCTL_SET_ACL,
-               ACL_PLACEOFBIRTH
-                   | ACL_GIVENNAME}; // make givenname, placeofbirth visible
-
+        std::uint64_t vizflags = DETAIL_PLACEOFBIRTH | DETAIL_GIVENNAME;// make givenname, placeofbirth visible
+        unsigned char ioctlcmd[9];
+        ioctlcmd[0] = IOCTL_SET_ACL;
+        std::memcpy(&ioctlcmd[1], &vizflags, 8);
         idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
         std::vector<unsigned char> identbuf(m_ident.ByteSizeLong());
@@ -1521,6 +1529,7 @@ TEST_F(TestCases, sig_invariance_tests)
 // for this test to makes sense
 // This test is to prove that similar identity details
 // should produce exactly the same QR code
+#if 0
 TEST_F(TestCases, card_invariance_test)
 {
     api::KV* privextra = m_ident.add_privextra();
@@ -1578,6 +1587,7 @@ TEST_F(TestCases, card_invariance_test)
         }
     }
 }
+#endif
 
 TEST_F(TestCases, create_card_no_photo)
 {
@@ -1620,6 +1630,61 @@ TEST_F(TestCases, create_card_no_photo)
     }
 }
 
+TEST_F(TestCases, test_new_protobuf_fields)
+{
+    int buf_len = 0;
+    unsigned char* buf;
+
+    api::Ident o_ident;
+
+    std::string filename = std::string(datapath) + "manny1.bmp";
+    std::ifstream photofile(filename, std::ios::binary);
+    std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
+
+    o_ident.set_surname("Pacquiao");
+    o_ident.set_givenname("Manny");
+    o_ident.set_placeofbirth("Kibawe, Bukidnon");
+    o_ident.set_pin("12345");
+    //o_ident.mutable_dateofbirth()->set_year(1978);
+    //o_ident.mutable_dateofbirth()->set_month(12);
+    //o_ident.mutable_dateofbirth()->set_day(17);
+    o_ident.set_photo(photo.data(), photo.size());
+
+    std::string fullname = o_ident.givenname() + " " + o_ident.surname();
+
+    o_ident.set_fullname(fullname);
+    o_ident.set_uin("314159");
+    o_ident.set_gender(2);
+    o_ident.mutable_postaladdress()->set_language_code("en");
+    o_ident.mutable_postaladdress()->set_organization("NEWLOGIC");
+
+    std::vector<unsigned char> ident_buf(o_ident.ByteSizeLong());
+    ident_buf.resize(o_ident.ByteSizeLong());
+    o_ident.SerializeToArray(ident_buf.data(), ident_buf.size());
+
+    buf = idpass_lite_create_card_with_face(
+        ctx, &buf_len, ident_buf.data(), ident_buf.size());
+
+    ASSERT_TRUE(buf != nullptr);
+
+    idpass::IDPassCards cards;
+    ASSERT_TRUE(cards.ParseFromArray(buf, buf_len));
+
+    int details_len = 0;
+    unsigned char* details = idpass_lite_verify_card_with_face(
+        ctx, &details_len, buf, buf_len, photo.data(), photo.size());
+
+    ASSERT_TRUE(details != nullptr);
+
+    idpass::CardDetails cardDetails;
+    cardDetails.ParseFromArray(details, details_len);
+    ASSERT_STREQ(cardDetails.fullname().c_str(),fullname.c_str());
+    ASSERT_STREQ(cardDetails.postaladdress().organization().c_str(),"NEWLOGIC");
+    ASSERT_STREQ(cardDetails.postaladdress().language_code().c_str(),"en");
+    ASSERT_STREQ(cardDetails.uin().c_str(),"314159");
+    ASSERT_EQ(cardDetails.gender(),2);
+}
+
 int main(int argc, char* argv[])
 {
     if (argc > 1) {
@@ -1651,10 +1716,8 @@ int main(int argc, char* argv[])
             //::testing::GTEST_FLAG(filter) = "TestCases.card_invariance_test";
             //::testing::GTEST_FLAG(filter) = "*create_card_no_photo*";
 
-#ifndef ALWAYS
-            // skip these particular test if ALWAYS preprocessor is off
-            testing::GTEST_FLAG(filter) = "-TestCases.card_invariance_test";
-#endif
+            //testing::GTEST_FLAG(filter) = "*test_new_protobuf_fields*";
+
             return RUN_ALL_TESTS();
         }
     }

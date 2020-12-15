@@ -23,8 +23,8 @@ set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/lib/src/)
 set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/build/idpass/desktop/)
 set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/dependencies/build/desktop/bin/protoc)
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
-set(PROTOGEN ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite)
-set(PROTOGEN2 ${CMAKE_CURRENT_BINARY_DIR}/proto/api)
+set(PROTOGEN_IDPASSLITE ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite)
+set(PROTOGEN_API ${CMAKE_CURRENT_BINARY_DIR}/proto/api)
 
 set(idpasstests_DEPENDS 
     protobuf
@@ -33,15 +33,15 @@ set(idpasstests_DEPENDS
     gtest
     )
 
-add_custom_command(OUTPUT ${PROTOGEN}/idpasslite.pb.cc
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN}
-    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN} ${PROTO}/idpasslite.proto
+add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_IDPASSLITE}
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_IDPASSLITE} ${PROTO}/idpasslite.proto
     COMMENT "Compiling idpasslite.proto ..."
     )
 
-add_custom_command(OUTPUT ${PROTOGEN2}/api.pb.cc
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN2}
-    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN2} ${PROTO}/api.proto
+add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.cc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_API}
+    COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_API} ${PROTO}/api.proto
     COMMENT "Compiling api.proto ..."
     )
 
@@ -61,8 +61,8 @@ link_directories(
     )
 
 add_executable(idpasstests
-    ${PROTOGEN}/idpasslite.pb.cc
-    ${PROTOGEN2}/api.pb.cc
+    ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+    ${PROTOGEN_API}/api.pb.cc
     idpasstests.cpp
     ${IDPASSAPI_INCLUDE}/bin16.cpp
     )
@@ -72,6 +72,7 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
     ${IDPASSAPI_INCLUDE}
     ${GTEST}/include
+    ${PROTOGEN_IDPASSLITE}
     )
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "x86-64")

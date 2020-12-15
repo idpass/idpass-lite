@@ -133,15 +133,8 @@ bool decryptCard(unsigned char* full_card_buf,
         fullCard.encryptedcard().data());
     int ecardbuf_len = fullCard.encryptedcard().size();
 
-    const unsigned char* signature
-        = reinterpret_cast<const unsigned char*>(fullCard.signature().data());
     const unsigned char* pubkey = reinterpret_cast<const unsigned char*>(
         fullCard.signerpublickey().data());
-
-    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> signerPublicKey;
-    std::copy(pubkey,
-              pubkey + crypto_sign_PUBLICKEYBYTES,
-              std::begin(signerPublicKey));
 
     bool found = false;
     for (auto& pub : keyset.verificationkeys()) {
@@ -243,14 +236,8 @@ int encrypt_object(idpass::SignedIDPassCard& object,
     }
 
     unsigned char nonce[crypto_aead_chacha20poly1305_IETF_NPUBBYTES]; // 12
-#ifdef ALWAYS
-    unsigned char always_nonce[] = {
-        0xf8, 0x0b, 0x95, 0x79, 0x69, 0xd1, 0xe8, 0x60, 0x6c, 0x33, 0x56, 0x00};
-
-    std::memcpy(nonce, always_nonce, 12);
-#else
     randombytes_buf(nonce, sizeof nonce);
-#endif
+
     int lenn = buf_len + crypto_aead_chacha20poly1305_IETF_ABYTES; // +16
     std::vector<unsigned char> ciphertext(lenn);
     unsigned long long ciphertext_len = 0;
