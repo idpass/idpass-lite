@@ -1,6 +1,6 @@
 # ID PASS Lite
 
-[![CircleCI](https://circleci.com/gh/idpass/idpass-lite.svg?style=svg)](https://circleci.com/gh/idpass/idpass-lite)
+[![CircleCI](https://circleci.com/gh/idpass/idpass-lite.svg?style=svg&circle-token=937634c8f42536396097ea8c04097035b9c9a509)](https://circleci.com/gh/idpass/idpass-lite)
 
 ![Alt text](idpasslite_qr.png?raw=true "api")
 
@@ -11,10 +11,12 @@ git clone --recurse-submodules https://github.com/idpass/idpass-lite.git
 
 ## How to build `libidpasslite.so` 
 
-`./build.sh` to build the debug and release versions
-and the generated `lcov` coverage reports written to `build/html/` folder. 
+[![asciicast](https://asciinema.org/a/jgQTFMCSKZiqYIxxEFv5rKExc.svg)](https://asciinema.org/a/jgQTFMCSKZiqYIxxEFv5rKExc)
 
-Or you can do a specific build by:
+`./build.sh` will do a build of a debug and release versions of the library for `x86-64` platform and then
+generate an `lcov` coverage report under `build/html/` folder. 
+
+For specific builds:
 
 ```
 cd idpass-lite/
@@ -41,17 +43,20 @@ abi=arm64-v8a
 
 mkdir arm64-v8a.build
 cd arm64-v8a.build
-            cmake \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
-                -DANDROID_NDK=$ANDROID_NDK_HOME \
-                -DANDROID_TOOLCHAIN=clang \
-                -DCMAKE_ANDROID_ARCH_ABI=$abi \
-                -DANDROID_ABI=$abi \
-                -DANDROID_LINKER_FLAGS="-landroid -llog" \
-                -DANDROID_NATIVE_API_LEVEL=23 \
-                -DANDROID_STL=c++_static \
-                -DANDROID_CPP_FEATURES="rtti exceptions" ..
+
+cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+    -DANDROID_NDK=$ANDROID_NDK_HOME \
+    -DANDROID_TOOLCHAIN=clang \
+    -DCMAKE_ANDROID_ARCH_ABI=$abi \
+    -DANDROID_ABI=$abi \
+    -DANDROID_LINKER_FLAGS="-landroid -llog" \
+    -DANDROID_NATIVE_API_LEVEL=23 \
+    -DANDROID_STL=c++_static \
+    -DANDROID_CPP_FEATURES="rtti exceptions" ..
+
+cmake --build .
 ```
 
 ## Opensource Dependencies

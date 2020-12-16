@@ -13,6 +13,7 @@ jobs:
               if test -f "build.sh"; then
                   ./build.sh
               fi
+          no_output_timeout: 30m
       - store_artifacts:
           path: /home/circleci/project/build/release/lib/src/libidpasslite.so
           destination: libidpasslite.so
