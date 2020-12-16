@@ -51,11 +51,30 @@ It's also possible to generate specific builds by passing the desired build as a
 ./build.sh android x86
 ```
 
-All the builds (except for `desktop`) are done inside a container, so we would need to install [Docker](https://docs.docker.com/get-docker/). It might be possible to use our local machine for the Android builds if we can supply these environment variables:
+All the builds (except for `desktop`) are done inside a container, so we would need to install [Docker](https://docs.docker.com/get-docker/). It might be possible to use our local machine for the builds if we can supply these environment variables:
 
 ```bash
 TOOLCHAIN_FILE=/opt/android/android-ndk-r20/build/cmake/android.toolchain.cmake
 ANDROID_NDK_HOME=/opt/android/android-ndk-r20
+
+# Example, to build for "android arm64-v8a"
+abi=arm64-v8a
+
+# Then run these commands to build
+mkdir arm64-v8a.build
+cd arm64-v8a.build
+
+cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+    -DANDROID_NDK=$ANDROID_NDK_HOME \
+    -DANDROID_TOOLCHAIN=clang \
+    -DCMAKE_ANDROID_ARCH_ABI=$abi \
+    -DANDROID_ABI=$abi \
+    -DANDROID_LINKER_FLAGS="-landroid -llog" \
+    -DANDROID_NATIVE_API_LEVEL=23 \
+    -DANDROID_STL=c++_static \
+    -DANDROID_CPP_FEATURES="rtti exceptions" ..
 ```
 
 ## Open source dependencies
