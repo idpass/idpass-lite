@@ -51,7 +51,7 @@ cd arm64-v8a.build
                 -DANDROID_LINKER_FLAGS="-landroid -llog" \
                 -DANDROID_NATIVE_API_LEVEL=23 \
                 -DANDROID_STL=c++_static \
-                -DANDROID_CPP_FEATURES="rtti exceptions" ../..
+                -DANDROID_CPP_FEATURES="rtti exceptions" ..
 ```
 
 ## Opensource Dependencies
