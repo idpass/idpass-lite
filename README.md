@@ -8,7 +8,7 @@ A library to create and issue biometrically-binding QR code identity cards.
 
 ## Usage
 
-This library can be used in C and C++ projects. Download `libidpasslite.so` from the [Releases](https://github.com/idpass/idpass-lite/releases) page or [build it from source](#building-from-source), then add it to the project that will use it.
+This library can be used in C and C++ projects. Download `libidpasslite.so` from the [Releases](https://github.com/idpass/idpass-lite/releases) page or [build it from source](#building-from-source), then add it to the project that will use it. Documentation on how to this library can be found in the [wiki](https://github.com/idpass/idpass-lite/wiki).
 
 Other languages are also supported through our wrapper packages:
 
