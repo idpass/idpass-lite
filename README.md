@@ -79,6 +79,10 @@ cmake \
     -DANDROID_CPP_FEATURES="rtti exceptions" ..
 ```
 
+Here's a screencast of these build commands performed to create a build:
+
+[![asciicast](https://asciinema.org/a/jgQTFMCSKZiqYIxxEFv5rKExc.svg)](https://asciinema.org/a/jgQTFMCSKZiqYIxxEFv5rKExc)
+
 ## Open source dependencies
 
 - [libsodium](https://github.com/jedisct1/libsodium.git)
