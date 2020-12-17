@@ -16,5 +16,5 @@
 
 #pragma once
 
-#define DXTRACKER "@DXTRACKER@"
+#define DXTRACKER "@DXTRACKER@:@ver_major@.@ver_minor@.@ver_patch@"
 
