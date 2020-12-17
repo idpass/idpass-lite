@@ -24,7 +24,7 @@ To use the latest version of this library, we can build it from source.
 git clone --recurse-submodules ssh://git@github.com/idpass/idpass-lite.git
 ```
 
-Be sure to have the following build tools installed before proceeding: [cmake](https://cmake.org/install/), [protobuf](https://grpc.io/docs/protoc-installation/)
+Be sure to have the following build tools installed before proceeding: [cmake](https://cmake.org/install/), [protobuf](https://grpc.io/docs/protoc-installation/), [Docker](https://docs.docker.com/get-docker/)
 
 **Debug and release builds**
 
@@ -51,7 +51,9 @@ It's also possible to generate specific builds by passing the desired build as a
 ./build.sh android x86
 ```
 
-All the builds (except for `desktop`) are done inside a container, so we would need to install [Docker](https://docs.docker.com/get-docker/). It might be possible to use our local machine for the builds if we can supply these environment variables:
+**Building on host machine**
+
+All the builds (except for `desktop`) are done inside a container. It might be possible to use the host machine for the builds if we can supply these environment variables:
 
 ```bash
 TOOLCHAIN_FILE=/opt/android/android-ndk-r20/build/cmake/android.toolchain.cmake
