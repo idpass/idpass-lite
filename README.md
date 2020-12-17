@@ -77,6 +77,8 @@ cmake \
     -DANDROID_NATIVE_API_LEVEL=23 \
     -DANDROID_STL=c++_static \
     -DANDROID_CPP_FEATURES="rtti exceptions" ..
+
+cmake --build .
 ```
 
 Here's a screencast of these build commands performed to create a build:
