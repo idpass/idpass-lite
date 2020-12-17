@@ -1193,6 +1193,10 @@ int8_t qrcode_initText(QRCode *qrcode,
                   - NUM_ERROR_CORRECTION_CODEWORDS[eccFormatBits][version - 1];
         }
 
+        if (version > 40) {
+            return version; 
+        }
+
         qrcodeData.resize(qrcode_getBufferSize(version));
         modules = qrcodeData.data();
     }

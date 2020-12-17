@@ -65,6 +65,7 @@ extern int IDPASS_JNI_TLEN;
 #endif
 
 char dxtracker[] = DXTRACKER;
+int binary_encoding_max[] = {2953, 2331, 1663, 1273};
 
 std::mutex g_mutex;
 std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> g_revokedKeys;
@@ -1427,6 +1428,12 @@ MODULE_API unsigned char* idpass_lite_qrpixel(void* self,
     Context* context = (Context*)self;
     int buf_len = 0;
 
+    // if length is larger than the allowed maximum at the 
+    // choosen ECC, then data cannot be encoded into QR code
+    if (data_len > binary_encoding_max[context->qrcode_ecc]) {
+        return nullptr;
+    }
+
     unsigned char* buf = qrcode_getpixel(
         data, data_len, qrsize, &buf_len, context->qrcode_ecc);
 
@@ -1469,6 +1476,12 @@ MODULE_API unsigned char* idpass_lite_qrpixel2(void* self,
     Context* context = (Context*)self;
     int buf_len = 0;
     *outlen = 0;
+
+    // if length is larger than the allowed maximum at the 
+    // choosen ECC, then data cannot be encoded into QR code
+    if (data_len > binary_encoding_max[context->qrcode_ecc]) {
+        return nullptr;
+    }
 
     unsigned char* buf = qrcode_getpixel(
         data, data_len, qrsize, &buf_len, context->qrcode_ecc);
