@@ -21,7 +21,7 @@ To use the latest version of this library, we can build it from source.
 **Clone the repository**
 
 ```bash
-git clone --recurse-submodules ssh://git@github.com/idpass/idpass-lite.git
+git clone --recurse-submodules https://github.com/idpass/idpass-lite.git
 ```
 
 Be sure to have the following build tools installed before proceeding: [cmake](https://cmake.org/install/), [protobuf](https://grpc.io/docs/protoc-installation/), [Docker](https://docs.docker.com/get-docker/)
