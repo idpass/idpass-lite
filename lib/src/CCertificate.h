@@ -88,9 +88,9 @@ public:
         return nullptr;
     }
 
-    api::Certificate getValue()
+    idpass::Certificate getValue()
     {
-        api::Certificate c;
+        idpass::Certificate c;
 
         c.set_pubkey(m_pk.data(), m_pk.size());
         c.set_signature(m_signature.data(), m_signature.size());
@@ -112,7 +112,7 @@ public:
             32,
             &buf_len);
 
-        api::Certificate retval;
+        idpass::Certificate retval;
 
         if (!buf || !retval.ParseFromArray(buf, buf_len)) {
             idpass_lite_freemem(nullptr, buf);
@@ -148,7 +148,7 @@ public:
         unsigned char* buf
             = idpass_lite_generate_root_certificate(m_sk.data(), 64, &buf_len);
 
-        api::Certificate retval;
+        idpass::Certificate retval;
         bool flag = retval.ParseFromArray(buf, buf_len);
         idpass_lite_freemem(nullptr, buf);
 
@@ -186,7 +186,7 @@ public:
             unsigned char* buffer
                 = idpass_lite_generate_root_certificate(privkey, 64, &len);
 
-            api::Certificate retval;
+            idpass::Certificate retval;
 
             if (!buffer || !retval.ParseFromArray(buffer, len)) {
                 throw std::logic_error("cert init error");
@@ -208,7 +208,7 @@ public:
 
     bool parseFrom(unsigned char* buf, int buf_len)
     {
-        api::Certificate value;
+        idpass::Certificate value;
 
         if (!value.ParseFromArray(buf, buf_len)) {
             return false;
@@ -227,8 +227,7 @@ public:
         return true;
     }
 
-    CCertificate(const idpass::Certificate& c)
-    {
+    /*CCertificate(const idpass::Certificate& c)
         if (crypto_sign_verify_detached(
                 reinterpret_cast<const unsigned char*>(c.signature().data()),
                 reinterpret_cast<const unsigned char*>(c.pubkey().data()),
@@ -251,13 +250,13 @@ public:
         int issuerkeylen = c.issuerkey().size();
         const char* sigbuf = c.signature().data();
 
-        api::Certificate tmp;
+        idpass::Certificate tmp;
         tmp.set_pubkey(m_pk.data(), 32);
         tmp.set_signature(c.signature().data(), 64);
         tmp.set_issuerkey(c.issuerkey().data(), 32);
-    }
+    }*/
 
-    CCertificate(const api::Certificate& c)
+    CCertificate(const idpass::Certificate& c)
     {
         if (crypto_sign_verify_detached(
                 reinterpret_cast<const unsigned char*>(c.signature().data()),

@@ -22,19 +22,6 @@ option java_multiple_files = true;
 
 import "idpasslite.proto";
 
-message KV {
-  string key = 1;
-  string value = 2;
-}
-
-message KVList { repeated KV vals = 1; }
-
-message Dat {
-  int32 year = 1;
-  int32 month = 2;
-  int32 day = 3;
-}
-
 message byteArray {
   enum Typ {
     BLOB = 0;
@@ -57,24 +44,18 @@ message KeySet {
   repeated byteArray verificationKeys = 3;
 }
 
-message Certificate {
-  bytes pubkey = 1;
-  bytes issuerkey = 2;
-  bytes signature = 3;
-}
-
-message Certificates { repeated Certificate cert = 1; }
+message Certificates { repeated idpass.Certificate cert = 1; }
 
 message Ident {
   string surName = 1;
   string givenName = 2;
   string placeOfBirth = 3;
   string pin = 4;
-  Dat dateOfBirth = 5;
+  idpass.Date dateOfBirth = 5;
   byteArrays photos = 6;
   bytes photo = 7;
-  repeated KV privExtra = 8;
-  repeated KV pubExtra = 9;
+  repeated idpass.Pair privExtra = 8;
+  repeated idpass.Pair pubExtra = 9;
   string UIN = 10;
   string fullName = 11;
   int32 gender = 12; // Reserved: Female = 1 / Male = 2 / Diverse = 3 // The list can then be extended as needed

@@ -100,9 +100,9 @@ protected:
         CCertificate rootCert3;
 
         api::Certificates rootCertificates;
-        api::Certificate* cert1 = rootCertificates.add_cert();
-        api::Certificate* cert2 = rootCertificates.add_cert();
-        api::Certificate* cert3 = rootCertificates.add_cert();
+        idpass::Certificate* cert1 = rootCertificates.add_cert();
+        idpass::Certificate* cert2 = rootCertificates.add_cert();
+        idpass::Certificate* cert3 = rootCertificates.add_cert();
         cert1->CopyFrom(m_rootCert1->getValue());
         cert2->CopyFrom(rootCert2.getValue());
         cert3->CopyFrom(rootCert3.getValue());
@@ -139,7 +139,7 @@ TEST_F(TestCases, card_integrity_test)
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
-    api::KV* privextra = m_ident.add_privextra();
+    idpass::Pair* privextra = m_ident.add_privextra();
     privextra->set_key("color");
     privextra->set_value("blue");
 
@@ -185,9 +185,9 @@ TEST_F(TestCases, card_integrity_test)
     child0.Sign(child1);
 
     api::Certificates intermediateCertificates;
-    api::Certificate* c1 = intermediateCertificates.add_cert();
+    idpass::Certificate* c1 = intermediateCertificates.add_cert();
     c1->CopyFrom(child0.getValue());
-    api::Certificate* c2 = intermediateCertificates.add_cert();
+    idpass::Certificate* c2 = intermediateCertificates.add_cert();
     c2->CopyFrom(child1.getValue());
 
     std::vector<unsigned char> intermedcerts_buf(intermediateCertificates.ByteSizeLong());
@@ -224,7 +224,7 @@ TEST_F(TestCases, create_card_with_certificates_content_tampering)
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
-    api::KV* privextra = m_ident.add_privextra();
+    idpass::Pair* privextra = m_ident.add_privextra();
     privextra->set_key("color");
     privextra->set_value("blue");
 
@@ -285,9 +285,9 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_certificates)
     child0.Sign(child1);
 
     api::Certificates intermediateCertificates;
-    api::Certificate* c1 = intermediateCertificates.add_cert();
+    idpass::Certificate* c1 = intermediateCertificates.add_cert();
     c1->CopyFrom(child0.getValue());
-    api::Certificate* c2 = intermediateCertificates.add_cert();
+    idpass::Certificate* c2 = intermediateCertificates.add_cert();
     c2->CopyFrom(child1.getValue());
 
     std::vector<unsigned char> intermedcerts_buf(intermediateCertificates.ByteSizeLong());
@@ -496,7 +496,7 @@ TEST_F(TestCases, idpass_lite_init_test)
 
     CCertificate rootCA;
 
-    api::Certificate* pcer = rootCerts.add_cert();
+    idpass::Certificate* pcer = rootCerts.add_cert();
     pcer->CopyFrom(rootCA.getValue());
     rootcerts_buf.resize(rootCerts.ByteSizeLong());
     rootCerts.SerializeToArray(rootcerts_buf.data(), rootcerts_buf.size());
@@ -533,7 +533,7 @@ TEST_F(TestCases, idpass_lite_create_card_with_face_test)
 
     idpass_lite_ioctl(ctx, nullptr, ioctlcmd, sizeof ioctlcmd);
 
-    api::KV* kv = m_ident.add_pubextra();
+    idpass::Pair* kv = m_ident.add_pubextra();
     kv->set_key("gender");
     kv->set_value("male");
 
@@ -586,7 +586,7 @@ TEST_F(TestCases, chain_of_trust_test)
         int status;
         api::Certificates chaincerts;
         for (auto& c : chain) {
-            api::Certificate* pCer = chaincerts.add_cert();
+            idpass::Certificate* pCer = chaincerts.add_cert();
             pCer->CopyFrom(c.getValue());
         }
         std::vector<unsigned char> buf(chaincerts.ByteSizeLong());
@@ -653,7 +653,7 @@ TEST_F(TestCases, create_card_with_certificates)
     ASSERT_FALSE(certifi.isSelfSigned());
 
     api::Certificates intermedCerts;
-    api::Certificate* pCer = intermedCerts.add_cert();
+    idpass::Certificate* pCer = intermedCerts.add_cert();
     pCer->CopyFrom(certifi.getValue()); 
 
     std::vector<unsigned char> buf(intermedCerts.ByteSizeLong());
@@ -987,8 +987,8 @@ TEST_F(TestCases, threading_multiple_instance_test)
         CCertificate rootCert2;
 
         api::Certificates rootCertificates;
-        api::Certificate* content1 = rootCertificates.add_cert();
-        api::Certificate* content2 = rootCertificates.add_cert();
+        idpass::Certificate* content1 = rootCertificates.add_cert();
+        idpass::Certificate* content2 = rootCertificates.add_cert();
         content1->CopyFrom(rootCert1.getValue());
         content2->CopyFrom(rootCert1.getValue());
 
@@ -1377,9 +1377,9 @@ TEST_F(TestCases, certificate_revoke_test)
     child0.Sign(child1);
 
     api::Certificates intermediateCertificates;
-    api::Certificate* c1 = intermediateCertificates.add_cert();
+    idpass::Certificate* c1 = intermediateCertificates.add_cert();
     c1->CopyFrom(child0.getValue());
-    api::Certificate* c2 = intermediateCertificates.add_cert();
+    idpass::Certificate* c2 = intermediateCertificates.add_cert();
     c2->CopyFrom(child1.getValue());
 
     std::vector<unsigned char> intermedcerts_buf(intermediateCertificates.ByteSizeLong());

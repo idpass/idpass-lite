@@ -778,10 +778,12 @@ unsigned char* idpass_lite_create_card_with_face(void* self,
     else
         privDetails.set_createdat(epochSeconds);
 
-    if (context->acl.getBit(DETAIL_DATEOFBIRTH))
-        pubDetails.mutable_dateofbirth()->CopyFrom(dob);
-    else
-        privDetails.mutable_dateofbirth()->CopyFrom(dob);
+    if (dob.year() != 0 || dob.month() != 0 || dob.day() !=0 ) {
+        if (context->acl.getBit(DETAIL_DATEOFBIRTH))
+            pubDetails.mutable_dateofbirth()->CopyFrom(dob);
+        else
+            privDetails.mutable_dateofbirth()->CopyFrom(dob);
+    }
 
     if (context->acl.getBit(DETAIL_UIN))
         pubDetails.set_uin(ident.uin().data());
@@ -1847,7 +1849,7 @@ unsigned char* idpass_lite_generate_root_certificate(unsigned char* skpk,
         return nullptr;
     }
 
-    api::Certificate rootCERT;
+    idpass::Certificate rootCERT;
     //rootCERT.set_privkey(skpk, skpk_len);
     rootCERT.set_pubkey(pubkey, crypto_sign_PUBLICKEYBYTES);
     rootCERT.set_signature(signature, crypto_sign_BYTES);
@@ -1902,7 +1904,7 @@ idpass_lite_generate_child_certificate(const unsigned char* parent_skpk,
         return nullptr;
     }
 
-    api::Certificate intermedCert;
+    idpass::Certificate intermedCert;
     intermedCert.set_pubkey(child_pubkey, crypto_sign_PUBLICKEYBYTES);
     intermedCert.set_signature(signature, crypto_sign_BYTES);
     intermedCert.set_issuerkey(issuerkey, crypto_sign_PUBLICKEYBYTES);
