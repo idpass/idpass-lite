@@ -227,35 +227,6 @@ public:
         return true;
     }
 
-    /*CCertificate(const idpass::Certificate& c)
-        if (crypto_sign_verify_detached(
-                reinterpret_cast<const unsigned char*>(c.signature().data()),
-                reinterpret_cast<const unsigned char*>(c.pubkey().data()),
-                crypto_sign_PUBLICKEYBYTES,
-                reinterpret_cast<const unsigned char*>(c.issuerkey().data()))
-            != 0) {
-            throw std::logic_error("certificate anomaly error");
-        }
-
-        m_pk.resize(c.pubkey().size());
-        std::memcpy(m_pk.data(), c.pubkey().data(), c.pubkey().size());
-
-        m_signature.resize(c.signature().size());
-        std::memcpy(m_signature.data(), c.signature().data(), c.signature().size());
-
-        m_issuerkey.resize(c.issuerkey().size());
-        std::memcpy(m_issuerkey.data(), c.issuerkey().data(), c.issuerkey().size());
-
-        int siglen = c.signature().size();
-        int issuerkeylen = c.issuerkey().size();
-        const char* sigbuf = c.signature().data();
-
-        idpass::Certificate tmp;
-        tmp.set_pubkey(m_pk.data(), 32);
-        tmp.set_signature(c.signature().data(), 64);
-        tmp.set_issuerkey(c.issuerkey().data(), 32);
-    }*/
-
     CCertificate(const idpass::Certificate& c)
     {
         if (crypto_sign_verify_detached(
