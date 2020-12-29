@@ -24,7 +24,7 @@ Add the library to the project's `CMakeLists.txt`:
 TARGET_LINK_LIBRARIES(idpasslite)
 ```
 
-Then include the library's header files into the project:
+Then include the library's header files into the code:
 
 ```cpp
 #include "idpass.h"
@@ -32,7 +32,7 @@ Then include the library's header files into the project:
 #include "proto/idpasslite/idpasslite.pb.h"
 ```
 
-The library needs to be initialized before it can be used. Add the following into the project code:
+The library needs to be initialized before it can be used. Add the following to the code:
 
 ```cpp
 void initialize_idpass()
@@ -62,7 +62,7 @@ int main() {
 }
 ```
 
-Now we can use the library in the project, for example in order to create an ID Pass Lite identity card for a new user:
+Now the library can be used in the project, for example in order to create an ID Pass Lite identity card for a new user:
 
 ```cpp
 // Prepare protobuf object
@@ -96,7 +96,7 @@ unsigned char* idcard = idpass_lite_create_card_with_face(context,
 idpass_lite_saveToBitmap(context, idcard, idcard_len, "qrcode_id.bmp");
 ```
 
-Please refer to the [API Reference](https://github.com/idpass/idpass-lite/wiki/API-Reference) for all the available methods provided by this library.
+Refer to the [API Reference](https://github.com/idpass/idpass-lite/wiki/API-Reference) for all the available methods provided by this library.
 
 ## Open source dependencies
 
