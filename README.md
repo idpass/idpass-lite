@@ -27,13 +27,38 @@ TARGET_LINK_LIBRARIES(idpasslite)
 Then include the library's header files into the project:
 
 ```cpp
-// main.cpp
 #include "idpass.h"
 #include "proto/api/api.pb.h"
 #include "proto/idpasslite/idpasslite.pb.h"
+```
+
+The library needs to be initialized before it can be used. Add the following into the project code:
+
+```cpp
+void initialize_idpass()
+{
+    // Generate cryptographic keys
+    unsigned char signaturekey[64];
+    unsigned char encryptionkey[32];
+
+    idpass_lite_generate_secret_signature_key(signaturekey, 64);
+    idpass_lite_generate_encryption_key(encryptionkey, 32);
+
+    // Create a keyset using the generated keys
+    api::KeySet keyset;
+    keyset.set_encryptionkey(encryptionkey, 32);
+    keyset.set_signaturekey(signaturekey, 64);
+
+    // Serialize the keyset into a byte array
+    std::vector<unsigned char> keysetbuf(keyset.ByteSizeLong());
+    keyset.SerializeToArray(keysetbuf.data(), keysetbuf.size());
+
+    // Call the library's main initialization API
+    void* context = idpass_lite_init(keysetbuf.data(), keysetbuf.size(), nullptr, 0);
+}
 
 int main() {
-  // Rest of project code
+    initialize_idpass();
 }
 ```
 
