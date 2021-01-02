@@ -343,19 +343,24 @@ bool is_valid(api::KeySet& ckeys)
         return false;
     }
 
-    if (ckeys.verificationkeys_size() > 0) {
-        for (auto& verkey : ckeys.verificationkeys()) {
-            if (verkey.typ() != api::byteArray_Typ_ED25519PUBKEY
-                || verkey.val().size() != crypto_sign_PUBLICKEYBYTES) {
-                return false;
-            }
+    unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
+    crypto_sign_ed25519_sk_to_pk(pubkey, 
+        reinterpret_cast<const unsigned char*>(ckeys.signaturekey().data()));
+
+    bool found = false;
+    // Check each verification key is of valid type and size
+    for (auto& verkey : ckeys.verificationkeys()) {
+        if (verkey.typ() != api::byteArray_Typ_ED25519PUBKEY
+            || verkey.val().size() != crypto_sign_PUBLICKEYBYTES) {
+            return false;
         }
-    } else {
-        unsigned char pubkey[crypto_sign_PUBLICKEYBYTES];
-        crypto_sign_ed25519_sk_to_pk(pubkey, 
-            reinterpret_cast<const unsigned char*>(ckeys.signaturekey().data()));
-        // the public part of KeySet::signaturekey is, by default, a 
-        // verification key
+
+        if (std::memcmp(verkey.val().data(), pubkey, 32) == 0) {
+            found = true;
+        }
+    }
+    // public part of KeySet::signaturekey is, by defaultt, a verification key
+    if (!found) {
         api::byteArray* vk = ckeys.mutable_verificationkeys()->Add();
         vk->set_typ(api::byteArray_Typ_ED25519PUBKEY);
         vk->set_val(pubkey, crypto_sign_PUBLICKEYBYTES);
