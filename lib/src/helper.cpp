@@ -136,19 +136,23 @@ bool decryptCard(unsigned char* full_card_buf,
     const unsigned char* pubkey = reinterpret_cast<const unsigned char*>(
         fullCard.signerpublickey().data());
 
-    bool found = false;
-    for (auto& pub : keyset.verificationkeys()) {
-        if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
-            if (std::memcmp(pub.val().data(), pubkey, 32) == 0) {
-                found = true;
-                break;
+    // Find the card's signer key in the reader's trusted verification key(s)
+    // only if the card has no attached certificate(s)
+    if (fullCard.certificates_size() == 0) {
+        bool found = false;
+        for (auto& pub : keyset.verificationkeys()) {
+            if (pub.typ() == api::byteArray_Typ_ED25519PUBKEY) {
+                if (std::memcmp(pub.val().data(), pubkey, 32) == 0) {
+                    found = true;
+                    break;
+                }
             }
         }
-    }
 
-    if (!found) {
-        return false;
-    }
+        if (!found) {
+            return false;
+        }
+    } 
 
     idpass::PublicSignedIDPassCard publicRegion;
     if (fullCard.has_publiccard()) {
