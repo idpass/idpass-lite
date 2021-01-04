@@ -6,84 +6,97 @@ A library to create and issue biometrically-binding QR code identity cards.
 
 ![Alt text](idpasslite_qr.png?raw=true "api")
 
-## Usage
+## Getting started
 
-This library can be used in C and C++ projects. Download `libidpasslite.so` from the [Releases](https://github.com/idpass/idpass-lite/releases) page or [build it from source](#building-from-source), then add it to the project that will use it. Documentation on how to this library can be found in the [wiki](https://github.com/idpass/idpass-lite/wiki).
+This library can be used in C and C++ projects. Download `libidpasslite.so` from the [Releases](https://github.com/idpass/idpass-lite/releases) page or [build it from source](https://github.com/idpass/idpass-lite/wiki/Building-from-source), then add it to the project that will use it.
+
+Additional documentation on how to use this library can be found in the [wiki](https://github.com/idpass/idpass-lite/wiki).
 
 Other languages are also supported through our wrapper packages:
 
 - Java: [idpass-lite-java](https://github.com/idpass/idpass-lite-java)
 
-## Building from source
+## Usage
 
-To use the latest version of this library, we can build it from source.
+Add the library to the project's `CMakeLists.txt`:
 
-**Clone the repository**
-
-```bash
-git clone --recurse-submodules https://github.com/idpass/idpass-lite.git
+```txt
+TARGET_LINK_LIBRARIES(idpasslite)
 ```
 
-Be sure to have the following build tools installed before proceeding: [cmake](https://cmake.org/install/), [protobuf](https://grpc.io/docs/protoc-installation/), [Docker](https://docs.docker.com/get-docker/)
+Then include the library's header files into the code:
 
-**Debug and release builds**
-
-```bash
-./build.sh
+```cpp
+#include "idpass.h"
+#include "proto/api/api.pb.h"
+#include "proto/idpasslite/idpasslite.pb.h"
 ```
 
-This generates the debug and release builds for `x86-64` platform inside the `build` directory. `libidpasslite.so` can be found in `build/{debug,release}/lib/src/libidpasslite.so`. We can copy this file into our project to start using it.
+The library needs to be initialized before it can be used. Add the following to the code:
 
-Additionally, coverage reports for the build are written in the `build/html` directory.
+```cpp
+void initialize_idpass()
+{
+    // Generate cryptographic keys
+    unsigned char signaturekey[64];
+    unsigned char encryptionkey[32];
 
-**Specific builds**
+    idpass_lite_generate_secret_signature_key(signaturekey, 64);
+    idpass_lite_generate_encryption_key(encryptionkey, 32);
 
-It's also possible to generate specific builds by passing the desired build as arguments to `build.sh`.
+    // Create a keyset using the generated keys
+    api::KeySet keyset;
+    keyset.set_encryptionkey(encryptionkey, 32);
+    keyset.set_signaturekey(signaturekey, 64);
 
-```bash
-./build.sh desktop
-./build.sh debug
-./build.sh release
-./build.sh android
-./build.sh android arm64-v8a
-./build.sh android arm32-v7a
-./build.sh android x86_64
-./build.sh android x86
+    // Serialize the keyset into a byte array
+    std::vector<unsigned char> keysetbuf(keyset.ByteSizeLong());
+    keyset.SerializeToArray(keysetbuf.data(), keysetbuf.size());
+
+    // Call the library's main initialization API
+    void* context = idpass_lite_init(keysetbuf.data(), keysetbuf.size(), nullptr, 0);
+}
+
+int main() {
+    initialize_idpass();
+}
 ```
 
-**Building on host machine**
+Now the library can be used in the project, for example in order to create an ID Pass Lite identity card for a new user:
 
-All the builds (except for `desktop`) are done inside a container. It might be possible to use the host machine for the builds if we can supply these environment variables:
+```cpp
+// Prepare protobuf object
+api::Ident ident;
 
-```bash
-TOOLCHAIN_FILE=/opt/android/android-ndk-r20/build/cmake/android.toolchain.cmake
-ANDROID_NDK_HOME=/opt/android/android-ndk-r20
+// Take a photo of the user
+std::string filename = "userphoto.jpg";
+std::ifstream photofile(filename, std::ios::binary);
+std::vector<char> photo(std::istreambuf_iterator<char>{photofile}, {});
 
-# Example, to build for "android arm64-v8a"
-abi=arm64-v8a
+// Initialize protobuf object with the user's identity details
+ident.set_surname("Doe");
+ident.set_givenname("John");
+ident.set_placeofbirth("Kibawe, Bukidnon");
+ident.set_pin("12345");
+ident.mutable_dateofbirth()->set_year(1978);
+ident.mutable_dateofbirth()->set_month(12);
+ident.mutable_dateofbirth()->set_day(17);
+ident.set_photo(photo.data(), photo.size());
 
-# Then run these commands to build
-mkdir arm64-v8a.build
-cd arm64-v8a.build
+// Serialize protobuf object into a byte array
+std::vector<unsigned char> identbuf(ident.ByteSizeLong());
+ident.SerializeToArray(identbuf.data(), identbuf.size());
 
-cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
-    -DANDROID_NDK=$ANDROID_NDK_HOME \
-    -DANDROID_TOOLCHAIN=clang \
-    -DCMAKE_ANDROID_ARCH_ABI=$abi \
-    -DANDROID_ABI=$abi \
-    -DANDROID_LINKER_FLAGS="-landroid -llog" \
-    -DANDROID_NATIVE_API_LEVEL=23 \
-    -DANDROID_STL=c++_static \
-    -DANDROID_CPP_FEATURES="rtti exceptions" ..
+// Create an IDPASSLITE card for the user
+int idcard_len;
+unsigned char* idcard = idpass_lite_create_card_with_face(context,
+    &idcard_len, identbuf.data(), identbuf.size());
 
-cmake --build .
+// Save the IDASSLITE card as a QR code image
+idpass_lite_saveToBitmap(context, idcard, idcard_len, "qrcode_id.bmp");
 ```
 
-Here's a screencast of these build commands performed to create a build:
-
-[![asciicast](https://asciinema.org/a/jgQTFMCSKZiqYIxxEFv5rKExc.svg)](https://asciinema.org/a/jgQTFMCSKZiqYIxxEFv5rKExc)
+Refer to the [API Reference](https://github.com/idpass/idpass-lite/wiki/API-Reference) for all the available methods provided by this library.
 
 ## Open source dependencies
 
