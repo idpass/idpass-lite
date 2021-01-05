@@ -5,7 +5,7 @@ Thank you for your interest to contribute to ID PASS Lite! We want to make contr
 - Reporting a bug
 - Discussing the current state of the code
 - Submitting a fix
-- Propositing new features
+- Proposing new features
 
 ## We develop with GitHub
 
