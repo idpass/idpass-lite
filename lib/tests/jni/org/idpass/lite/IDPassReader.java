@@ -63,6 +63,7 @@ public class IDPassReader {
     private native boolean add_certificates(long ctx, byte[] intermedcerts);
     private native int verify_card_certificate(long ctx, byte[] blob);
     private native boolean verify_card_signature(long ctx, byte[] blob);
+    private static native byte[] merge_CardDetails(byte[] d1, byte[] d2);
     //=========================================================
 
     public static void main(String args[])
