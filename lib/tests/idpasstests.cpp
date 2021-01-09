@@ -703,7 +703,7 @@ TEST_F(TestCases, create_card_with_certificates)
     ASSERT_TRUE(details != nullptr);
 }
 
-TEST_F(TestCases, check_qrcode_md5sum)
+TEST_F(DISABLED_TestCases, check_qrcode_md5sum)
 {
     auto savetobitmap = [](int qrcode_size,
                            unsigned char* pixelbits,

@@ -5,6 +5,8 @@ project=$(pwd)
 export GTEST_OUTPUT="xml:$(pwd)/build/reports.xml"
 export IDPASSLITE=$project/build/debug/lib/src/libidpasslite.so
 export CLASSPATH=$project/build/debug/lib/tests/jni/
+export FACERECOGNITIONDATA=$project/lib/src/models/dlib_face_recognition_resnet_model_v1.dat
+export SHAPEPREDICTIONDATA=$project/lib/src/models/shape_predictor_5_face_landmarks.dat
 API_LEVEL=23
 
 iscontainer() {
@@ -39,6 +41,7 @@ build_debug() {
     sleep 3
     #rm -rf build/debug
     mkdir -p build/debug && cd build/debug
+    #cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 -DEMBED_MODELS=1 ../..
     cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 ../..
     cmake --build .
     [ $? -ne 0 ] && return 1
