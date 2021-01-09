@@ -703,6 +703,7 @@ TEST_F(TestCases, create_card_with_certificates)
     ASSERT_TRUE(details != nullptr);
 }
 
+#if 0
 TEST_F(DISABLED_TestCases, check_qrcode_md5sum)
 {
     auto savetobitmap = [](int qrcode_size,
@@ -789,6 +790,7 @@ TEST_F(DISABLED_TestCases, check_qrcode_md5sum)
     savetobitmap(qrsize, pixel, "qrcode.bmp");
     idpass_lite_saveToBitmap(ctx, card, card_len, "qr_code.bmp");
 }
+#endif
 
 TEST_F(TestCases, createcard_manny_verify_as_brad)
 {
