@@ -2013,6 +2013,100 @@ int idpass_lite_compute_hash(unsigned char* data,
     return crypto_generichash(hash, hash_len, data, data_len, NULL, 0);
 }
 
+/**
+ * Merges two CardDetails into one.
+ *
+ * Workable in protobuf Java, but Android uses protobuf-lite which does not have
+ * reflection. Without reflection, a long series of if-check in Java would
+ * clutter the code. Like checking if a string has zero length, int32 is 0, if
+ * sub-message is present.
+ */
+
+MODULE_API
+unsigned char* idpass_lite_merge_CardDetails(unsigned char* d1buf,
+                                             int d1buf_len,
+                                             unsigned char* d2buf,
+                                             int d2buf_len,
+                                             int* outlen)
+{
+    if (d1buf == nullptr || d1buf_len <= 0 || 
+        d2buf == nullptr || d2buf_len <= 0
+        || outlen == nullptr) {
+        return nullptr;
+    }
+
+    idpass::CardDetails d1;
+    idpass::CardDetails merged;
+
+    if (!d1.ParseFromArray(d1buf, d1buf_len)
+        || !merged.ParseFromArray(d2buf, d2buf_len)) {
+        return nullptr;
+    }
+    
+    const google::protobuf::Descriptor* pDesc = d1.descriptor();
+    int count = pDesc->field_count();
+
+    for (int i = 0; i < count; i++) {
+        const google::protobuf::FieldDescriptor* pFieldDesc = pDesc->field(i);
+        std::string field = pFieldDesc->full_name();
+
+        if (field == "idpass.CardDetails.gender") {
+            if (d1.gender() != 0) {
+                merged.set_gender(d1.gender());
+            }
+        } else if (field == "idpass.CardDetails.fullName") {
+            if (!d1.fullname().empty()) {
+                merged.set_fullname(d1.fullname().data());
+            }
+        } else if (field == "idpass.CardDetails.surName") {
+            if (!d1.surname().empty()) {
+                merged.set_surname(d1.surname().data());
+            }
+        } else if (field == "idpass.CardDetails.givenName") {
+            if (!d1.givenname().empty()) {
+                merged.set_givenname(d1.givenname().data());
+            }
+        } else if (field == "idpass.CardDetails.UIN") {
+            if (!d1.uin().empty()) {
+                merged.set_uin(d1.uin().data());
+            }
+        } else if (field == "idpass.CardDetails.placeOfBirth") {
+            if (!d1.placeofbirth().empty()) {
+                merged.set_placeofbirth(d1.placeofbirth().data());
+            }
+        } else if (field == "idpass.CardDetails.dateOfBirth") {
+            if (d1.has_dateofbirth()) {
+                merged.mutable_dateofbirth()->CopyFrom(d1.dateofbirth());
+            }
+        } else if (field == "idpass.CardDetails.postalAddress") {
+            if (d1.has_postaladdress()) {
+                merged.mutable_postaladdress()->CopyFrom(d1.postaladdress());
+            }
+        } else if (field == "idpass.CardDetails.extra") {
+            for (auto& extra : d1.extra()) {
+                idpass::Pair* x = merged.add_extra();
+                x->set_key(extra.key().data());
+                x->set_value(extra.value().data());
+            }
+        } else if (field == "idpass.CardDetails.createdAt") {
+            if (d1.createdat() != 0) {
+                merged.set_createdat(d1.createdat());
+            }
+        }
+    }
+
+    int buf_len = merged.ByteSizeLong();
+    unsigned char* buf = M::NewByteArray(buf_len);
+    *outlen = buf_len;
+
+    if (!merged.SerializeToArray(buf, buf_len)) {
+        M::ReleaseByteArray(buf);
+        return nullptr;
+    }
+
+    return buf;
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -44,12 +44,21 @@ if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
     add_subdirectory(models)
 endif()
 
-set(idpass_DEPENDS 
-    protobuf 
-    sodium 
-    dlib
-    models
-    )
+if (EMBED_MODELS)
+    add_definitions(-DEMBED_MODELS)
+    set(idpass_DEPENDS 
+        protobuf 
+        sodium 
+        dlib
+        models
+        )
+else()
+    set(idpass_DEPENDS 
+        protobuf 
+        sodium 
+        dlib
+        )
+endif()
 
 add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_IDPASSLITE}

@@ -752,6 +752,47 @@ compute_hash(JNIEnv *env, jclass clazz, jbyteArray data, jbyteArray hash)
     return status == 0 ? JNI_TRUE : JNI_FALSE;
 }
 
+/**
+ * Merges two CardDetails into one.
+ *
+ * Workable in protobuf Java, but Android uses protobuf-lite which does not have
+ * reflection. Without reflection, a long series of if-check in Java would
+ * clutter the code. Like checking if a string has zero length, int32 is 0, if
+ * sub-message is present.
+ */
+
+jbyteArray merge_CardDetails(JNIEnv *env,
+                             jclass clazz,
+                             jbyteArray details1,
+                             jbyteArray details2)
+{
+    jbyte *details1_buf = env->GetByteArrayElements(details1, 0);
+    jsize details1_buf_len = env->GetArrayLength(details1);
+    jbyte *details2_buf = env->GetByteArrayElements(details2, 0);
+    jsize details2_buf_len = env->GetArrayLength(details2);
+
+    jbyteArray merged = env->NewByteArray(0);
+
+    int buf_len = 0;
+
+    unsigned char *buf = idpass_lite_merge_CardDetails(reinterpret_cast<unsigned char *>(details1_buf),
+                                                       details1_buf_len,
+                                                       reinterpret_cast<unsigned char *>(details2_buf),
+                                                       details2_buf_len,
+                                                       &buf_len);
+
+    if (buf != nullptr) {
+        merged = env->NewByteArray(buf_len);
+        env->SetByteArrayRegion(merged, 0, buf_len, (const jbyte *)buf);
+        idpass_lite_freemem(nullptr, buf);
+    } 
+
+    env->ReleaseByteArrayElements(details1, details1_buf, 0);
+    env->ReleaseByteArrayElements(details2, details2_buf, 0);
+
+    return merged;
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl", (char *)"(J[B)[B", (void *)ioctl},
 
@@ -824,6 +865,10 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"verify_card_signature",
      (char *)"(J[B)Z",
      (void *)verify_card_signature},
+
+    {(char *)"merge_CardDetails",
+     (char *)"([B[B)[B",
+     (void *)merge_CardDetails},
 
     /*{(char *)"compute_hash",
      (char *)"([B[B)Z",

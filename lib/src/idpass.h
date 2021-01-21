@@ -561,6 +561,22 @@ unsigned char* idpass_lite_uio(void* self,
 MODULE_API
 int idpass_lite_compute_hash(unsigned char* data, int data_len, unsigned char* hash, int hash_len);
 
+/**
+* Merges two CardDetails into one.
+*
+* Workable in protobuf Java, but Android uses protobuf-lite which does not have
+* reflection. Without reflection, a long series of if-check in Java would 
+* clutter the code. Like checking if a string has zero length, int32 is 0, if
+* sub-message is present.
+*/
+
+MODULE_API
+unsigned char* idpass_lite_merge_CardDetails(unsigned char* d1buf,
+                                             int d1buf_len,
+                                             unsigned char* d2buf,
+                                             int d2buf_len,
+                                             int* outlen);
+
 #ifdef __cplusplus
 }
 #endif

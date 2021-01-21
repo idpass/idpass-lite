@@ -118,6 +118,7 @@ using anet_type = dlib::loss_metric<dlib::fc_no_bias<
                                    2,
                                    dlib::input_rgb_image_sized<150>>>>>>>>>>>>>;
 
+#ifdef EMBED_MODELS
 // These externs are coming from the Dlib dat files inside  models/ folder.
 // The dat binary files are converted into C array using `xxd -i`.
 // Github does not allow any file greater than 50MB size.
@@ -126,6 +127,7 @@ extern "C" unsigned int shape_predictor_5_face_landmarks_dat_len;
 
 extern "C" unsigned char dlib_face_recognition_resnet_model_v1_dat[];
 extern "C" unsigned int dlib_face_recognition_resnet_model_v1_dat_len;
+#endif
 
 // Supported: BMP, JPEG, DNG
 int load2matrix(const char* img,
@@ -168,17 +170,22 @@ int computeface128d(const char* photo, int photo_len, float* f128d)
 
     dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
 
+    dlib::shape_predictor sp;
+    anet_type net;
+
+#ifdef EMBED_MODELS
     InputStream landmark_dat(shape_predictor_5_face_landmarks_dat,
                              shape_predictor_5_face_landmarks_dat_len);
 
     InputStream resnet_dat(dlib_face_recognition_resnet_model_v1_dat,
                            dlib_face_recognition_resnet_model_v1_dat_len);
 
-    dlib::shape_predictor sp;
-    anet_type net;
-
     dlib::deserialize(sp, landmark_dat);
     dlib::deserialize(net, resnet_dat);
+#else
+    dlib::deserialize(getenv("SHAPEPREDICTIONDATA")) >> sp;
+    dlib::deserialize(getenv("FACERECOGNITIONDATA")) >> net;
+#endif
 
     dlib::matrix<dlib::rgb_pixel> img;
     int status = load2matrix(photo, photo_len, img);
