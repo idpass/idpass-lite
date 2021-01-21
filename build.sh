@@ -41,11 +41,7 @@ build_debug() {
     sleep 3
     #rm -rf build/debug
     mkdir -p build/debug && cd build/debug
-    if [ -n "$EMBED_MODELS" ];then
-        cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 -DEMBED_MODELS=1 ../..
-    else
-        cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 ../..
-    fi
+    cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 -DEMBED_MODELS=1 ../..
     cmake --build .
     [ $? -ne 0 ] && return 1
     cd - >/dev/null
@@ -109,11 +105,7 @@ build_release() {
     sleep 3
     #rm -rf build/release
     mkdir -p build/release && cd build/release
-    if [ -n "$EMBED_MODELS" ];then
-        cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DEMBED_MODELS=1 ../..
-    else
-        cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 ../..
-    fi
+    cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DEMBED_MODELS=1 ../..
     cmake --build .
     [ $? -ne 0 ] && return 1
     cd - >/dev/null
