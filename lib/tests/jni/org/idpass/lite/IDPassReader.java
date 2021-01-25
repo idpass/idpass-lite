@@ -65,6 +65,7 @@ public class IDPassReader {
     private native boolean verify_card_signature(long ctx, byte[] blob);
     private static native byte[] merge_CardDetails(byte[] d1, byte[] d2);
     private static native void setenviron(String name, String value, boolean overwrite);
+    private static native String getenviron(String name);
     //=========================================================
 
     public static void main(String args[])
