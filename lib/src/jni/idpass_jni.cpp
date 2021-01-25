@@ -24,6 +24,8 @@
 #include <vector>
 #include <algorithm>
 
+#include <stdlib.h>
+
 #ifdef ANDROID
 #include <android/log.h>
 
@@ -793,6 +795,29 @@ jbyteArray merge_CardDetails(JNIEnv *env,
     return merged;
 }
 
+/**
+To avoid using Android's Os.setenv() which requires minSdkVersion 26
+*/
+void setenviron(JNIEnv *env,
+                 jclass clazz,
+                 jstring name,
+                 jstring value, 
+                 jboolean overwrite)
+{
+    const char *namesz = env->GetStringUTFChars(name, 0);
+    const char *valuesz = env->GetStringUTFChars(value, 0);
+
+#ifdef _WIN32
+    _putenv_s(namesz, valuesz);
+#else
+    int opt = overwrite == JNI_TRUE ? 1 : 0;
+    setenv(namesz, valuesz, opt);
+#endif
+
+    env->ReleaseStringUTFChars(name, namesz);
+    env->ReleaseStringUTFChars(value, valuesz);
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl", (char *)"(J[B)[B", (void *)ioctl},
 
@@ -869,6 +894,10 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"merge_CardDetails",
      (char *)"([B[B)[B",
      (void *)merge_CardDetails},
+
+    {(char *)"setenviron",
+     (char *)"(Ljava/lang/String;Ljava/lang/String;Z)V",
+     (void *)setenviron},
 
     /*{(char *)"compute_hash",
      (char *)"([B[B)Z",
