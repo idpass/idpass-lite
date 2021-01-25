@@ -2029,8 +2029,8 @@ unsigned char* idpass_lite_merge_CardDetails(unsigned char* d1buf,
                                              int d2buf_len,
                                              int* outlen)
 {
-    if (d1buf == nullptr || d1buf_len <= 0 || 
-        d2buf == nullptr || d2buf_len <= 0
+    if (d1buf == nullptr || d2buf == nullptr || 
+        (d1buf_len == 0 && d2buf_len == 0) || d1buf_len < 0 || d2buf_len < 0 
         || outlen == nullptr) {
         return nullptr;
     }
