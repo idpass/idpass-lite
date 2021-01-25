@@ -818,6 +818,17 @@ void setenviron(JNIEnv *env,
     env->ReleaseStringUTFChars(value, valuesz);
 }
 
+jstring getenviron(JNIEnv *env,
+                   jclass clazz,
+                   jstring name)
+{
+    const char* namesz = env->GetStringUTFChars(name, 0);
+    const char* valuesz = getenv(namesz);
+
+    env->ReleaseStringUTFChars(name, namesz);
+    return env->NewStringUTF(valuesz);
+}
+
 JNINativeMethod IDPASS_JNI[] = {
     {(char *)"ioctl", (char *)"(J[B)[B", (void *)ioctl},
 
@@ -898,6 +909,10 @@ JNINativeMethod IDPASS_JNI[] = {
     {(char *)"setenviron",
      (char *)"(Ljava/lang/String;Ljava/lang/String;Z)V",
      (void *)setenviron},
+
+    {(char *)"getenviron",
+     (char *)"(Ljava/lang/String;)Ljava/lang/String;",
+     (void *)getenviron},
 
     /*{(char *)"compute_hash",
      (char *)"([B[B)Z",
