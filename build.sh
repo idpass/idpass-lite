@@ -16,15 +16,17 @@ iscontainer() {
 
 build_dependencies() {
     if iscontainer; then
-        scripts/build.dependencies.sh
+        shift
+        $project/dependencies/rebuild.sh $@
     else
         # get latest updates
         docker pull typelogic/circleci-android:latest
         docker run -it --user $(id -u):$(id -g) --rm \
-            -v `pwd`:/home/circleci/project \
+            -v `pwd`:/home/circleci/project/ \
             -e API_LEVEL=23  \
+            -w /home/circleci/project/ \
             typelogic/circleci-android:latest \
-            /home/circleci/project/scripts/build.dependencies.sh
+            /home/circleci/project/build.sh $@
     fi
 }
 
@@ -153,7 +155,7 @@ build_inside_container() {
         build_android $@
         ;;
         *)
-        build_debug && build_release
+        build_debug
         esac
     else
         ####################
@@ -254,7 +256,7 @@ if [ $# -eq 0 ];then
 else
     case "$1" in 
     dependencies)
-    build_dependencies
+    build_dependencies $@
     ;;
 
     desktop)
@@ -276,7 +278,7 @@ else
     *)
     echo
     echo "Unrecognized option"
-    echo "Choose: desktop | debug | release | android [x86 | x86_64 | armeabi-v7a | arm64-v8a]"
+    echo "Choose: desktop | debug | release | android [x86 | x86_64 | armeabi-v7a | arm64-v8a] | dependencies"
     ;;
     esac
 fi

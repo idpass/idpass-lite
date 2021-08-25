@@ -1,5 +1,14 @@
 project(idpasslite)
 
+add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
+    COMMAND $ENV{project}/dependencies/rebuild.sh ${CMAKE_ANDROID_ARCH_ABI}
+    COMMENT "Build dependency ${CMAKE_ANDROID_ARCH_ABI}"
+    )
+
+add_custom_target(${CMAKE_ANDROID_ARCH_ABI} DEPENDS ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
+    COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
+    )
+
 if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI desktop)
 else()
@@ -40,11 +49,11 @@ set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 set(PROTOGEN_IDPASSLITE ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite/)
 set(PROTOGEN_API ${CMAKE_CURRENT_BINARY_DIR}/proto/api/)
 
-if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
-    add_subdirectory(models)
-endif()
-
 if (EMBED_MODELS)
+    if(NOT EXISTS ${DEPENDENCIES_LIB}/libmodels.a)
+        add_subdirectory(models)
+    endif()
+
     add_definitions(-DEMBED_MODELS)
     set(idpass_DEPENDS 
         protobuf 
@@ -90,6 +99,7 @@ add_library(idpasslite SHARED
     CCertificate.h
     )
 
+add_dependencies(idpasslite ${CMAKE_ANDROID_ARCH_ABI})
 target_compile_definitions (idpasslite PRIVATE _IDPASS_JNI_)
 
 include_directories(
