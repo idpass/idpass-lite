@@ -33,13 +33,13 @@ set(idpasstests_DEPENDS
     gtest
     )
 
-add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.h
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_IDPASSLITE}
     COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_IDPASSLITE} ${PROTO}/idpasslite.proto
     COMMENT "Compiling idpasslite.proto ..."
     )
 
-add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.h
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_API}
     COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_API} ${PROTO}/api.proto
     COMMENT "Compiling api.proto ..."
@@ -63,6 +63,8 @@ link_directories(
 add_executable(idpasstests
     idpasstests.cpp
     ${IDPASSAPI_INCLUDE}/bin16.cpp
+    ${PROTOGEN_IDPASSLITE}/idpasslite.pb.h
+    ${PROTOGEN_API}/api.pb.h
     )
 
 include_directories(
