@@ -46,7 +46,13 @@ set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
 set(DEPENDENCIES_INCLUDE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
 set(DEPENDENCIES_LIB $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
-set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
+
+if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macos")
+    set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
+else()
+    set(PROTOC_EXE $ENV{project}/dependencies/build/desktop/bin/protoc)
+endif()
+
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 set(PROTOGEN_IDPASSLITE ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite/)
 set(PROTOGEN_API ${CMAKE_CURRENT_BINARY_DIR}/proto/api/)
