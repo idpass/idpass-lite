@@ -17,19 +17,19 @@ if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI desktop)
 endif()
 
-set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
-set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(DEPENDENCIES_INCLUDE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
+set(DEPENDENCIES_LIB $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
 set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/lib/src/)
-set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/build/idpass/desktop/)
-set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/dependencies/build/desktop/bin/protoc)
+set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/build/idpass/${CMAKE_ANDROID_ARCH_ABI}/)
+set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 set(PROTOGEN_IDPASSLITE ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite)
 set(PROTOGEN_API ${CMAKE_CURRENT_BINARY_DIR}/proto/api)
 
 set(idpasstests_DEPENDS 
+    idpasslite
     protobuf
     sodium
-    idpasslite
     gtest
     )
 
@@ -61,8 +61,6 @@ link_directories(
     )
 
 add_executable(idpasstests
-    ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
-    ${PROTOGEN_API}/api.pb.cc
     idpasstests.cpp
     ${IDPASSAPI_INCLUDE}/bin16.cpp
     )

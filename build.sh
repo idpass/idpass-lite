@@ -15,6 +15,10 @@ iscontainer() {
 }
 
 build_dependencies() {
+    if [ $2 = "macos" ];then
+        shift
+        $project/dependencies/rebuild.sh $@
+    else
     if iscontainer; then
         shift
         $project/dependencies/rebuild.sh $@
@@ -27,6 +31,7 @@ build_dependencies() {
             -w /home/circleci/project/ \
             typelogic/circleci-android:latest \
             /home/circleci/project/build.sh $@
+    fi
     fi
 }
 
@@ -98,6 +103,29 @@ build_debug() {
     #    build/cov_idpass.info \
     #    --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
     #    --output build/test_results/nomangle/results.xml
+}
+
+build_macos() {
+    echo "*************************************"
+    echo "Building macos libidpasslite.so ..."
+    echo "*************************************"
+    sleep 3
+    mkdir -p build/macos && cd build/macos
+    cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DCMAKE_ANDROID_ARCH_ABI=macos -DEMBED_MODELS=1 ../..
+    cmake --build .
+    [ $? -ne 0 ] && return 1
+    cd - >/dev/null
+
+    echo "********************************"
+    echo "Executing final test for release"
+    echo "********************************"
+    build/macos/lib/tests/idpasstests build/macos/lib/tests/data/
+    if [ $? -ne 0 ];then
+        return 1
+    fi
+
+    echo
+    ls -lh build/macos/lib/src/libidpasslite.dylib
 }
 
 build_release() {
@@ -195,6 +223,7 @@ build_android() {
                 -DANDROID_LINKER_FLAGS="-landroid -llog" \
                 -DANDROID_NATIVE_API_LEVEL=23 \
                 -DANDROID_STL=c++_static \
+                -DWITH_JNI=1 \
                 -DANDROID_CPP_FEATURES="rtti exceptions" ../..
 
             cmake --build .
@@ -228,6 +257,7 @@ build_android() {
                 -DANDROID_LINKER_FLAGS="-landroid -llog" \
                 -DANDROID_NATIVE_API_LEVEL=23 \
                 -DANDROID_STL=c++_static \
+                -DWITH_JNI=1 \
                 -DANDROID_CPP_FEATURES="rtti exceptions" ../..
 
             cmake --build .
@@ -275,6 +305,10 @@ else
     build_inside_container release
     ;;
 
+    macos)
+    build_macos
+    ;;
+
     *)
     echo
     echo "Unrecognized option"
@@ -282,3 +316,5 @@ else
     ;;
     esac
 fi
+
+

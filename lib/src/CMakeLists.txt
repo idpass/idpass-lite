@@ -1,14 +1,5 @@
 project(idpasslite)
 
-add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
-    COMMAND $ENV{project}/dependencies/rebuild.sh ${CMAKE_ANDROID_ARCH_ABI}
-    COMMENT "Build dependency ${CMAKE_ANDROID_ARCH_ABI}"
-    )
-
-add_custom_target(${CMAKE_ANDROID_ARCH_ABI} DEPENDS ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
-    COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
-    )
-
 if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI desktop)
 else()
@@ -18,9 +9,20 @@ else()
     set(JAVA_AWT_INCLUDE_PATH NotNeeded)
 endif()
 
-find_package(Java REQUIRED)
-find_package(JNI REQUIRED)
-include(UseJava)
+add_custom_command(OUTPUT $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
+    COMMAND $ENV{project}/dependencies/rebuild.sh ${CMAKE_ANDROID_ARCH_ABI}
+    COMMENT "Build dependency ${CMAKE_ANDROID_ARCH_ABI}"
+    )
+
+add_custom_target(${CMAKE_ANDROID_ARCH_ABI} DEPENDS $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
+    COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
+    )
+
+if (WITH_JNI)
+   find_package(Java REQUIRED)
+   find_package(JNI REQUIRED)
+   include(UseJava)
+endif()
 
 find_package(Git)
 if(GIT_FOUND)
@@ -42,9 +44,9 @@ configure_file (
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
-set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
-set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
-set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/dependencies/build/desktop/bin/protoc)
+set(DEPENDENCIES_INCLUDE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
+set(DEPENDENCIES_LIB $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 set(PROTOGEN_IDPASSLITE ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite/)
 set(PROTOGEN_API ${CMAKE_CURRENT_BINARY_DIR}/proto/api/)
@@ -81,26 +83,48 @@ add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.cc
     COMMENT "Compiling api.proto ..."
     )
 
-link_directories(
-    ${DEPENDENCIES_LIB}
-    ${JNI_LIBRARIES}
-    )
+if (WITH_JNI)
+    link_directories(
+        ${DEPENDENCIES_LIB}
+        ${JNI_LIBRARIES}
+        )
+else()
+    link_directories(
+        ${DEPENDENCIES_LIB}
+        )
+endif()
 
-add_library(idpasslite SHARED
-    ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
-    ${PROTOGEN_API}/api.pb.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/jni/idpass_jni.cpp
-    idpass.cpp
-    helper.cpp
-    dlibapi.cpp
-    qrcode.cpp
-    bin16.cpp
-    dxtracker.h
-    CCertificate.h
-    )
+if (WITH_JNI)
+    add_library(idpasslite SHARED
+        ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+        ${PROTOGEN_API}/api.pb.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/jni/idpass_jni.cpp
+        idpass.cpp
+        helper.cpp
+        dlibapi.cpp
+        qrcode.cpp
+        bin16.cpp
+        dxtracker.h
+        CCertificate.h
+        )
+else()
+    add_library(idpasslite SHARED
+        ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+        ${PROTOGEN_API}/api.pb.cc
+        idpass.cpp
+        helper.cpp
+        dlibapi.cpp
+        qrcode.cpp
+        bin16.cpp
+        dxtracker.h
+        CCertificate.h
+        )
+endif()
 
 add_dependencies(idpasslite ${CMAKE_ANDROID_ARCH_ABI})
-target_compile_definitions (idpasslite PRIVATE _IDPASS_JNI_)
+if (WITH_JNI)
+    target_compile_definitions (idpasslite PRIVATE WITH_JNI)
+endif()
 
 include_directories(
     ${DEPENDENCIES_INCLUDE}
@@ -117,10 +141,12 @@ endif()
 get_target_property(target_type idpasslite TYPE)
 if (target_type STREQUAL "SHARED_LIBRARY")
     if (CMAKE_BUILD_TYPE STREQUAL Release)
+        if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL macos)
 	    add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
 	    COMMAND ${CMAKE_STRIP} ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}
             )
+        endif()
     endif()
 endif ()
 

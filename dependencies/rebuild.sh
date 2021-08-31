@@ -4,6 +4,8 @@
 export tmpfolder=$(mktemp -d /tmp/idpasslitebuildir.XXX)
 mkdir -p $tmpfolder && > $tmpfolder/build.log
 
+dependencies=$project/dependencies
+
 build_dlib() {
     # Dlib uses cmake so mkdir different folder for each platform build
     for x in $@; do
