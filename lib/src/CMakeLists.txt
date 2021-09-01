@@ -49,8 +49,25 @@ set(DEPENDENCIES_LIB $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/
 
 if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macos")
     set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
+
+    add_custom_command(OUTPUT ${PROTOC_EXE}
+        COMMAND $ENV{project}/dependencies/rebuild.sh ${CMAKE_ANDROID_ARCH_ABI}
+        COMMENT "Build dependency ${CMAKE_ANDROID_ARCH_ABI}"
+        )
+    
+    add_custom_target(protoc_compiler DEPENDS ${PROTOC_EXE}
+        COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
+        )
 else()
     set(PROTOC_EXE $ENV{project}/dependencies/build/desktop/bin/protoc)
+    add_custom_command(OUTPUT ${PROTOC_EXE}
+        COMMAND $ENV{project}/dependencies/rebuild.sh ${CMAKE_ANDROID_ARCH_ABI}
+        COMMENT "Build dependency ${CMAKE_ANDROID_ARCH_ABI}"
+        )
+    
+    add_custom_target(protoc_compiler DEPENDS ${PROTOC_EXE}
+        COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
+        )
 endif()
 
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
@@ -78,12 +95,14 @@ else()
 endif()
 
 add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+    DEPENDS protoc_compiler
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_IDPASSLITE}
     COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_IDPASSLITE} ${PROTO}/idpasslite.proto
     COMMENT "Compiling idpasslite.proto ..."
     )
 
 add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.cc
+    DEPENDS protoc_compiler
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_API}
     COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_API} ${PROTO}/api.proto
     COMMENT "Compiling api.proto ..."
