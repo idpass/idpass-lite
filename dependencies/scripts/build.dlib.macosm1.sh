@@ -4,7 +4,7 @@
 d=$(dirname $0)
 cd $d
 
-ABI=macos
+ABI=macosm1
 INSTALL_PREFIX=$project/dependencies/build/$ABI
 
 cmake \

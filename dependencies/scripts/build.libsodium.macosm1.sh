@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 
-export ABI=macos
+export ABI=macosm1
 export INSTALL_PREFIX=$project/dependencies/build/$ABI
 
 d=$(dirname $0)
