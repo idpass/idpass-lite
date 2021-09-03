@@ -107,7 +107,7 @@ build_debug() {
 
 build_macos() {
     echo "*************************************"
-    echo "Building macos libidpasslite.so ..."
+    echo "Building macos libidpasslite.dylib ..."
     echo "*************************************"
     sleep 3
     mkdir -p build/macos && cd build/macos
@@ -126,6 +126,29 @@ build_macos() {
 
     echo
     ls -lh build/macos/lib/src/libidpasslite.dylib
+}
+
+build_macosm1() {
+    echo "*************************************"
+    echo "Building macosm1 libidpasslite.dylib ..."
+    echo "*************************************"
+    sleep 3
+    mkdir -p build/macosm1 && cd build/macosm1
+    cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DCMAKE_ANDROID_ARCH_ABI=macosm1 -DEMBED_MODELS=1 ../..
+    cmake --build .
+    [ $? -ne 0 ] && return 1
+    cd - >/dev/null
+
+    echo "********************************"
+    echo "Executing final test for release"
+    echo "********************************"
+    build/macosm1/lib/tests/idpasstests build/macosm1/lib/tests/data/
+    if [ $? -ne 0 ];then
+        return 1
+    fi
+
+    echo
+    ls -lh build/macosm1/lib/src/libidpasslite.dylib
 }
 
 build_release() {
@@ -307,6 +330,10 @@ else
 
     macos)
     build_macos
+    ;;
+
+    macosm1)
+    build_macosm1
     ;;
 
     *)

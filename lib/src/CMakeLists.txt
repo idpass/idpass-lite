@@ -58,6 +58,17 @@ if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macos")
     add_custom_target(protoc_compiler DEPENDS ${PROTOC_EXE}
         COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
         )
+elseif ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macosm1")
+    set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
+
+    add_custom_command(OUTPUT ${PROTOC_EXE}
+        COMMAND $ENV{project}/dependencies/rebuild.sh ${CMAKE_ANDROID_ARCH_ABI}
+        COMMENT "Build dependency ${CMAKE_ANDROID_ARCH_ABI}"
+        )
+    
+    add_custom_target(protoc_compiler DEPENDS ${PROTOC_EXE}
+        COMMENT "Executing logical target:${CMAKE_ANDROID_ARCH_ABI}"
+        )
 else()
     set(PROTOC_EXE $ENV{project}/dependencies/build/desktop/bin/protoc)
     add_custom_command(OUTPUT ${PROTOC_EXE}
