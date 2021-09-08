@@ -81,6 +81,8 @@ endif()
 
 set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
 target_link_libraries(idpasstests ${idpasstests_DEPENDS})
+target_compile_features(idpasstests PRIVATE cxx_std_11)
+target_compile_features(gtest PRIVATE cxx_std_11)
 
 add_dependencies(idpasstests testdata testjnilink)
 #install(TARGETS idpasstests DESTINATION ${CMAKE_INSTALL_PREFIX})

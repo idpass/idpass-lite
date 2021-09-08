@@ -187,4 +187,5 @@ if (target_type STREQUAL "SHARED_LIBRARY")
 endif ()
 
 target_link_libraries(idpasslite PUBLIC ${idpass_DEPENDS} PUBLIC covcfg)
+target_compile_features(idpasslite PRIVATE cxx_std_11)
 install(TARGETS idpasslite DESTINATION ${CMAKE_INSTALL_PREFIX})
