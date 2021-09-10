@@ -24,6 +24,10 @@ if (WITH_JNI)
    include(UseJava)
 endif()
 
+if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macos" OR "${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macosm1")
+    find_library(JPEGLIB REQUIRED NAMES libjpeg.a)
+endif()
+
 find_package(Git)
 if(GIT_FOUND)
     execute_process(
@@ -177,7 +181,7 @@ endif()
 get_target_property(target_type idpasslite TYPE)
 if (target_type STREQUAL "SHARED_LIBRARY")
     if (CMAKE_BUILD_TYPE STREQUAL Release)
-        if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL macos)
+        if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL macos AND NOT CMAKE_ANDROID_ARCH_ABI STREQUAL macosm1)
 	    add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
 	    COMMAND ${CMAKE_STRIP} ${CMAKE_SHARED_LIBRARY_PREFIX}${PROJECT_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -186,6 +190,10 @@ if (target_type STREQUAL "SHARED_LIBRARY")
     endif()
 endif ()
 
-target_link_libraries(idpasslite PUBLIC ${idpass_DEPENDS} PUBLIC covcfg)
+if ("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macos" OR "${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "macosm1")
+    target_link_libraries(idpasslite PUBLIC ${idpass_DEPENDS} PUBLIC covcfg PRIVATE ${JPEGLIB})
+else()
+    target_link_libraries(idpasslite PUBLIC ${idpass_DEPENDS} PUBLIC covcfg)
+endif()
 target_compile_features(idpasslite PRIVATE cxx_std_11)
 install(TARGETS idpasslite DESTINATION ${CMAKE_INSTALL_PREFIX})
