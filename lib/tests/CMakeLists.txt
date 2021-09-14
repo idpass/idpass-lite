@@ -17,29 +17,29 @@ if (NOT DEFINED CMAKE_ANDROID_ARCH_ABI)
     set(CMAKE_ANDROID_ARCH_ABI desktop)
 endif()
 
-set(DEPENDENCIES_INCLUDE ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
-set(DEPENDENCIES_LIB ${CMAKE_SOURCE_DIR}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
+set(DEPENDENCIES_INCLUDE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/include/)
+set(DEPENDENCIES_LIB $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/lib/)
 set(IDPASSAPI_INCLUDE ${CMAKE_SOURCE_DIR}/lib/src/)
-set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/build/idpass/desktop/)
-set(PROTOC_EXE ${CMAKE_SOURCE_DIR}/dependencies/build/desktop/bin/protoc)
+set(IDPASSAPI_LIB ${CMAKE_SOURCE_DIR}/build/idpass/${CMAKE_ANDROID_ARCH_ABI}/)
+set(PROTOC_EXE $ENV{project}/dependencies/build/${CMAKE_ANDROID_ARCH_ABI}/bin/protoc)
 set(PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 set(PROTOGEN_IDPASSLITE ${CMAKE_CURRENT_BINARY_DIR}/proto/idpasslite)
 set(PROTOGEN_API ${CMAKE_CURRENT_BINARY_DIR}/proto/api)
 
 set(idpasstests_DEPENDS 
+    idpasslite
     protobuf
     sodium
-    idpasslite
     gtest
     )
 
-add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN_IDPASSLITE}/idpasslite.pb.h
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_IDPASSLITE}
     COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_IDPASSLITE} ${PROTO}/idpasslite.proto
     COMMENT "Compiling idpasslite.proto ..."
     )
 
-add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.cc
+add_custom_command(OUTPUT ${PROTOGEN_API}/api.pb.h
     COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTOGEN_API}
     COMMAND ${PROTOC_EXE} --proto_path=${PROTO} --cpp_out=${PROTOGEN_API} ${PROTO}/api.proto
     COMMENT "Compiling api.proto ..."
@@ -61,10 +61,10 @@ link_directories(
     )
 
 add_executable(idpasstests
-    ${PROTOGEN_IDPASSLITE}/idpasslite.pb.cc
-    ${PROTOGEN_API}/api.pb.cc
     idpasstests.cpp
     ${IDPASSAPI_INCLUDE}/bin16.cpp
+    ${PROTOGEN_IDPASSLITE}/idpasslite.pb.h
+    ${PROTOGEN_API}/api.pb.h
     )
 
 include_directories(
@@ -81,6 +81,8 @@ endif()
 
 set(idpasstests_DEPENDS ${idpasstests_DEPENDS} pthread)
 target_link_libraries(idpasstests ${idpasstests_DEPENDS})
+target_compile_features(idpasstests PRIVATE cxx_std_11)
+target_compile_features(gtest PRIVATE cxx_std_11)
 
 add_dependencies(idpasstests testdata testjnilink)
 #install(TARGETS idpasstests DESTINATION ${CMAKE_INSTALL_PREFIX})

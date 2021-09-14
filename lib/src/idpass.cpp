@@ -32,7 +32,6 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <jni.h>
 #include <list>
 #include <map>
 #include <mutex>
@@ -59,16 +58,16 @@
 #define MODULE_API
 #endif
 
-#ifdef _IDPASS_JNI_
-extern JNINativeMethod IDPASS_JNI[];
-extern int IDPASS_JNI_TLEN;
-#endif
-
 char dxtracker[] = DXTRACKER;
 int binary_encoding_max[] = {2953, 2331, 1663, 1273};
 
 std::mutex g_mutex;
 std::list<std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>> g_revokedKeys;
+
+#ifdef WITH_JNI
+#include <jni.h>
+extern JNINativeMethod IDPASS_JNI[];
+extern int IDPASS_JNI_TLEN;
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -100,7 +99,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     // Map org.idpass.IDPass Java native methods to C method table
     // More than one JNI can be mapped
     try {
-#ifdef _IDPASS_JNI_
+#ifdef WITH_JNI
         map_JNI(
             "org/idpass/lite/IDPassReader", &IDPASS_JNI[0], IDPASS_JNI_TLEN);
 #endif
@@ -110,6 +109,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 
     return JNI_VERSION_1_6;
 }
+#endif
 
 /* The BitFlags class is used to hold the 64 bits visibility option bit flags */
 constexpr auto N = CHAR_BIT * sizeof(unsigned long long);

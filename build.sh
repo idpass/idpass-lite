@@ -15,16 +15,23 @@ iscontainer() {
 }
 
 build_dependencies() {
+    if [ $2 = "macos" ];then
+        shift
+        $project/dependencies/rebuild.sh $@
+    else
     if iscontainer; then
-        scripts/build.dependencies.sh
+        shift
+        $project/dependencies/rebuild.sh $@
     else
         # get latest updates
         docker pull typelogic/circleci-android:latest
         docker run -it --user $(id -u):$(id -g) --rm \
-            -v `pwd`:/home/circleci/project \
+            -v `pwd`:/home/circleci/project/ \
             -e API_LEVEL=23  \
+            -w /home/circleci/project/ \
             typelogic/circleci-android:latest \
-            /home/circleci/project/scripts/build.dependencies.sh
+            /home/circleci/project/build.sh $@
+    fi
     fi
 }
 
@@ -41,7 +48,7 @@ build_debug() {
     sleep 3
     #rm -rf build/debug
     mkdir -p build/debug && cd build/debug
-    cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 -DEMBED_MODELS=1 ../..
+    cmake -DCOVERAGE=1 -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DALWAYS=1 -DEMBED_MODELS=1 -DWITH_JNI=1 ../..
     cmake --build .
     [ $? -ne 0 ] && return 1
     cd - >/dev/null
@@ -96,6 +103,52 @@ build_debug() {
     #    build/cov_idpass.info \
     #    --base-dir build/debug/lib/src/CMakeFiles/idpasslite.dir \
     #    --output build/test_results/nomangle/results.xml
+}
+
+build_macos() {
+    echo "*************************************"
+    echo "Building macos libidpasslite.dylib ..."
+    echo "*************************************"
+    sleep 3
+    mkdir -p build/macos && cd build/macos
+    cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DCMAKE_ANDROID_ARCH_ABI=macos -DEMBED_MODELS=1 ../..
+    cmake --build .
+    [ $? -ne 0 ] && return 1
+    cd - >/dev/null
+
+    echo "********************************"
+    echo "Executing final test for release"
+    echo "********************************"
+    build/macos/lib/tests/idpasstests build/macos/lib/tests/data/
+    if [ $? -ne 0 ];then
+        return 1
+    fi
+
+    echo
+    ls -lh build/macos/lib/src/libidpasslite.dylib
+}
+
+build_macosm1() {
+    echo "*************************************"
+    echo "Building macosm1 libidpasslite.dylib ..."
+    echo "*************************************"
+    sleep 3
+    mkdir -p build/macosm1 && cd build/macosm1
+    cmake -DCMAKE_BUILD_TYPE=Release -DTESTAPP=1 -DCMAKE_POSITION_INDEPENDENT_CODE=1 -DCMAKE_ANDROID_ARCH_ABI=macosm1 -DEMBED_MODELS=1 ../..
+    cmake --build .
+    [ $? -ne 0 ] && return 1
+    cd - >/dev/null
+
+    echo "********************************"
+    echo "Executing final test for release"
+    echo "********************************"
+    build/macosm1/lib/tests/idpasstests build/macosm1/lib/tests/data/
+    if [ $? -ne 0 ];then
+        return 1
+    fi
+
+    echo
+    ls -lh build/macosm1/lib/src/libidpasslite.dylib
 }
 
 build_release() {
@@ -153,7 +206,7 @@ build_inside_container() {
         build_android $@
         ;;
         *)
-        build_debug && build_release
+        build_debug
         esac
     else
         ####################
@@ -193,6 +246,7 @@ build_android() {
                 -DANDROID_LINKER_FLAGS="-landroid -llog" \
                 -DANDROID_NATIVE_API_LEVEL=23 \
                 -DANDROID_STL=c++_static \
+                -DWITH_JNI=1 \
                 -DANDROID_CPP_FEATURES="rtti exceptions" ../..
 
             cmake --build .
@@ -226,6 +280,7 @@ build_android() {
                 -DANDROID_LINKER_FLAGS="-landroid -llog" \
                 -DANDROID_NATIVE_API_LEVEL=23 \
                 -DANDROID_STL=c++_static \
+                -DWITH_JNI=1 \
                 -DANDROID_CPP_FEATURES="rtti exceptions" ../..
 
             cmake --build .
@@ -254,7 +309,7 @@ if [ $# -eq 0 ];then
 else
     case "$1" in 
     dependencies)
-    build_dependencies
+    build_dependencies $@
     ;;
 
     desktop)
@@ -273,10 +328,20 @@ else
     build_inside_container release
     ;;
 
+    macos)
+    build_macos
+    ;;
+
+    macosm1)
+    build_macosm1
+    ;;
+
     *)
     echo
     echo "Unrecognized option"
-    echo "Choose: desktop | debug | release | android [x86 | x86_64 | armeabi-v7a | arm64-v8a]"
+    echo "Choose: desktop | debug | release | android [x86 | x86_64 | armeabi-v7a | arm64-v8a] | dependencies"
     ;;
     esac
 fi
+
+
