@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 
-project=$(pwd)
+export project=$(pwd)
 export GTEST_OUTPUT="xml:$(pwd)/build/reports.xml"
 export IDPASSLITE=$project/build/debug/lib/src/libidpasslite.so
 export CLASSPATH=$project/build/debug/lib/tests/jni/
