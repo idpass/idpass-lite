@@ -1,11 +1,30 @@
+import api_pb2
 import IDPassLite
 
-if __name__ == "__main__":
-    encryptionKey   = IDPassLite.Helper.generate_encryption_key()
-    signatureKey    = IDPassLite.Helper.generate_secret_signature_key()
-    verificationKey = IDPassLite.Helper.getPublicKey(signatureKey)
+def KEYSET_fromFile(filename):
+    keySet = api_pb2.KeySet()
+    with open(filename, "rb") as binaryfile :
+       buf = bytearray(binaryfile.read())
+    keySet.ParseFromString(buf)
+    return keySet
 
-    reader = IDPassLite.Reader(encryptionKey,  signatureKey, verificationKey)
+def KEYSET_fromRandom():
+    keySet = api_pb2.KeySet()
+    encryptionKey = IDPassLite.Helper.generate_encryption_key()
+    (verificationKey, signatureKey) = IDPassLite.Helper.generate_secret_signature_keypair()
+    ba = api_pb2.byteArray()
+    ba.val = bytes(verificationKey)
+    ba.typ = api_pb2.byteArray.Typ.ED25519PUBKEY
+    keySet.encryptionKey = bytes(encryptionKey) 
+    keySet.signatureKey = bytes(signatureKey)
+    keySet.verificationKeys.append(ba) 
+    return keySet
+
+if __name__ == "__main__":
+    keySet = KEYSET_fromFile("demokeys.bin")
+    # keySet = KEYSET_fromRandom()
+    reader = IDPassLite.Reader(keySet)
+
     #cards  = reader.create_card_with_face("testdata/manny1.bmp")
     #publicCard = cards.publicCard
     #print(publicCard.details.surName)

@@ -8,7 +8,7 @@ def signal_handler(sig, frame):
     print('You pressed Ctrl+C!')
     sys.exit(0)
 
-class IDPassLoader(object):
+class IDPassNative(object):
     try:
         # lib = CDLL("lib/libidpasslite.so")
         # Linux   -> export LD_LIBRARY_PATH=/path/to/lib/:$LB_LIBRARY_PATH
@@ -52,10 +52,10 @@ class IDPassLoader(object):
         lib.idpass_lite_generate_encryption_key.argtypes = [ ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int ]
         lib.idpass_lite_generate_encryption_key.restype = ctypes.c_int
 
-        lib.idpass_lite_generate_secret_signature_keypair.argtypes = [ ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int ]
+        lib.idpass_lite_generate_secret_signature_keypair.argtypes = [ ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
         lib.idpass_lite_generate_secret_signature_keypair.restype = ctypes.c_int
 
-        lib.idpass_lite_init.argtypes = [ ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int ]
+        lib.idpass_lite_init.argtypes = [ ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
         lib.idpass_lite_init.restype = ctypes.c_void_p
 
         lib.idpass_lite_create_card_with_face.argtypes = [ ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, 
