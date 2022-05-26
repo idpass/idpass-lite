@@ -58,9 +58,23 @@ class IDPassNative(object):
         lib.idpass_lite_init.argtypes = [ ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
         lib.idpass_lite_init.restype = ctypes.c_void_p
 
-        lib.idpass_lite_create_card_with_face.argtypes = [ ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, 
-            ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int ]
+        lib.idpass_lite_create_card_with_face.argtypes = [ 
+            ctypes.c_void_p, 
+            ctypes.POINTER(ctypes.c_int), 
+            ctypes.POINTER(ctypes.c_ubyte), 
+            ctypes.c_int
+            ]
+
         lib.idpass_lite_create_card_with_face.restype = ctypes.POINTER(ctypes.c_ubyte)
+
+        lib.idpass_lite_verify_card_with_pin.argtypes = [ 
+            ctypes.c_void_p, 
+            ctypes.POINTER(ctypes.c_int), 
+            ctypes.POINTER(ctypes.c_ubyte), 
+            ctypes.c_int, 
+            ctypes.POINTER(ctypes.c_char) 
+            ]
+        lib.idpass_lite_verify_card_with_pin.restype = ctypes.POINTER(ctypes.c_ubyte)
 
         lib.idpass_lite_qrpixel2.argtypes = [ ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int, ctypes.POINTER(ctypes.c_int) ]
         lib.idpass_lite_qrpixel2.restype = ctypes.POINTER(ctypes.c_ubyte)

@@ -4,8 +4,8 @@ import IDPassLite
 def KEYSET_fromFile(filename):
     keySet = api_pb2.KeySet()
     with open(filename, "rb") as binaryfile :
-       buf = bytearray(binaryfile.read())
-    keySet.ParseFromString(buf)
+       ba = bytearray(binaryfile.read())
+    keySet.ParseFromString(ba) 
     return keySet
 
 def KEYSET_fromRandom():
@@ -20,30 +20,49 @@ def KEYSET_fromRandom():
     keySet.verificationKeys.append(ba) 
     return keySet
 
-if __name__ == "__main__":
-    keySet = KEYSET_fromFile("demokeys.bin")
-    # keySet = KEYSET_fromRandom()
-    reader = IDPassLite.Reader(keySet)
+def getIdent1():
+    ident = api_pb2.Ident()
+    photo = open("testdata/manny1.bmp", "rb").read()
+    surName = "Doe".encode('utf-8')
+    givenName = "John".encode('utf-8')
+    dateOfBirth = "1980/12/17".encode('utf-8')
+    placeOfBirth = "USA".encode('utf-8')
+    pin = "12345".encode('utf-8')
+    ident.surName = surName
+    ident.givenName = givenName
+    # ident.dateOfBirth = dateOfBirth
+    ident.placeOfBirth = placeOfBirth
+    ident.pin = pin
+    return ident
 
-    #cards  = reader.create_card_with_face("testdata/manny1.bmp")
-    #publicCard = cards.publicCard
-    #print(publicCard.details.surName)
-    #print(publicCard.details.givenName)
-    #print(publicCard.details.placeOfBirth)
-    #qrcode = reader.asQRCode(cards.encryptedCard)
-
+def faceTemplateTest(reader):
     manny1_ftemplate = reader.computeFullTemplate("testdata/manny1.bmp")
     manny2_ftemplate = reader.computeFullTemplate("testdata/manny2.bmp")
     manny1_htemplate = reader.computeHalfTemplate("testdata/manny1.bmp")
     manny2_htemplate = reader.computeHalfTemplate("testdata/manny2.bmp")
-
     full_fdiff = reader.compare_face_template(manny1_ftemplate, manny2_ftemplate)
     print("full fdiff = %f " % full_fdiff);
-
     half_fdiff = reader.compare_face_template(manny1_htemplate, manny2_htemplate)
     print("half fdiff = %f " % half_fdiff);
 
-    #fdiff = reader.compare_face_photo("testdata/manny1.bmp","testdata/manny2.bmp")
-    #print("fdiff = %f " % fdiff)
+if __name__ == "__main__":
+    keySet = KEYSET_fromFile("demokeys.bin")
+    reader = IDPassLite.Reader(keySet)
 
-    print("-- end --")
+    ident1 = getIdent1()
+
+    # Notes: create_card_with_face is temporarily returning a tuple as I need
+    # the buf array to authenticate back to the card via its pin code
+    cards, buf, buflen  = reader.create_card_with_face(ident1) 
+    
+    publicCard = cards.publicCard
+    print(publicCard.details.surName)
+    print(publicCard.details.givenName)
+    print(publicCard.details.placeOfBirth) # Prior to authentication, placeOfBirth is not visible
+    qrbuf, sidelen = reader.asQRCode(cards.encryptedCard) 
+
+    c = reader.authenticateWithPin(buf, buflen, "12345")
+    if c is not None:
+        print(c.placeOfBirth) # After authentication, placeOfBirth is now visible
+    else:
+        print("wrong pin code")

@@ -4,6 +4,23 @@ from IDPassNative import IDPassNative
 import idpasslite_pb2
 import api_pb2
 
+IOCTL_SET_FACEDIFF = 0x00
+IOCTL_GET_FACEDIFF = 0x01
+IOCTL_SET_FDIM = 0x02
+IOCTL_GET_FDIM = 0x03
+IOCTL_SET_ECC = 0x04
+IOCTL_SET_ACL = 0x05
+
+DETAIL_SURNAME = 1
+DETAIL_GIVENNAME = 2
+DETAIL_DATEOFBIRTH = 4
+DETAIL_PLACEOFBIRTH = 8
+DETAIL_CREATEDAT = 16
+DETAIL_UIN = 32
+DETAIL_FULLNAME = 64
+DETAIL_GENDER = 128
+DETAIL_POSTALADDRESS = 256
+
 class Helper(object):
     def generate_encryption_key():
         key = (c_ubyte * 32)()
@@ -31,6 +48,7 @@ class Reader(object):
         self.ctx = IDPassNative.lib.idpass_lite_init((c_ubyte * len(keysetba))(*keysetba), len(keysetba), None , 0)
         if self.ctx is None:
             raise ValueError('fail to initialize with specified keys')
+        self.ioctl(IOCTL_SET_ACL, DETAIL_SURNAME | DETAIL_GIVENNAME)
 
     def ioctl(self, cmd, param):
         #IOCTL_SET_FDIM = 0x02 # full mode
@@ -132,36 +150,26 @@ class Reader(object):
             raise ValueError('Dlib found %d face(s) error' % facecount)
         return hdim
 
-    def create_card_with_face(self, inputfile):
-        photo = open(inputfile, "rb").read()
-        buf_len = c_int(0)
-        surname = "Doe".encode('utf-8')
-        givenname = "John".encode('utf-8')
-        dob = "1980/12/17".encode('utf-8')
-        place = "USA".encode('utf-8')
-        pin = "12345".encode('utf-8')
+    def create_card_with_face(self, ident):
+        identba = bytearray(ident.SerializeToString())
+        cardbalen = c_int(0)
 
-        buf = IDPassNative.lib.idpass_lite_create_card_with_face(
+        cardba = IDPassNative.lib.idpass_lite_create_card_with_face(
             self.ctx, 
-            byref(buf_len),
-            surname, 
-            givenname, 
-            dob, 
-            place, 
-            pin, 
-            (c_ubyte * len(photo))(*photo), 
-            len(photo), 
-            None,
-            0,
-            None,
-            0)
-        if buf is None:
-            raise ValueError('create card with face error')
-        buf = string_at(buf, buf_len.value)
-        cards = idpasslite_pb2.IDPassCards()
-        cards.ParseFromString(buf)
-        return cards
+            byref(cardbalen),
+            (c_ubyte * len(identba))(*identba), 
+            len(identba)
+            )
 
+        if cardba is None:
+            raise ValueError('create card with face error')
+        cards = idpasslite_pb2.IDPassCards()
+        cards.ParseFromString(string_at(cardba, cardbalen.value))
+        return (cards, cardba, cardbalen.value) # TODO: Improve API
+
+    # TODO: Do something like in Java below, or probably better this is done inside
+    # libidpasslite.so in C++ as the string type format is portable
+    # https://github.com/idpass/idpass-lite-java/blob/develop/src/main/java/org/idpass/lite/IDPassReader.java#L515-L547
     def asQRCode(self, data):
         #inputdata = (c_ubyte * len(data)).from_buffer_copy(data)
         buf_len = c_int(0)
@@ -173,6 +181,20 @@ class Reader(object):
         #print("qr_side_len = %d " % qr_side_len.value)
         buf = string_at(buf, buf_len.value)
         return buf, qr_side_len
+
+    def authenticateWithPin(self, cardba, cardbalen, pincode):
+        details = idpasslite_pb2.CardDetails()
+        buflen = c_int(0)
+        buf = IDPassNative.lib.idpass_lite_verify_card_with_pin(
+            self.ctx, 
+            byref(buflen), 
+            cardba, 
+            cardbalen, 
+            pincode.encode('utf-8'))
+        if buflen.value == 0:
+            return None
+        details.ParseFromString(string_at(buf, buflen))
+        return details
 
     def freemem(self, addr):
         IDPassNative.lib.idpass_lite_freemem(self.ctx, addr)
