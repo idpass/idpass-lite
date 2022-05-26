@@ -9,6 +9,23 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 class IDPassNative(object):
+    IOCTL_SET_FACEDIFF = 0x00
+    IOCTL_GET_FACEDIFF = 0x01
+    IOCTL_SET_FDIM = 0x02
+    IOCTL_GET_FDIM = 0x03
+    IOCTL_SET_ECC = 0x04
+    IOCTL_SET_ACL = 0x05
+    
+    DETAIL_SURNAME = 1
+    DETAIL_GIVENNAME = 2
+    DETAIL_DATEOFBIRTH = 4
+    DETAIL_PLACEOFBIRTH = 8
+    DETAIL_CREATEDAT = 16
+    DETAIL_UIN = 32
+    DETAIL_FULLNAME = 64
+    DETAIL_GENDER = 128
+    DETAIL_POSTALADDRESS = 256
+
     try:
         # lib = CDLL("lib/libidpasslite.so")
         # Linux   -> export LD_LIBRARY_PATH=/path/to/lib/:$LB_LIBRARY_PATH

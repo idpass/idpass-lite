@@ -4,23 +4,6 @@ from IDPassNative import IDPassNative
 import idpasslite_pb2
 import api_pb2
 
-IOCTL_SET_FACEDIFF = 0x00
-IOCTL_GET_FACEDIFF = 0x01
-IOCTL_SET_FDIM = 0x02
-IOCTL_GET_FDIM = 0x03
-IOCTL_SET_ECC = 0x04
-IOCTL_SET_ACL = 0x05
-
-DETAIL_SURNAME = 1
-DETAIL_GIVENNAME = 2
-DETAIL_DATEOFBIRTH = 4
-DETAIL_PLACEOFBIRTH = 8
-DETAIL_CREATEDAT = 16
-DETAIL_UIN = 32
-DETAIL_FULLNAME = 64
-DETAIL_GENDER = 128
-DETAIL_POSTALADDRESS = 256
-
 class Helper(object):
     def generate_encryption_key():
         key = (c_ubyte * 32)()
@@ -48,7 +31,7 @@ class Reader(object):
         self.ctx = IDPassNative.lib.idpass_lite_init((c_ubyte * len(keysetba))(*keysetba), len(keysetba), None , 0)
         if self.ctx is None:
             raise ValueError('fail to initialize with specified keys')
-        self.ioctl(IOCTL_SET_ACL, DETAIL_SURNAME | DETAIL_GIVENNAME)
+        self.ioctl(IDPassNative.IOCTL_SET_ACL, IDPassNative.DETAIL_SURNAME | IDPassNative.DETAIL_GIVENNAME)
 
     def ioctl(self, cmd, param):
         #IOCTL_SET_FDIM = 0x02 # full mode
