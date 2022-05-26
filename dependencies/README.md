@@ -5,7 +5,7 @@ These are provided as prebuilt but they can be rebuilt from their sources under 
 by:
 
 ```
-cd lab_idpassapi
+cd idpass-lite
 rm -rf dependencies/build/
 ./build.sh dependencies
 ```
@@ -14,7 +14,7 @@ It takes about 50 minutes to rebuild the build/ folder from source. To see it's 
 progress, open another terminal and `tail`:
 
 ```
-cd lab_idpassapi/
+cd idpass-lite/
 $ tail -f build/build.log
 Building dlib x86: done 229s
 Building dlib x86_64: done 240s
