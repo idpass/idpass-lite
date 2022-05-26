@@ -1,5 +1,11 @@
 # Prebuilt headers and libraries
 
+First, make sure that the submodules source codes are there:
+
+```
+git submodule update
+```
+
 The needed prebuilt headers and libraries are under the build/ folder for each architecture.
 These are provided as prebuilt but they can be rebuilt from their sources under src/ folder
 by:
@@ -46,7 +52,7 @@ Windows. You also need handy the `git bash` shell for Windows. Do not use `cygwi
 Same as in Linux it uses cmake. Open git bash shell or DOS cmd:
 
 ```
-cd dlib
+cd dependencies/src/dlib
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX=install -T host=x64 ..
 cmake --build . --config Release --target INSTALL
@@ -60,7 +66,7 @@ In Linux the build system uses configure but in Windows system it uses cmake.
 Open git bash shell:
 
 ```
-cd protobuf
+cd dependencies/src/protobuf
 cd cmake
 mkdir -p build/release && cd build/release
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install ../..
@@ -79,7 +85,7 @@ Edit buildall.bat and comment out non-existent Visual Studio versions. For examp
 I have Visual Studio 2019 therefore I keep this line and comment out the other lines.
 
 ```
-cd libsodium
+cd dependencies/src/libsodium
 cd builds\msvc\build
 buildall.bat
 ```
