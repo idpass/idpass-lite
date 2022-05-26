@@ -45,7 +45,8 @@ SUCCESS
 This needs a Microsoft Visual Studio compiler. The free community edition works
 for example I use the Microsoft Visual Studio 2019 IDE. All prebuilt can be build
 via command line DOS in Windows. You also need to have `cmake` installed for
-Windows. You also need handy the `git bash` shell for Windows. Do not use `cygwin`.
+Windows (CMake suite by Kitware kitware.com/cmake) . You also need handy the `git bash` 
+shell for Windows. Do not use `cygwin`.
 
 ## Building Dlib
 
