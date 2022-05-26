@@ -2,6 +2,5 @@ Debug in VSCode:
 
 ```
 cd python-wrap
-export LD_LIBRARY_PATH=`pwd`/lib:$LD_LIBRARY_PATH
-code .
+./code.sh
 ```
