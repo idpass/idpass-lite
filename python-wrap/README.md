@@ -1,5 +1,7 @@
 ### Step debug in VSCode IDE:
 
+To develop the API:
+
 ```
 cd python-wrap
 ./code.sh
