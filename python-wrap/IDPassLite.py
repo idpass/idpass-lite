@@ -160,7 +160,9 @@ class Reader(object):
         data_len = len(data)
         input = (c_ubyte * data_len)(*data)
         buf = IDPassNative.lib.idpass_lite_qrcodesvg(self.ctx, input, data_len)
-        return buf
+        _strip1 = str(cast(buf,c_char_p).value)[2:]
+        content = _strip1[:-1]
+        return content
 
     def authenticateWithPin(self, cardba, cardbalen, pincode):
         details = idpasslite_pb2.CardDetails()
