@@ -23,7 +23,7 @@ def KEYSET_fromRandom():
 
 def getIdent1():
     ident = api_pb2.Ident()
-    photo = open("testdata/manny1.bmp", "rb").read()
+    # photo = open("testdata/manny1.bmp", "rb").read()
     surName = "Doe".encode('utf-8')
     givenName = "John".encode('utf-8')
     dateOfBirth = "1980/12/17".encode('utf-8')
