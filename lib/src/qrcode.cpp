@@ -146,6 +146,18 @@ static const uint16_t NUM_RAW_DATA_MODULES = 567;
 
 #endif
 
+const char* str1 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+const char* str2 = "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">";
+const char* str4 = "\t<rect width=\"100%\" height=\"100%\" fill=\"#FFFFFF\"/>";
+const char* str5 = "\t<path d=\"";
+const char* str7 = "\" fill=\"#000000\"/>";
+const char* str8 = "</svg>";
+
+static void StringBuilder_append(char *dest, const char *stuff)
+{
+    strcat(dest, stuff);
+}
+
 static int max(int a, int b)
 {
     if (a > b) {
@@ -1225,3 +1237,63 @@ void qrcode_getHex(QRCode *qrcode, char *result) {
 
 }
 */
+
+char *qrcode_svg(const unsigned char *data,
+                 int data_len,
+                 int ecc)
+{
+    // Create the QR code
+    QRCode qrcode;
+    int version = 1; // start with version 1
+
+    int status = qrcode_initText(&qrcode,
+                                 nullptr,
+                                 version,
+                                 ecc,
+                                 reinterpret_cast<const char *>(data),
+                                 data_len);
+
+    if (status != 0)
+        return NULL;
+
+    char str3[100];
+    static char output[524288];
+    char str6[100];
+
+
+    auto SetBit = [](unsigned char A[], int k) {
+        // Set the bit at the k-th position in A[i]
+        A[k / 8] |= 1 << (k % 8);
+    };
+
+    int n = qrcode.size;
+    int border = 3;
+
+    sprintf(str3, "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" viewBox=\"0 0 %d %d\" stroke=\"none\">", n + border * 2, n + border * 2);
+
+    StringBuilder_append(output, str1);
+    StringBuilder_append(output, str2);
+    StringBuilder_append(output, str3);
+    StringBuilder_append(output, str4);
+    StringBuilder_append(output, str5);
+
+    for (uint8_t y = 0; y < n; y++) {
+        // Each horizontal module
+        for (uint8_t x = 0; x < n; x++) {
+            int p = (y * n + x);
+            if (qrcode_getModule(&qrcode, x, y)) {
+                // SetBit(pixels, p);
+                if (x != 0 || y != 0) {
+                    StringBuilder_append(output, " ");
+                }
+                sprintf(str6, "M%d,%dh1v1h-1z", y + border, x + border);
+                StringBuilder_append(output, str6);
+            }
+        }
+    }
+
+    StringBuilder_append(output, str7);
+    StringBuilder_append(output, str8);
+    // printf("%s\n", output);
+    return output;
+}

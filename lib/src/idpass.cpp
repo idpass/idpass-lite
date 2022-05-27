@@ -2107,6 +2107,21 @@ unsigned char* idpass_lite_merge_CardDetails(unsigned char* d1buf,
     return buf;
 }
 
+MODULE_API
+char* idpass_lite_qrcodesvg(void* self,
+                            const unsigned char* data,
+                            int data_len)
+{
+    if (self == nullptr || data == nullptr
+        || data_len <= 0) 
+    {
+        return nullptr; 
+    }
+    Context* context = (Context*)self;
+
+    return qrcode_svg(data, data_len, context->qrcode_ecc);
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -97,6 +97,10 @@ uint8_t *qrcode_getpixel(const unsigned char *data,
                          int *,
                          int ecc);
 
+char *qrcode_svg(const unsigned char *data,
+                 int data_len,
+                 int ecc);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

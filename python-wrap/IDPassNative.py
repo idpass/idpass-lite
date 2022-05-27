@@ -98,6 +98,10 @@ class IDPassNative(object):
 
         lib.idpass_lite_freemem.argtypes = [ ctypes.c_void_p, ctypes.c_void_p ]
         lib.idpass_lite_freemem.restype = None
+
+        lib.idpass_lite_qrcodesvg.argtypes = [ ctypes.c_void_p, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int ]
+        lib.idpass_lite_qrcodesvg.restype = ctypes.POINTER(ctypes.c_char_p)
+
     except Exception as e:
         print(str(e))
         sys.exit(1)

@@ -159,11 +159,8 @@ class Reader(object):
         qr_side_len = c_int(0)
         data_len = len(data)
         input = (c_ubyte * data_len)(*data)
-        buf = IDPassNative.lib.idpass_lite_qrpixel2(self.ctx, byref(buf_len), input, data_len, byref(qr_side_len))
-        #print("buf_len = %d " % buf_len.value)
-        #print("qr_side_len = %d " % qr_side_len.value)
-        buf = string_at(buf, buf_len.value)
-        return buf, qr_side_len
+        buf = IDPassNative.lib.idpass_lite_qrcodesvg(self.ctx, input, data_len)
+        return buf
 
     def authenticateWithPin(self, cardba, cardbalen, pincode):
         details = idpasslite_pb2.CardDetails()

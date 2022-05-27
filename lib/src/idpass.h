@@ -577,6 +577,12 @@ unsigned char* idpass_lite_merge_CardDetails(unsigned char* d1buf,
                                              int d2buf_len,
                                              int* outlen);
 
+
+MODULE_API
+char* idpass_lite_qrcodesvg(void* self,
+                            const unsigned char* data,
+                            int data_len);
+
 #ifdef __cplusplus
 }
 #endif

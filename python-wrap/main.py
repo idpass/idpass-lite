@@ -1,5 +1,6 @@
 import api_pb2
 import IDPassLite
+from ctypes import *
 
 def KEYSET_fromFile(filename):
     keySet = api_pb2.KeySet()
@@ -59,7 +60,8 @@ if __name__ == "__main__":
     print(publicCard.details.surName)
     print(publicCard.details.givenName)
     print(publicCard.details.placeOfBirth) # Prior to authentication, placeOfBirth is not visible
-    qrbuf, sidelen = reader.asQRCode(cards.encryptedCard) 
+    qrcodesvg = reader.asQRCode(cards.encryptedCard)
+    open("qrcode.svg","w").write(str(cast(qrcodesvg,c_char_p).value))
 
     c = reader.authenticateWithPin(buf, buflen, "12345")
     if c is not None:
