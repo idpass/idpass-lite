@@ -7,6 +7,12 @@ cd /home/other/path/
 ./run.sh
 ```
 
+So, basically in `run.sh` we have:
+
+```
+test ID details -> main.py -> qrcode.svg
+```
+
 will generate an `qrcode.svg` output file using a test identity detail in `main.py`. 
 
 ### Step debug in VSCode IDE:
