@@ -18,3 +18,14 @@ It's recommended to use the library's provided `protoc` compiler to ensure compa
 The `demokeys.bin` is a demo set of keys for inter-operable testing across apps. 
 
 The `IDPassNative.py` loads `idpasslite.so` library. The library's methods defined in [idpass.h](https://github.com/idpass/idpass-lite/blob/python-wrap/lib/src/idpass.h) are mapped in `IDPassNative.py`. 
+
+### Test run in a backend deploy
+
+All that is needed is inside the `python-wrap/` folder. So doing a `cp -a python-wrap/* /some/other/path/` followed by:
+
+```
+cd /home/other/path/
+./run.sh
+```
+
+will generate an `qrcode.svg` output file using a test identity detail in `main.py`. 
