@@ -36,21 +36,11 @@ def getIdent1():
     ident.pin = pin
     return ident
 
-def faceTemplateTest(reader):
-    manny1_ftemplate = reader.computeFullTemplate("testdata/manny1.bmp")
-    manny2_ftemplate = reader.computeFullTemplate("testdata/manny2.bmp")
-    manny1_htemplate = reader.computeHalfTemplate("testdata/manny1.bmp")
-    manny2_htemplate = reader.computeHalfTemplate("testdata/manny2.bmp")
-    full_fdiff = reader.compare_face_template(manny1_ftemplate, manny2_ftemplate)
-    print("full fdiff = %f " % full_fdiff);
-    half_fdiff = reader.compare_face_template(manny1_htemplate, manny2_htemplate)
-    print("half fdiff = %f " % half_fdiff);
-
 if __name__ == "__main__":
     keySet = KEYSET_fromFile("demokeys.bin")
     reader = IDPassLite.Reader(keySet)
 
-    ident1 = getIdent1()
+    ident1 = getIdent1() # Use this identity details as an example
 
     # Notes: create_card_with_face is temporarily returning a tuple as I need
     # the buf array to authenticate back to the card via its pin code
