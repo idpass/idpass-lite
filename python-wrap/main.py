@@ -50,7 +50,7 @@ if __name__ == "__main__":
     print(publicCard.details.surName)
     print(publicCard.details.givenName)
     print(publicCard.details.placeOfBirth) # Prior to authentication, placeOfBirth is not visible
-    qrcodesvg = reader.asQRCode(cards.encryptedCard)
+    qrcodesvg = reader.asQRCode(buf, buflen)
     open("qrcode.svg","w").write(qrcodesvg)
 
     c = reader.authenticateWithPin(buf, buflen, "12345")

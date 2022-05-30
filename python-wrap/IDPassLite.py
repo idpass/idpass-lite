@@ -153,13 +153,9 @@ class Reader(object):
     # TODO: Do something like in Java below, or probably better this is done inside
     # libidpasslite.so in C++ as the string type format is portable
     # https://github.com/idpass/idpass-lite-java/blob/develop/src/main/java/org/idpass/lite/IDPassReader.java#L515-L547
-    def asQRCode(self, data):
+    def asQRCode(self, data, datalen):
         #inputdata = (c_ubyte * len(data)).from_buffer_copy(data)
-        buf_len = c_int(0)
-        qr_side_len = c_int(0)
-        data_len = len(data)
-        input = (c_ubyte * data_len)(*data)
-        buf = IDPassNative.lib.idpass_lite_qrcodesvg(self.ctx, input, data_len)
+        buf = IDPassNative.lib.idpass_lite_qrcodesvg(self.ctx, data, datalen)
         _strip1 = str(cast(buf,c_char_p).value)[2:]
         content = _strip1[:-1]
         return content
