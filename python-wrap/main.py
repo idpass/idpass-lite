@@ -37,7 +37,7 @@ def getIdent1():
     return ident
 
 if __name__ == "__main__":
-    keySet = KEYSET_fromFile("demokeys.bin")
+    keySet = KEYSET_fromFile("demokeys.bin") # Load matching keyset from Android reader app
     reader = IDPassLite.Reader(keySet)
 
     ident1 = getIdent1() # Use this identity details as an example
