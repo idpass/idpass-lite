@@ -5,7 +5,7 @@ from ctypes import *
 def KEYSET_fromFile(filename):
     keySet = api_pb2.KeySet()
     with open(filename, "rb") as binaryfile :
-       ba = bytearray(binaryfile.read())
+       ba = binaryfile.read()
     keySet.ParseFromString(ba) 
     return keySet
 
