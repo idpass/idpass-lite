@@ -1,4 +1,5 @@
 import api_pb2
+import idpasslite_pb2
 import IDPassLite
 from ctypes import *
 
@@ -23,17 +24,42 @@ def KEYSET_fromRandom():
 
 def getIdent1():
     ident = api_pb2.Ident()
-    # photo = open("testdata/manny1.bmp", "rb").read()
-    surName = "Doe".encode('utf-8')
-    givenName = "John".encode('utf-8')
-    dateOfBirth = "1980/12/17".encode('utf-8')
-    placeOfBirth = "USA".encode('utf-8')
+    photo = open("florence_ID_Photo.jpg", "rb").read()
+    surName = "DUPONT".encode('utf-8')
+    givenName = "MARION FLORENCE".encode('utf-8')
+    placeOfBirth = "FRANCE".encode('utf-8')
     pin = "12345".encode('utf-8')
     ident.surName = surName
     ident.givenName = givenName
-    # ident.dateOfBirth = dateOfBirth
+    ident.dateOfBirth.year = 1985
+    ident.dateOfBirth.month = 1
+    ident.dateOfBirth.day = 1
     ident.placeOfBirth = placeOfBirth
     ident.pin = pin
+    ident.photo = photo
+    extra = idpasslite_pb2.Pair()
+    extra.key = "Sex"
+    extra.value = "F"
+    ident.pubExtra.append(extra)
+    extra.key = "Nationality"
+    extra.value = "French"
+    ident.pubExtra.append(extra)
+    extra.key = "Date Of Issue"
+    extra.value = "02 JAN 2025"
+    ident.pubExtra.append(extra)
+    extra.key = "Date Of Expiry"
+    extra.value = "01 JAN 2035"
+    ident.pubExtra.append(extra)
+    extra.key = "ID"
+    extra.value = "SA437277"
+    ident.pubExtra.append(extra)
+    # SS Number field only visible after authentication
+    extra.key = "SS Number"
+    extra.value = "2 85 01 75 116 001 42"
+    ident.privExtra.append(extra) 
+    extra.key = "contract"
+    extra.value = "0x28BFC23c29D6859E3f43d2d1714d019a7c44ba0E"
+    ident.privExtra.append(extra) 
     return ident
 
 if __name__ == "__main__":
