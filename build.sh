@@ -186,8 +186,8 @@ build_desktop_idpasslite() {
     assert_exists cmake
     assert_exists make
     # for #include <jni.h>
-    assert_exists java 
-    assert_exists javac 
+    # assert_exists java
+    # assert_exists javac
 
     build_release
 }
