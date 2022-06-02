@@ -70,17 +70,21 @@ if __name__ == "__main__":
 
     # Notes: create_card_with_face is temporarily returning a tuple as I need
     # the buf array to authenticate back to the card via its pin code
-    cards, buf, buflen  = reader.create_card_with_face(ident1) 
-    
-    publicCard = cards.publicCard
-    print(publicCard.details.surName)
-    print(publicCard.details.givenName)
-    print(publicCard.details.placeOfBirth) # Prior to authentication, placeOfBirth is not visible
-    qrcodesvg = reader.asQRCode(buf, buflen)
-    open("qrcode.svg","w").write(qrcodesvg)
+    # cards, buf, buflen  = reader.create_card_with_face(ident1) 
 
-    c = reader.authenticateWithPin(buf, buflen, "12345")
-    if c is not None:
-        print(c.placeOfBirth) # After authentication, placeOfBirth is now visible
-    else:
-        print("wrong pin code")
+    card  = reader.create_card_with_face(ident1) 
+    svg = card.asQRCodeSVG()
+    open("qrcode.svg","w").write(svg)
+    
+    # publicCard = cards.publicCard
+    # print(publicCard.details.surName)
+    # print(publicCard.details.givenName)
+    # print(publicCard.details.placeOfBirth) # Prior to authentication, placeOfBirth is not visible
+    # qrcodesvg = reader.asQRCode(buf, buflen)
+    # open("qrcode.svg","w").write(qrcodesvg)
+
+    # c = reader.authenticateWithPin(buf, buflen, "12345")
+    # if c is not None:
+    #     print(c.placeOfBirth) # After authentication, placeOfBirth is now visible
+    # else:
+    #     print("wrong pin code")

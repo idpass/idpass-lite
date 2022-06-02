@@ -148,6 +148,24 @@ class Reader(object):
             raise ValueError('create card with face error')
         cards = idpasslite_pb2.IDPassCards()
         cards.ParseFromString(string_at(cardba, cardbalen.value))
+        card = Card(self.ctx, cardba, cardbalen.value)
+        return card
+
+    def _create_card_with_face(self, ident):
+        identba = bytearray(ident.SerializeToString())
+        cardbalen = c_int(0)
+
+        cardba = IDPassNative.lib.idpass_lite_create_card_with_face(
+            self.ctx, 
+            byref(cardbalen),
+            (c_ubyte * len(identba))(*identba), 
+            len(identba)
+            )
+
+        if cardba is None:
+            raise ValueError('create card with face error')
+        cards = idpasslite_pb2.IDPassCards()
+        cards.ParseFromString(string_at(cardba, cardbalen.value))
         return (cards, cardba, cardbalen.value) # TODO: Improve API
 
     # TODO: Do something like in Java below, or probably better this is done inside
@@ -177,3 +195,14 @@ class Reader(object):
     def freemem(self, addr):
         IDPassNative.lib.idpass_lite_freemem(self.ctx, addr)
 
+class Card(object):
+    def __init__(self, ctx, buf, buflen):
+        self.ctx = ctx
+        self.buf = buf
+        self.buflen = buflen
+
+    def asQRCodeSVG(self):
+        buf = IDPassNative.lib.idpass_lite_qrcodesvg(self.ctx, self.buf, self.buflen)
+        _strip1 = str(cast(buf,c_char_p).value)[2:]
+        content = _strip1[:-1]
+        return content
