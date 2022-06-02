@@ -1,3 +1,4 @@
+from google.protobuf.json_format import Parse
 import api_pb2
 import idpasslite_pb2
 import IDPassLite
@@ -62,19 +63,27 @@ def getIdent1():
     ident.privExtra.append(extra) 
     return ident
 
+def getIdentFromJson(file):
+    with open(file, "r") as inf:
+        txt = inf.read()
+    ident = Parse(txt, api_pb2.Ident())
+    return ident
+    
 if __name__ == "__main__":
     keySet = KEYSET_fromFile("demokeys.bin") # Load matching keyset from Android reader app
     reader = IDPassLite.Reader(keySet)
+    # ident1 = getIdent1() # Use this identity details as an example
+    ident1 = getIdentFromJson("ident1.json")
+    ident2 = getIdentFromJson("ident2.json")
+    card1  = reader.create_card_with_face(ident1)
+    svg1 = card1.asQRCodeSVG()
+    open("qrcode1.svg","w").write(svg1)
 
-    ident1 = getIdent1() # Use this identity details as an example
+    card2  = reader.create_card_with_face(ident2)
+    svg2 = card2.asQRCodeSVG()
+    open("qrcode2.svg","w").write(svg2)
 
-    # Notes: create_card_with_face is temporarily returning a tuple as I need
-    # the buf array to authenticate back to the card via its pin code
-    # cards, buf, buflen  = reader.create_card_with_face(ident1) 
-
-    card  = reader.create_card_with_face(ident1) 
-    svg = card.asQRCodeSVG()
-    open("qrcode.svg","w").write(svg)
+    # card2 = card.authenticateWithPin("12345")
     
     # publicCard = cards.publicCard
     # print(publicCard.details.surName)

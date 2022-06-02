@@ -2118,6 +2118,7 @@ char* idpass_lite_qrcodesvg(void* self,
         return nullptr; 
     }
     Context* context = (Context*)self;
+    std::lock_guard<std::mutex> guard(context->mtx); // protect the static output buf
 
     return qrcode_svg(data, data_len, context->qrcode_ecc);
 }

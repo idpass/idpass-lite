@@ -1,0 +1,39 @@
+{
+  "surName": "Gast",
+  "givenName": "Friedrich",
+  "placeOfBirth": "Rocken, Lutzen, Germany",
+  "pin": "54321",
+  "dateOfBirth": {
+    "year": 1844,
+    "month": 10,
+    "day": 15
+  },
+  "privExtra": [
+    {
+      "key": "Friend",
+      "value": "Wagner"
+    }
+  ],
+  "pubExtra": [
+    {
+      "key": "Sex",
+      "value": "M"
+    },
+    {
+      "key": "Nationality",
+      "value": "German"
+    },
+    {
+      "key": "Date Of Issue",
+      "value": "02 JAN 2025"
+    },
+    {
+      "key": "Date Of Expiry",
+      "value": "01 JAN 2035"
+    },
+    {
+      "key": "ID",
+      "value": "XZ3312F"
+    }
+  ]
+}

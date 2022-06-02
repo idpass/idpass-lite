@@ -206,3 +206,17 @@ class Card(object):
         _strip1 = str(cast(buf,c_char_p).value)[2:]
         content = _strip1[:-1]
         return content
+
+    def authenticateWithPin(self, pincode):
+        details = idpasslite_pb2.CardDetails()
+        buflen = c_int(0)
+        buf = IDPassNative.lib.idpass_lite_verify_card_with_pin(
+            self.ctx, 
+            byref(buflen), 
+            self.buf, 
+            self.buflen, 
+            pincode.encode('utf-8'))
+        if buflen.value == 0:
+            return None
+        details.ParseFromString(string_at(buf, buflen))
+        return details

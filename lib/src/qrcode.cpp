@@ -1260,6 +1260,7 @@ char *qrcode_svg(const unsigned char *data,
     static char output[524288];
     char str6[100];
 
+    output[0] = '\0';
 
     auto SetBit = [](unsigned char A[], int k) {
         // Set the bit at the k-th position in A[i]
