@@ -56,4 +56,6 @@ The `demokeys.bin` is a demo set of keys for inter-operable testing across apps.
 
 The `IDPassNative.py` loads `idpasslite.so` library. The library's methods defined in [idpass.h](https://github.com/idpass/idpass-lite/blob/python-wrap/lib/src/idpass.h) are mapped in `IDPassNative.py`. 
 
+# Items TODO
 
+- qrcode.cpp is not multithreaded when generating SVG
