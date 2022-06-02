@@ -52,7 +52,7 @@ Nothing to be done here, but just to explain some overiew where some files are c
 via command `dependencies/build/desktop/bin/protoc --proto_path=lib/src/proto --python_out=myoutdir lib/src/proto/api.proto lib/src/proto/idpasslite.proto`.
 It's recommended to use the library's provided `protoc` compiler to ensure compatibility. The `protoc` regeneration is only needed when the `*.proto` files changes. The `libidpasslite.so` library is the output of `./build.sh desktop`. 
 
-The `demokeys.bin` is a demo set of keys for inter-operable testing across apps. 
+The `demokeys.bin` is a demo key. QR codes that are generated from this key set is readable in "ID PASS Android Smartscanner Mobile App".
 
 The `IDPassNative.py` loads `idpasslite.so` library. The library's methods defined in [idpass.h](https://github.com/idpass/idpass-lite/blob/python-wrap/lib/src/idpass.h) are mapped in `IDPassNative.py`. 
 
